@@ -190,7 +190,11 @@ function FlowPage() {
     setEditingId(null);
     if (!content || content === message.content) return;
 
-    patchMessage(message.id, { content, ai_status: "pending", updated_at: new Date().toISOString() });
+    patchMessage(message.id, {
+      content,
+      ai_status: "pending",
+      edited_at: new Date().toISOString(),
+    });
     try {
       await edit({ data: { id: message.id, content } });
       void organizeInBackground(message.id);
@@ -327,7 +331,7 @@ function MessageRow({
   onSaveEdit: () => void;
   onToggleComplete: () => void;
 }) {
-  const edited = new Date(message.updated_at).getTime() - new Date(message.created_at).getTime() > 2000;
+  const edited = Boolean(message.edited_at);
 
   return (
     <div className="group flex items-start justify-end gap-2">

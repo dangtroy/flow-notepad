@@ -13,6 +13,7 @@ export type FlowMessage = {
   ai_status: string;
   created_at: string;
   updated_at: string;
+  edited_at: string | null;
   tags: FlowTag[];
 };
 
@@ -79,6 +80,7 @@ export async function loadStream(supabase: Client, userId: string): Promise<Flow
       ai_status: row.ai_status,
       created_at: row.created_at,
       updated_at: row.updated_at,
+      edited_at: row.edited_at,
       tags: links
         .map((link) => link.tags)
         .filter((tag): tag is FlowTag => Boolean(tag))
