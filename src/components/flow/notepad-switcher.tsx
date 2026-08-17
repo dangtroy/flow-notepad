@@ -59,14 +59,14 @@ export function NotepadSwitcher({ onNavigate }: { onNavigate?: (() => void) | un
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-label="Switch notepad"
-        className="flex min-w-0 max-w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
       >
         <span
           aria-hidden
           className="h-1.5 w-1.5 shrink-0 rounded-full"
           style={{ backgroundColor: tagAccent(active?.accent ?? "slate") }}
         />
-        <span className="min-w-0 truncate text-foreground">{active?.name ?? "Flow"}</span>
+        <span className="min-w-0 flex-1 truncate text-left text-foreground">{active?.name ?? "Flow"}</span>
         <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
       </button>
 
