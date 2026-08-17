@@ -94,16 +94,45 @@ function FlowPage() {
     return flat;
   }, [data]);
 
-  const grouped = useMemo(() => {
-    const groups: Array<{ label: string; items: FlowMessage[] }> = [];
+  /**
+   * One continuous stream, but a reply sits directly beneath the thought it
+   * answers. Nesting stays visually flat: a thread is a root plus its replies.
+   */
+  const threaded = useMemo(() => {
+    const byId = new Map(messages.map((m) => [m.id, m]));
+    const children = new Map<string, FlowMessage[]>();
+    const roots: FlowMessage[] = [];
     for (const message of messages) {
-      const label = dayLabel(message.created_at);
+      const parentId = message.parent_message_id;
+      if (parentId && byId.has(parentId)) {
+        const list = children.get(parentId) ?? [];
+        list.push(message);
+        children.set(parentId, list);
+      } else {
+        roots.push(message);
+      }
+    }
+
+    const ordered: Array<{ message: FlowMessage; depth: number; rootAt: string }> = [];
+    const walk = (message: FlowMessage, depth: number, rootAt: string) => {
+      ordered.push({ message, depth, rootAt });
+      for (const child of children.get(message.id) ?? []) walk(child, depth + 1, rootAt);
+    };
+    for (const root of roots) walk(root, 0, root.created_at);
+    return ordered;
+  }, [messages]);
+
+  const grouped = useMemo(() => {
+    const groups: Array<{ label: string; items: typeof threaded }> = [];
+    for (const entry of threaded) {
+      const label = dayLabel(entry.rootAt);
       const last = groups[groups.length - 1];
-      if (last && last.label === label) last.items.push(message);
-      else groups.push({ label, items: [message] });
+      if (last && last.label === label) last.items.push(entry);
+      else groups.push({ label, items: [entry] });
     }
     return groups;
-  }, [messages]);
+  }, [threaded]);
+
 
   useEffect(() => {
     // Retention pass on open: expired completed thoughts are removed for good.
