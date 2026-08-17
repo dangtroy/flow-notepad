@@ -5,22 +5,17 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system definition.
+ * Flow design system — dark first.
  *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ * Deep neutral charcoal surfaces, off-white text, restrained gray secondary
+ * text, hairline borders, one quiet accent. All colors in oklch.
+ * Tonal layers: --background (conversation) < --sidebar < --surface (composer).
  */
 
 @theme inline {
-  --font-sans: "Karla", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Karla", ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -28,9 +23,12 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
-  --color-background: var(--background);
 
+  --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--foreground);
+  --color-elevated: var(--elevated);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -46,6 +44,7 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
@@ -62,79 +61,59 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  --shadow-quiet: 0 1px 2px oklch(0 0 0 / 0.4);
+  --shadow-lifted: 0 8px 28px -12px oklch(0 0 0 / 0.6);
 }
 
-:root {
-  --radius: 0.75rem;
-  /* Warm paper palette: soft cream page, ink text, one terracotta accent. */
-  --background: oklch(0.981 0.011 84);
-  --foreground: oklch(0.256 0.021 55);
-  --card: oklch(0.995 0.006 90);
-  --card-foreground: oklch(0.256 0.021 55);
-  --popover: oklch(0.995 0.006 90);
-  --popover-foreground: oklch(0.256 0.021 55);
-  --primary: oklch(0.53 0.13 42);
-  --primary-foreground: oklch(0.985 0.01 85);
-  --secondary: oklch(0.94 0.016 80);
-  --secondary-foreground: oklch(0.35 0.026 55);
-  --muted: oklch(0.945 0.014 80);
-  --muted-foreground: oklch(0.55 0.024 60);
-  --accent: oklch(0.925 0.033 78);
-  --accent-foreground: oklch(0.4 0.07 48);
-  --destructive: oklch(0.55 0.19 25);
-  --destructive-foreground: oklch(0.985 0.01 85);
-  --border: oklch(0.895 0.017 78);
-  --input: oklch(0.895 0.017 78);
-  --ring: oklch(0.66 0.09 45);
-  --chart-1: oklch(0.62 0.13 42);
-  --chart-2: oklch(0.6 0.09 140);
-  --chart-3: oklch(0.55 0.08 250);
-  --chart-4: oklch(0.75 0.12 85);
-  --chart-5: oklch(0.6 0.14 20);
-  --sidebar: oklch(0.965 0.013 82);
-  --sidebar-foreground: oklch(0.256 0.021 55);
-  --sidebar-primary: oklch(0.53 0.13 42);
-  --sidebar-primary-foreground: oklch(0.985 0.01 85);
-  --sidebar-accent: oklch(0.925 0.033 78);
-  --sidebar-accent-foreground: oklch(0.4 0.07 48);
-  --sidebar-border: oklch(0.895 0.017 78);
-  --sidebar-ring: oklch(0.66 0.09 45);
-}
-
-
+:root,
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --radius: 0.625rem;
+
+  --background: oklch(0.163 0.003 264);
+  --foreground: oklch(0.937 0.003 264);
+  --surface: oklch(0.196 0.003 264);
+  --elevated: oklch(0.226 0.004 264);
+
+  --card: oklch(0.196 0.003 264);
+  --card-foreground: oklch(0.937 0.003 264);
+  --popover: oklch(0.219 0.004 264);
+  --popover-foreground: oklch(0.937 0.003 264);
+
+  --primary: oklch(0.72 0.075 232);
+  --primary-foreground: oklch(0.16 0.01 250);
+
+  --secondary: oklch(0.243 0.004 264);
+  --secondary-foreground: oklch(0.9 0.003 264);
+
+  --muted: oklch(0.235 0.004 264);
+  --muted-foreground: oklch(0.638 0.006 264);
+
+  --accent: oklch(0.256 0.005 264);
+  --accent-foreground: oklch(0.92 0.003 264);
+
+  --destructive: oklch(0.62 0.16 22);
+  --destructive-foreground: oklch(0.97 0.005 264);
+
+  --border: oklch(1 0 0 / 8%);
+  --border-strong: oklch(1 0 0 / 14%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.66 0.06 232);
+
+  --chart-1: oklch(0.72 0.075 232);
+  --chart-2: oklch(0.7 0.07 160);
+  --chart-3: oklch(0.75 0.08 90);
+  --chart-4: oklch(0.68 0.09 30);
+  --chart-5: oklch(0.7 0.06 300);
+
+  --sidebar: oklch(0.143 0.003 264);
+  --sidebar-foreground: oklch(0.9 0.003 264);
+  --sidebar-primary: oklch(0.72 0.075 232);
+  --sidebar-primary-foreground: oklch(0.16 0.01 250);
+  --sidebar-accent: oklch(0.226 0.004 264);
+  --sidebar-accent-foreground: oklch(0.95 0.003 264);
+  --sidebar-border: oklch(1 0 0 / 7%);
+  --sidebar-ring: oklch(0.66 0.06 232);
 }
 
 @layer base {
@@ -142,16 +121,231 @@
     border-color: var(--color-border);
   }
 
+  html {
+    color-scheme: dark;
+    background-color: var(--color-background);
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--primary) 28%, transparent);
   }
 
   .font-display {
     font-family: var(--font-display);
-    font-variation-settings: "SOFT" 40, "WONK" 1;
+    font-variation-settings: "SOFT" 30, "WONK" 0;
   }
 
+  /* Quiet scrollbars — visible only against motion, never decorative. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--foreground) 14%, transparent) transparent;
+  }
+}
+
+/*
+ * Shared prose styling for written thoughts. Used both for saved messages and
+ * inside the editor so content looks identical while writing and after saving.
+ */
+@utility flow-prose {
+  font-size: 0.9975rem;
+  line-height: 1.72;
+  letter-spacing: 0.001em;
+
+  & > * + * {
+    margin-top: 0.7em;
+  }
+
+  & strong {
+    font-weight: 600;
+    color: color-mix(in oklab, var(--foreground) 100%, transparent);
+  }
+
+  & em {
+    font-style: italic;
+  }
+
+  & u {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+  }
+
+  & s {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+  }
+
+  & a {
+    color: var(--primary);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--primary) 45%, transparent);
+    text-underline-offset: 2px;
+  }
+
+  & h1,
+  & h2,
+  & h3 {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    margin-top: 1.1em;
+  }
+
+  & h1 {
+    font-size: 1.3rem;
+  }
+
+  & h2 {
+    font-size: 1.15rem;
+  }
+
+  & h3 {
+    font-size: 1.02rem;
+  }
+
+  & ul,
+  & ol {
+    padding-left: 1.15rem;
+  }
+
+  & ul {
+    list-style: disc;
+  }
+
+  & ol {
+    list-style: decimal;
+  }
+
+  & li::marker {
+    color: var(--muted-foreground);
+  }
+
+  & li > p {
+    margin: 0;
+  }
+
+  & li + li {
+    margin-top: 0.25em;
+  }
+
+  & blockquote {
+    padding-left: 0.9rem;
+    border-left: 2px solid var(--border-strong);
+    color: var(--muted-foreground);
+  }
+
+  & code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    background-color: var(--muted);
+    border-radius: var(--radius-sm);
+    padding: 0.1em 0.35em;
+  }
+
+  & pre {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    line-height: 1.6;
+    background-color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0.7rem 0.85rem;
+    overflow-x: auto;
+  }
+
+  & pre code {
+    background: none;
+    padding: 0;
+  }
+
+  & ul[data-type="taskList"] {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  & ul[data-type="taskList"] li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+  }
+
+  & ul[data-type="taskList"] li > label {
+    display: inline-flex;
+    align-items: center;
+    height: 1.72em;
+  }
+
+  & ul[data-type="taskList"] li > div {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  & ul[data-type="taskList"] input[type="checkbox"] {
+    appearance: none;
+    width: 0.95rem;
+    height: 0.95rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 0.25rem;
+    background-color: transparent;
+    cursor: pointer;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease;
+  }
+
+  & ul[data-type="taskList"] input[type="checkbox"]:checked {
+    background-color: color-mix(in oklab, var(--primary) 80%, transparent);
+    border-color: color-mix(in oklab, var(--primary) 80%, transparent);
+  }
+
+  & ul[data-type="taskList"] li[data-checked="true"] > div {
+    color: var(--muted-foreground);
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+  }
+}
+
+@layer components {
+  /* TipTap surface: no chrome of its own, inherits the prose rhythm. */
+  .flow-editor .tiptap {
+    outline: none;
+    min-height: 1.72em;
+  }
+
+  .flow-editor .tiptap p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: var(--muted-foreground);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .flow-editor .tiptap ::selection {
+    background-color: color-mix(in oklab, var(--primary) 30%, transparent);
+  }
+}
+
+@layer utilities {
+  @keyframes flow-in {
+    from {
+      opacity: 0;
+      transform: translateY(3px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .animate-flow-in {
+    animation: flow-in 180ms ease-out both;
+  }
 }
