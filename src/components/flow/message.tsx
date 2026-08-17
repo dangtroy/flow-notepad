@@ -184,6 +184,7 @@ function MessageEditor({
   onCancel: () => void;
 }) {
   const [isEmpty, setIsEmpty] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const editor = useFlowEditor({
     initialHtml,
     autoFocus: true,
@@ -192,11 +193,29 @@ function MessageEditor({
     onCancel,
   });
 
+  // Clicking anywhere outside the open note saves it and closes the editor.
+  const latest = useRef({ editor, isEmpty, onSave, onCancel });
+  latest.current = { editor, isEmpty, onSave, onCancel };
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      const wrap = wrapRef.current;
+      if (!wrap) return;
+      const target = event.target as Node | null;
+      if (target && wrap.contains(target)) return;
+      const { editor: instance, isEmpty: empty, onSave: save, onCancel: cancel } = latest.current;
+      if (!instance || empty) cancel();
+      else save(instance.getHTML());
+    }
+    document.addEventListener("mousedown", handlePointerDown, true);
+    return () => document.removeEventListener("mousedown", handlePointerDown, true);
+  }, []);
+
   if (!editor) return null;
 
   return (
-    <div>
+    <div ref={wrapRef}>
       <FlowEditorSurface editor={editor} isEmpty={isEmpty} placeholder="Write anything…" />
+
       <div className="mt-2.5 flex items-center justify-between gap-3">
         <FlowToolbar editor={editor} />
         <div className="flex shrink-0 items-center gap-3 text-[11px] text-muted-foreground">
