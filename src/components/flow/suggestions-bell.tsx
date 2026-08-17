@@ -12,7 +12,7 @@ import {
   resolveAllTagSuggestions,
 } from "@/lib/flow.functions";
 import { LEARN_MODES, type LearnMode, type TagSuggestion } from "@/lib/suggestions";
-import { TAGS_KEY } from "@/lib/use-tags";
+import { tagsKey } from "@/lib/use-tags";
 import { cn } from "@/lib/utils";
 
 export const SUGGESTIONS_KEY = ["tag-suggestions"] as const;
@@ -42,7 +42,7 @@ export function SuggestionsBell() {
 
   function refresh() {
     void queryClient.invalidateQueries({ queryKey: SUGGESTIONS_KEY });
-    void queryClient.invalidateQueries({ queryKey: TAGS_KEY });
+    void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
     void queryClient.invalidateQueries({ queryKey: ["stream"] });
   }
 

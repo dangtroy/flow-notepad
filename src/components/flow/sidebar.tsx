@@ -24,7 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { clearCompleted, reorderTags, saveTag, saveTagGroup } from "@/lib/flow.functions";
 import { FlowLogo } from "@/components/flow/flow-logo";
 import type { FlowTagDetail } from "@/lib/flow.server";
-import { TAGS_KEY, TAG_GROUPS_KEY, useTagGroups, useTags } from "@/lib/use-tags";
+import { tagsKey, tagGroupsKey, useTagGroups, useTags } from "@/lib/use-tags";
 import { tagAccent } from "@/lib/tag-colors";
 import { tagIdsFrom, tagsParam, toggleTagId } from "@/lib/tag-filter";
 import { TAG_SORTS, buildTagSections, moveTagWithin, sortTags, type TagSection } from "@/lib/tag-organization";
@@ -61,7 +61,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
     try {
       const { deleted } = await clearDone();
       void queryClient.invalidateQueries({ queryKey: ["stream"] });
-      void queryClient.invalidateQueries({ queryKey: TAGS_KEY });
+      void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
       toast.success(
         deleted > 0 ? `Cleared ${deleted} done ${deleted === 1 ? "note" : "notes"}` : "Nothing marked done",
       );
@@ -103,14 +103,14 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   }
 
   async function togglePin(tag: FlowTagDetail) {
-    queryClient.setQueryData<FlowTagDetail[]>(TAGS_KEY, (current) =>
+    queryClient.setQueryData<FlowTagDetail[]>(tagsKey(notepadId), (current) =>
       (current ?? []).map((row) => (row.id === tag.id ? { ...row, is_pinned: !row.is_pinned } : row)),
     );
     try {
-      queryClient.setQueryData(TAGS_KEY, await persistTag({ data: { id: tag.id, isPinned: !tag.is_pinned } }));
+      queryClient.setQueryData(tagsKey(notepadId), await persistTag({ data: { id: tag.id, isPinned: !tag.is_pinned } }));
     } catch {
       toast.error("Could not update that tag");
-      void queryClient.invalidateQueries({ queryKey: TAGS_KEY });
+      void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
     }
   }
 
@@ -119,7 +119,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
     const next = !section.group.is_collapsed;
     try {
       queryClient.setQueryData(
-        TAG_GROUPS_KEY,
+        tagGroupsKey(notepadId),
         await persistGroup({ data: { id: section.group.id, isCollapsed: next } }),
       );
     } catch {
@@ -151,10 +151,10 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
     if (sort !== "manual") update({ tagSort: "manual" });
     try {
-      queryClient.setQueryData(TAGS_KEY, await persistOrder({ data: { items } }));
+      queryClient.setQueryData(tagsKey(notepadId), await persistOrder({ data: { items } }));
     } catch {
       toast.error("Could not move that tag");
-      void queryClient.invalidateQueries({ queryKey: TAGS_KEY });
+      void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
     }
   }
 

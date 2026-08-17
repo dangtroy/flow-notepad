@@ -19,7 +19,9 @@ export async function applySuggestion(
 ): Promise<number> {
   const suggestion = await supabase
     .from("tag_suggestions")
-    .select("id, kind, tag_id, name, normalized_name, reason, suggested_group_id, message_ids, status")
+    .select(
+      "id, kind, tag_id, name, normalized_name, reason, suggested_group_id, message_ids, status, conversation_id",
+    )
     .eq("id", id)
     .eq("user_id", userId)
     .maybeSingle();
@@ -33,6 +35,7 @@ export async function applySuggestion(
       .from("tags")
       .select("id")
       .eq("user_id", userId)
+      .eq("conversation_id", row.conversation_id)
       .eq("normalized_name", row.normalized_name)
       .maybeSingle();
     tagId = existing.data?.id ?? null;
@@ -43,6 +46,7 @@ export async function applySuggestion(
       .from("tags")
       .insert({
         user_id: userId,
+        conversation_id: row.conversation_id,
         name: row.name,
         normalized_name: row.normalized_name,
         color: pickDefaultTagColor(row.normalized_name),
