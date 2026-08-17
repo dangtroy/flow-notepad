@@ -90,10 +90,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Flow — one continuous stream of your thoughts" },
       {
         property: "og:description",
-        content: "Send a thought. Flow keeps it, understands it, and organizes it.",
+        content: "Flow is one permanent conversation with yourself: send a thought, it's saved forever and organized quietly in the background.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Flow — one continuous stream of your thoughts" },
+      { name: "twitter:description", content: "Flow is one permanent conversation with yourself: send a thought, it's saved forever and organized quietly in the background." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/30e46db0c04437f61198be6e53f97138/id-preview-f7d81723--fdda4b7c-8623-4d0f-bf27-869db381ca1b.lovable.app-1786995041755.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/30e46db0c04437f61198be6e53f97138/id-preview-f7d81723--fdda4b7c-8623-4d0f-bf27-869db381ca1b.lovable.app-1786995041755.png" },
     ],
     links: [
       {
