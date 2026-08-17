@@ -58,7 +58,7 @@ function parseAttributes(raw: string): Array<[string, string]> {
   const pattern = /([a-zA-Z_:][-\w:.]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(raw))) {
-    attrs.push([match[1].toLowerCase(), match[2] ?? match[3] ?? match[4] ?? ""]);
+    attrs.push([match[1]!.toLowerCase(), match[2] ?? match[3] ?? match[4] ?? ""]);
   }
   return attrs;
 }
@@ -83,7 +83,7 @@ export function sanitizeHtml(input: string): string {
     out += escapeText(stripped.slice(index, match.index));
     index = match.index + match[0].length;
 
-    const tag = match[1].toLowerCase();
+    const tag = match[1]!.toLowerCase();
     const closing = match[0].startsWith("</");
     const allowedAttrs = ALLOWED[tag];
     if (!allowedAttrs) continue; // unknown tag: keep its text, drop the tag
