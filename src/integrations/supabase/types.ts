@@ -160,6 +160,7 @@ export type Database = {
           conversation_id: string
           created_at: string
           deleted_at: string | null
+          edited_at: string | null
           id: string
           is_completed: boolean
           metadata: Json
@@ -176,6 +177,7 @@ export type Database = {
           conversation_id: string
           created_at?: string
           deleted_at?: string | null
+          edited_at?: string | null
           id?: string
           is_completed?: boolean
           metadata?: Json
@@ -192,6 +194,7 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           deleted_at?: string | null
+          edited_at?: string | null
           id?: string
           is_completed?: boolean
           metadata?: Json
