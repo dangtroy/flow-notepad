@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUp, Paperclip, Type } from "lucide-react";
+import { ArrowUp, Paperclip, Type, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { FlowEditorSurface, FlowToolbar, useFlowEditor } from "./rich-editor";
@@ -8,7 +8,15 @@ import { FlowEditorSurface, FlowToolbar, useFlowEditor } from "./rich-editor";
  * The persistent writing surface. Minimal at rest, grows with the thought, and
  * only reveals formatting once the user is actually writing.
  */
-export function Composer({ onSend }: { onSend: (html: string) => void }) {
+export function Composer({
+  onSend,
+  replyingTo,
+  onCancelReply,
+}: {
+  onSend: (html: string) => void;
+  replyingTo?: { id: string; preview: string } | null;
+  onCancelReply?: () => void;
+}) {
   const [isEmpty, setIsEmpty] = useState(true);
   const [focused, setFocused] = useState(false);
   const [pinnedToolbar, setPinnedToolbar] = useState(false);
@@ -29,12 +37,29 @@ export function Composer({ onSend }: { onSend: (html: string) => void }) {
   return (
     <div className="border-t border-border bg-surface/80 backdrop-blur-sm">
       <div className="mx-auto w-full max-w-[46rem] px-5 pb-5 pt-3.5 sm:px-8">
+        {replyingTo && (
+          <div className="mb-2 flex items-center gap-2 text-[12px] text-muted-foreground">
+            <span className="h-3.5 w-px shrink-0 bg-border-strong" aria-hidden />
+            <span className="min-w-0 flex-1 truncate">
+              Replying to: “{replyingTo.preview}”
+            </span>
+            <button
+              type="button"
+              onClick={onCancelReply}
+              aria-label="Cancel reply"
+              className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        )}
         <div
           className={cn(
             "rounded-xl border border-border bg-background/60 transition-colors duration-200",
             focused && "border-border-strong",
           )}
         >
+
           <div
             className={cn(
               "grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out",

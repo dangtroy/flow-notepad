@@ -9,9 +9,13 @@ import {
   deleteContextRule,
   getPreferences,
   listContextRules,
+  listTags,
   saveContextRule,
   updatePreferences,
+  updateTagColor,
 } from "@/lib/flow.functions";
+import { TagChip } from "@/components/flow/tag-chip";
+import { TAG_COLOR_KEYS, TAG_COLORS, tagColorKey } from "@/lib/tag-colors";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -213,6 +217,9 @@ function SettingsPage() {
         </ul>
       </section>
 
+      <TagsSection />
+
+
       {(prefs.data?.deletionHistory.length ?? 0) > 0 && (
         <section className="mt-12 pb-16">
           <h2 className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">
@@ -232,5 +239,64 @@ function SettingsPage() {
       )}
       </div>
     </main>
+  );
+}
+
+/** Tags are reusable entities; here the user gives each one a muted accent color. */
+function TagsSection() {
+  const queryClient = useQueryClient();
+  const fetchTags = useServerFn(listTags);
+  const setColor = useServerFn(updateTagColor);
+  const tags = useQuery({ queryKey: ["tags"], queryFn: () => fetchTags() });
+
+  async function choose(id: string, color: string) {
+    try {
+      await setColor({ data: { id, color } });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      queryClient.invalidateQueries({ queryKey: ["stream"] });
+    } catch {
+      toast.error("Could not update that tag color");
+    }
+  }
+
+  return (
+    <section className="mt-12">
+      <h2 className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">Tags</h2>
+      <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+        Tags are reused across your whole Flow. Give each one a colour — it shows as a quiet accent
+        on your thoughts.
+      </p>
+
+      <ul className="mt-5 space-y-2">
+        {(tags.data ?? []).map((tag) => (
+          <li
+            key={tag.id}
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-card px-4 py-3"
+          >
+            <TagChip tag={{ id: tag.id, name: tag.name, color: tag.color }} />
+            <div className="flex items-center gap-1.5">
+              {TAG_COLOR_KEYS.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => choose(tag.id, key)}
+                  aria-label={`${TAG_COLORS[key].label} for ${tag.name}`}
+                  className={cn(
+                    "h-4 w-4 rounded-full ring-offset-2 ring-offset-card transition-shadow",
+                    tagColorKey(tag.color) === key && "ring-1 ring-border-strong",
+                  )}
+                  style={{ backgroundColor: TAG_COLORS[key].accent }}
+                />
+              ))}
+            </div>
+          </li>
+        ))}
+        {tags.data?.length === 0 && (
+          <li className="text-sm text-muted-foreground">
+            No tags yet — they appear as Flow organizes your thoughts.
+          </li>
+        )}
+      </ul>
+    </section>
   );
 }

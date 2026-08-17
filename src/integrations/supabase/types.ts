@@ -166,6 +166,7 @@ export type Database = {
           id: string
           is_completed: boolean
           metadata: Json
+          parent_message_id: string | null
           updated_at: string
           user_id: string
         }
@@ -185,6 +186,7 @@ export type Database = {
           id?: string
           is_completed?: boolean
           metadata?: Json
+          parent_message_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -204,6 +206,7 @@ export type Database = {
           id?: string
           is_completed?: boolean
           metadata?: Json
+          parent_message_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -213,6 +216,13 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_parent_message_id_fkey"
+            columns: ["parent_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
         ]

@@ -69,6 +69,8 @@ function FlowPage() {
   const cleanup = useServerFn(cleanupCompleted);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<{ id: string; preview: string } | null>(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<number | null>(null);
   const settledRef = useRef(false);
@@ -94,16 +96,45 @@ function FlowPage() {
     return flat;
   }, [data]);
 
-  const grouped = useMemo(() => {
-    const groups: Array<{ label: string; items: FlowMessage[] }> = [];
+  /**
+   * One continuous stream, but a reply sits directly beneath the thought it
+   * answers. Nesting stays visually flat: a thread is a root plus its replies.
+   */
+  const threaded = useMemo(() => {
+    const byId = new Map(messages.map((m) => [m.id, m]));
+    const children = new Map<string, FlowMessage[]>();
+    const roots: FlowMessage[] = [];
     for (const message of messages) {
-      const label = dayLabel(message.created_at);
+      const parentId = message.parent_message_id;
+      if (parentId && byId.has(parentId)) {
+        const list = children.get(parentId) ?? [];
+        list.push(message);
+        children.set(parentId, list);
+      } else {
+        roots.push(message);
+      }
+    }
+
+    const ordered: Array<{ message: FlowMessage; depth: number; rootAt: string }> = [];
+    const walk = (message: FlowMessage, depth: number, rootAt: string) => {
+      ordered.push({ message, depth, rootAt });
+      for (const child of children.get(message.id) ?? []) walk(child, depth + 1, rootAt);
+    };
+    for (const root of roots) walk(root, 0, root.created_at);
+    return ordered;
+  }, [messages]);
+
+  const grouped = useMemo(() => {
+    const groups: Array<{ label: string; items: typeof threaded }> = [];
+    for (const entry of threaded) {
+      const label = dayLabel(entry.rootAt);
       const last = groups[groups.length - 1];
-      if (last && last.label === label) last.items.push(message);
-      else groups.push({ label, items: [message] });
+      if (last && last.label === label) last.items.push(entry);
+      else groups.push({ label, items: [entry] });
     }
     return groups;
-  }, [messages]);
+  }, [threaded]);
+
 
   useEffect(() => {
     // Retention pass on open: expired completed thoughts are removed for good.
@@ -189,6 +220,8 @@ function FlowPage() {
   async function handleSend(html: string) {
     const tempId = `temp-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
+    const parentMessageId = replyTo?.id ?? null;
+    setReplyTo(null);
     patchStream((current) => [
       ...current,
       {
@@ -201,13 +234,14 @@ function FlowPage() {
         created_at: now,
         updated_at: now,
         edited_at: null,
+        parent_message_id: parentMessageId,
         tags: [],
       },
     ]);
     requestAnimationFrame(scrollToBottom);
 
     try {
-      const saved = await send({ data: { html } });
+      const saved = await send({ data: { html, parentMessageId } });
       patchMessage(tempId, saved as FlowMessage);
       void organizeInBackground(saved.id);
     } catch (error) {
@@ -215,6 +249,7 @@ function FlowPage() {
       toast.error(error instanceof Error ? error.message : "Could not save that thought");
     }
   }
+
 
   async function handleToggleComplete(message: FlowMessage) {
     const next = !message.is_completed;
@@ -288,15 +323,23 @@ function FlowPage() {
                   <span className="h-px flex-1 bg-border" />
                 </div>
                 <div className="space-y-1">
-                  {group.items.map((message) => (
+                  {group.items.map(({ message, depth }) => (
                     <MessageRow
                       key={message.id}
                       message={message}
+                      isReply={depth > 0}
+                      isReplyTarget={replyTo?.id === message.id}
                       isEditing={editingId === message.id}
                       onStartEdit={() => setEditingId(message.id)}
                       onCancelEdit={() => setEditingId(null)}
                       onSaveEdit={(html) => void handleSaveEdit(message, html)}
                       onToggleComplete={() => void handleToggleComplete(message)}
+                      onReply={() =>
+                        setReplyTo({
+                          id: message.id,
+                          preview: message.content.slice(0, 120),
+                        })
+                      }
                     />
                   ))}
                 </div>
@@ -306,7 +349,12 @@ function FlowPage() {
         </div>
       </div>
 
-      <Composer onSend={(html) => void handleSend(html)} />
+      <Composer
+        onSend={(html) => void handleSend(html)}
+        replyingTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
+      />
+
     </div>
   );
 }

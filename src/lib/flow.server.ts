@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { pickDefaultTagColor } from "./tag-colors";
 
 type Client = SupabaseClient<Database>;
 
@@ -15,6 +16,7 @@ export type FlowMessage = {
   created_at: string;
   updated_at: string;
   edited_at: string | null;
+  parent_message_id: string | null;
   tags: FlowTag[];
 };
 
@@ -25,6 +27,7 @@ export function normalizeTag(name: string): string {
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
+
 
 export async function ensureConversation(supabase: Client, userId: string): Promise<string> {
   const existing = await supabase
@@ -61,7 +64,7 @@ export async function ensurePreferences(supabase: Client, userId: string) {
 }
 
 export const MESSAGE_SELECT =
-  "id, content, content_html, is_completed, completed_at, ai_status, created_at, updated_at, edited_at, message_tags(tag_id, tags(id, name, color))";
+  "id, content, content_html, is_completed, completed_at, ai_status, created_at, updated_at, edited_at, parent_message_id, message_tags(tag_id, tags(id, name, color))";
 
 type MessageRow = {
   id: string;
@@ -73,6 +76,7 @@ type MessageRow = {
   created_at: string;
   updated_at: string;
   edited_at: string | null;
+  parent_message_id: string | null;
   message_tags?: Array<{ tags: FlowTag | null }> | null;
 };
 
@@ -88,12 +92,14 @@ export function mapMessage(row: MessageRow): FlowMessage {
     created_at: row.created_at,
     updated_at: row.updated_at,
     edited_at: row.edited_at,
+    parent_message_id: row.parent_message_id ?? null,
     tags: links
       .map((link) => link.tags)
       .filter((tag): tag is FlowTag => Boolean(tag))
       .sort((a, b) => a.name.localeCompare(b.name)),
   };
 }
+
 
 export type StreamPage = {
   /** Ascending (oldest first) so the page can be appended above what's shown. */
@@ -260,11 +266,17 @@ export async function organizeMessage(supabase: Client, userId: string, messageI
       const inserted = await supabase
         .from("tags")
         .upsert(
-          { user_id: userId, name, normalized_name: normalized },
+          {
+            user_id: userId,
+            name,
+            normalized_name: normalized,
+            color: pickDefaultTagColor(normalized),
+          },
           { onConflict: "user_id,normalized_name" },
         )
         .select("id, name, normalized_name")
         .single();
+
       if (inserted.data) {
         existing.push(inserted.data);
         tagIds.push(inserted.data.id);
