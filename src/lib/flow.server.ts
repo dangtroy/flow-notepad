@@ -61,7 +61,7 @@ export async function loadStream(supabase: Client, userId: string): Promise<Flow
   const { data, error } = await supabase
     .from("messages")
     .select(
-      "id, content, is_completed, completed_at, ai_status, created_at, updated_at, message_tags(tag_id, tags(id, name, color))",
+      "id, content, is_completed, completed_at, ai_status, created_at, updated_at, edited_at, message_tags(tag_id, tags(id, name, color))",
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: true });

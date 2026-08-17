@@ -32,7 +32,7 @@ export const sendMessage = createServerFn({ method: "POST" })
     const { data: message, error } = await supabase
       .from("messages")
       .insert({ user_id: userId, conversation_id: conversationId, content: data.content })
-      .select("id, content, is_completed, completed_at, ai_status, created_at, updated_at")
+      .select("id, content, is_completed, completed_at, ai_status, created_at, updated_at, edited_at")
       .single();
     if (error) throw error;
     return { ...message, tags: [] };
@@ -50,10 +50,10 @@ export const updateMessage = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: message, error } = await supabase
       .from("messages")
-      .update({ content: data.content, ai_status: "pending" })
+      .update({ content: data.content, ai_status: "pending", edited_at: new Date().toISOString() })
       .eq("id", data.id)
       .eq("user_id", userId)
-      .select("id, content, is_completed, completed_at, ai_status, created_at, updated_at")
+      .select("id, content, is_completed, completed_at, ai_status, created_at, updated_at, edited_at")
       .single();
     if (error) throw error;
     return message;
