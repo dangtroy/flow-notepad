@@ -107,7 +107,8 @@ function SettingsPage() {
   const current = prefs.data?.completedRetentionDays ?? null;
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-2xl px-6 py-10">
+    <main className="flex-1 overflow-y-auto px-6 py-10">
+      <div className="mx-auto w-full max-w-2xl">
       <Link
         to="/"
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
@@ -131,7 +132,7 @@ function SettingsPage() {
               key={option.label}
               onClick={() => chooseRetention(option.value)}
               className={cn(
-                "rounded-full border px-4 py-1.5 text-sm transition-colors",
+                "rounded-md border px-3.5 py-1.5 text-sm transition-colors",
                 (prefs.data ? current : 7) === option.value
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border text-muted-foreground hover:text-foreground",
@@ -157,19 +158,19 @@ function SettingsPage() {
             value={tagName}
             onChange={(e) => setTagName(e.target.value)}
             placeholder="Tag, e.g. ShipHero"
-            className="w-full rounded-2xl border border-border bg-card px-4 py-2.5 text-[15px] outline-none focus:border-ring"
+            className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-[15px] outline-none focus:border-ring"
           />
           <textarea
             value={context}
             onChange={(e) => setContext(e.target.value)}
             rows={3}
             placeholder="Anything related to ShipHero, warehouse inventory, inventory syncing, orders, or operations."
-            className="w-full resize-none rounded-2xl border border-border bg-card px-4 py-2.5 text-[15px] leading-relaxed outline-none focus:border-ring"
+            className="w-full resize-none rounded-lg border border-border bg-card px-4 py-2.5 text-[15px] leading-relaxed outline-none focus:border-ring"
           />
           <button
             type="submit"
             disabled={!tagName.trim()}
-            className="rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
           >
             Add rule
           </button>
@@ -180,7 +181,7 @@ function SettingsPage() {
             <li
               key={rule.id}
               className={cn(
-                "rounded-2xl border border-border/70 bg-card px-4 py-3",
+                "rounded-lg border border-border/70 bg-card px-4 py-3",
                 !rule.is_enabled && "opacity-55",
               )}
             >
