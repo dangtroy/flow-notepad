@@ -3,60 +3,82 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   ensureConversation,
   ensurePreferences,
-  loadStream,
+  loadMessage,
+  loadStreamPage,
+  MESSAGE_SELECT,
+  mapMessage,
   normalizeTag,
   organizeMessage,
   runRetention,
 } from "./flow.server";
+import { htmlToText, isEmptyDocument, sanitizeHtml, textToHtml } from "./rich-text";
 
-export const getFlow = createServerFn({ method: "GET" })
+export const getStreamPage = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input?: { before?: string | null; limit?: number }) => ({
+    before: input?.before ?? null,
+    limit: Math.min(Math.max(input?.limit ?? 40, 5), 100),
+  }))
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const conversationId = await ensureConversation(supabase, userId);
     await ensurePreferences(supabase, userId);
-    const messages = await loadStream(supabase, userId);
-    return { conversationId, messages };
+    const page = await loadStreamPage(supabase, userId, { limit: data.limit, before: data.before });
+    return { conversationId, ...page };
   });
 
 export const sendMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { content: string }) => {
-    const content = (input?.content ?? "").trim();
-    if (!content) throw new Error("A thought cannot be empty");
-    return { content: content.slice(0, 10000) };
+  .inputValidator((input: { html: string }) => {
+    const html = sanitizeHtml(input?.html ?? "");
+    if (!html || isEmptyDocument(html)) throw new Error("A thought cannot be empty");
+    return { html: html.slice(0, 200000), text: htmlToText(html).slice(0, 20000) };
   })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const conversationId = await ensureConversation(supabase, userId);
     const { data: message, error } = await supabase
       .from("messages")
-      .insert({ user_id: userId, conversation_id: conversationId, content: data.content })
-      .select("id, content, is_completed, completed_at, ai_status, created_at, updated_at, edited_at")
+      .insert({
+        user_id: userId,
+        conversation_id: conversationId,
+        content: data.text,
+        content_html: data.html,
+      })
+      .select(MESSAGE_SELECT)
       .single();
     if (error) throw error;
-    return { ...message, tags: [] };
+    return mapMessage(message as never);
   });
 
 export const updateMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { id: string; content: string }) => {
-    const content = (input?.content ?? "").trim();
+  .inputValidator((input: { id: string; html: string }) => {
     if (!input?.id) throw new Error("Missing message");
-    if (!content) throw new Error("A thought cannot be empty");
-    return { id: input.id, content: content.slice(0, 10000) };
+    const html = sanitizeHtml(input?.html ?? "");
+    if (!html || isEmptyDocument(html)) throw new Error("A thought cannot be empty");
+    return {
+      id: input.id,
+      html: html.slice(0, 200000),
+      text: htmlToText(html).slice(0, 20000),
+    };
   })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: message, error } = await supabase
       .from("messages")
-      .update({ content: data.content, ai_status: "pending", edited_at: new Date().toISOString() })
+      .update({
+        content: data.text,
+        content_html: data.html,
+        ai_status: "pending",
+        edited_at: new Date().toISOString(),
+      })
       .eq("id", data.id)
       .eq("user_id", userId)
-      .select("id, content, is_completed, completed_at, ai_status, created_at, updated_at, edited_at")
+      .select(MESSAGE_SELECT)
       .single();
     if (error) throw error;
-    return message;
+    return mapMessage(message as never);
   });
 
 export const setMessageCompletion = createServerFn({ method: "POST" })
@@ -81,6 +103,25 @@ export const setMessageCompletion = createServerFn({ method: "POST" })
     return message;
   });
 
+/** Backfills the formatted document for rows written before rich text existed. */
+export const backfillMessageHtml = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("Missing message");
+    return { id: input.id };
+  })
+  .handler(async ({ data, context }) => {
+    const message = await loadMessage(context.supabase, context.userId, data.id);
+    if (!message || message.content_html) return message;
+    const html = textToHtml(message.content);
+    await context.supabase
+      .from("messages")
+      .update({ content_html: html })
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
+    return { ...message, content_html: html };
+  });
+
 export const organizeMessageFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string }) => {
@@ -89,9 +130,10 @@ export const organizeMessageFn = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const result = await organizeMessage(context.supabase, context.userId, data.id);
-    const messages = await loadStream(context.supabase, context.userId);
-    return { result, messages };
+    const message = await loadMessage(context.supabase, context.userId, data.id);
+    return { result, message };
   });
+
 
 export const getPreferences = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
