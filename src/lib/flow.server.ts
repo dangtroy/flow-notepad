@@ -8,6 +8,7 @@ export type FlowTag = { id: string; name: string; color: string | null };
 export type FlowMessage = {
   id: string;
   content: string;
+  content_html: string | null;
   is_completed: boolean;
   completed_at: string | null;
   ai_status: string;
@@ -16,6 +17,7 @@ export type FlowMessage = {
   edited_at: string | null;
   tags: FlowTag[];
 };
+
 
 export function normalizeTag(name: string): string {
   return name
