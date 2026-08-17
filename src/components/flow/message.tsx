@@ -15,7 +15,7 @@ function timeLabel(iso: string) {
 function MessageRowBase({
   message,
   isEditing,
-  isReply,
+  depth = 0,
   isReplyTarget,
   showTags = true,
   onStartEdit,
@@ -27,7 +27,7 @@ function MessageRowBase({
 }: {
   message: FlowMessage;
   isEditing: boolean;
-  isReply?: boolean;
+  depth?: number;
   isReplyTarget?: boolean;
   showTags?: boolean;
   onStartEdit: () => void;
@@ -78,18 +78,22 @@ function MessageRowBase({
         !isEditing && "cursor-text hover:bg-surface/70",
         isEditing && "bg-surface",
         isReplyTarget && "bg-surface/70",
-        isReply && "ml-5 border-l border-border pl-4",
       )}
     >
       <div className="flex gap-3 sm:gap-4">
-        {/* Time lives in a quiet left gutter, never under the note. */}
-        <div className="hidden w-12 shrink-0 pt-0.5 text-right text-[11px] leading-5 tracking-wide text-muted-foreground/60 sm:block">
-          <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
-          {message.edited_at && <div className="text-muted-foreground/45">edited</div>}
-          {message.is_completed && <div className="text-muted-foreground/45">done</div>}
-        </div>
+        {/* Time lives in a quiet left gutter, aligned across every depth. */}
+        {showTags && (
+          <div className="hidden w-12 shrink-0 pt-0.5 text-right text-[11px] leading-5 tracking-wide text-muted-foreground/60 sm:block">
+            <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
+            {message.edited_at && <div className="text-muted-foreground/45">edited</div>}
+            {message.is_completed && <div className="text-muted-foreground/45">done</div>}
+          </div>
+        )}
 
-        <div className="min-w-0 flex-1">
+        <div
+          className={cn("min-w-0 flex-1", depth > 0 && "border-l border-border pl-4")}
+          style={depth > 1 ? { marginLeft: `${(depth - 1) * 1.25}rem` } : undefined}
+        >
           {isEditing ? (
             <MessageEditor initialHtml={html} onCancel={onCancelEdit} onSave={onSaveEdit} />
           ) : (
@@ -111,16 +115,18 @@ function MessageRowBase({
                   </span>
                 )}
               </div>
-              <div className="mt-1 flex items-center gap-2 text-[11px] tracking-wide text-muted-foreground/60 sm:hidden">
-                <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
-                {message.edited_at && <span>edited</span>}
-                {showTags &&
-                  message.tags.map((tag) => <TagChip key={tag.id} tag={tag} />)}
-              </div>
+              {showTags && (
+                <div className="mt-1 flex items-center gap-2 text-[11px] tracking-wide text-muted-foreground/60 sm:hidden">
+                  <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
+                  {message.edited_at && <span>edited</span>}
+                  {message.tags.map((tag) => <TagChip key={tag.id} tag={tag} />)}
+                </div>
+              )}
             </>
           )}
         </div>
       </div>
+
 
       {!isEditing && (
         <div className="absolute right-2 top-2 flex items-center gap-0.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
