@@ -1,6 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { pickDefaultTagColor } from "./tag-colors";
 
 type Client = SupabaseClient<Database>;
 
@@ -244,17 +243,18 @@ export async function loadMessage(
 
 type AiResult = { tags: string[]; summary: string; topics: string[] };
 
+/**
+ * Classification only — never invention. The model may pick from the user's own
+ * tags and must justify each pick against that tag's written context rule.
+ */
 async function askAi(
   content: string,
-  existingTags: string[],
   rules: Array<{ tag_name: string; context: string }>,
 ): Promise<AiResult> {
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("AI is not configured");
 
-  const rulesText = rules.length
-    ? rules.map((r) => `- Tag "${r.tag_name}": ${r.context}`).join("\n")
-    : "(none)";
+  const rulesText = rules.map((r) => `- "${r.tag_name}": ${r.context}`).join("\n");
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -268,19 +268,18 @@ async function askAi(
         {
           role: "system",
           content: [
-            "You organize a person's stream of personal thoughts.",
-            "Given one thought, return 1-3 concise reusable tags, a one-sentence summary, and key topics.",
-            "Strongly prefer reusing an existing tag when it means the same concept; never invent a near-duplicate (e.g. do not add 'Trips' when 'Travel' exists).",
-            "Tags are short Title Case concepts (project, person, place, product, or theme). No hashtags, no sentences.",
-            "Apply the user's context rules by meaning, not by keyword: if the thought is about what a rule describes, include that rule's tag even when the exact words never appear.",
+            "You classify one personal thought against a fixed list of user-defined tags.",
+            "You may ONLY use tag names from the provided list, copied exactly. Never invent, rename, pluralise, or suggest any other tag.",
+            "Select a tag only when the thought clearly matches that tag's context rule, judged by meaning rather than keywords.",
+            "If no rule matches, return an empty tags array. Returning no tags is correct and expected.",
+            "Also return a one-sentence summary and key topics.",
             'Respond ONLY with JSON: {"tags":["..."],"summary":"...","topics":["..."]}',
           ].join("\n"),
         },
         {
           role: "user",
           content: [
-            `Existing tags: ${existingTags.length ? existingTags.join(", ") : "(none yet)"}`,
-            `User context rules:\n${rulesText}`,
+            `Allowed tags and their context rules:\n${rulesText}`,
             `Thought: ${content}`,
           ].join("\n\n"),
         },
@@ -321,72 +320,49 @@ export async function organizeMessage(supabase: Client, userId: string, messageI
   if (!message.data) return { ok: false as const, reason: "not_found" };
 
   try {
-    const [tagRows, ruleRows] = await Promise.all([
-      supabase
-        .from("tags")
-        .select("id, name, normalized_name, context, is_enabled")
-        .eq("user_id", userId),
-      supabase
-        .from("context_rules")
-        .select("tag_name, context")
-        .eq("user_id", userId)
-        .eq("is_enabled", true),
-    ]);
+    const { data: tagRows } = await supabase
+      .from("tags")
+      .select("id, name, normalized_name, context, is_enabled")
+      .eq("user_id", userId);
 
-    const existing = (tagRows.data ?? []) as Array<{
+    const existing = (tagRows ?? []) as Array<{
       id: string;
       name: string;
       normalized_name: string;
       context?: string | null;
       is_enabled?: boolean | null;
     }>;
-    // A disabled tag stays a real tag; it is simply never applied automatically.
-    const disabled = new Set(existing.filter((t) => t.is_enabled === false).map((t) => t.id));
 
-    // Each tag carries its own plain-English context; legacy standalone rules still count.
-    const rules = [
-      ...existing
-        .filter((t) => t.is_enabled !== false && (t.context ?? "").trim())
-        .map((t) => ({ tag_name: t.name, context: (t.context ?? "").trim() })),
-      ...(ruleRows.data ?? []),
-    ];
+    /**
+     * No auto-discovery: a tag is only ever applied when the user enabled it and
+     * wrote a context rule for it. Nothing new is ever created here.
+     */
+    const candidates = existing.filter(
+      (t) => t.is_enabled !== false && (t.context ?? "").trim().length > 0,
+    );
+
+    if (!candidates.length) {
+      await supabase.from("message_tags").delete().eq("message_id", messageId).eq("source", "ai");
+      await supabase
+        .from("messages")
+        .update({ ai_status: "done", ai_processed_at: new Date().toISOString(), ai_error: null })
+        .eq("id", messageId)
+        .eq("user_id", userId);
+      return { ok: true as const };
+    }
 
     const result = await askAi(
       message.data.content,
-      existing.filter((t) => t.is_enabled !== false).map((t) => t.name),
-      rules,
+      candidates.map((t) => ({ tag_name: t.name, context: (t.context ?? "").trim() })),
     );
 
+    const allowed = new Map(candidates.map((t) => [t.normalized_name, t.id]));
     const tagIds: string[] = [];
     for (const rawName of result.tags) {
-      const name = rawName.trim().slice(0, 60);
-      const normalized = normalizeTag(name);
-      if (!normalized) continue;
-
-      const match = existing.find((t) => t.normalized_name === normalized);
-      if (match) {
-        if (!disabled.has(match.id)) tagIds.push(match.id);
-        continue;
-      }
-      const inserted = await supabase
-        .from("tags")
-        .upsert(
-          {
-            user_id: userId,
-            name,
-            normalized_name: normalized,
-            color: pickDefaultTagColor(normalized),
-          },
-          { onConflict: "user_id,normalized_name" },
-        )
-        .select("id, name, normalized_name")
-        .single();
-
-      if (inserted.data) {
-        existing.push(inserted.data);
-        tagIds.push(inserted.data.id);
-      }
+      const id = allowed.get(normalizeTag(rawName.trim()));
+      if (id && !tagIds.includes(id)) tagIds.push(id);
     }
+
 
     // Replace AI-applied tags for this message; user-applied links are kept.
     await supabase.from("message_tags").delete().eq("message_id", messageId).eq("source", "ai");

@@ -1,11 +1,12 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Inbox, LogOut, Settings } from "lucide-react";
+import { Inbox, LogOut, Moon, Settings, Sun } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { tagAccent } from "@/lib/tag-colors";
 import { tagIdsFrom, tagsParam, toggleTagId } from "@/lib/tag-filter";
 import { useTags } from "@/lib/use-tags";
+import { useTheme } from "@/lib/use-theme";
 import { cn } from "@/lib/utils";
 
 /** Navigation, not a dashboard: All plus the user's own tags as filters. */
@@ -14,6 +15,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const queryClient = useQueryClient();
   const search = useSearch({ strict: false }) as { tags?: string; mode?: "or" | "and" };
   const tags = useTags();
+  const { theme, toggleTheme } = useTheme();
 
   const selected = tagIdsFrom(search.tags);
   const mode = search.mode === "and" ? "and" : "or";
@@ -98,6 +100,15 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="space-y-0.5 border-t border-sidebar-border px-2 py-2">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className={cn(itemClass, "w-full text-left")}
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          {theme === "dark" ? "Light mode" : "Dark mode"}
+        </button>
         <Link to="/settings" onClick={onNavigate} className={itemClass}>
           <Settings className="h-3.5 w-3.5" />
           Settings
