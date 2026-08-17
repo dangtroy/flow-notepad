@@ -163,5 +163,14 @@ export function applyAppearance(appearance: Appearance) {
   root.style.setProperty("--flow-thread-gap", density.thread);
   root.style.setProperty("--flow-row-gap", density.gap);
   root.style.setProperty("--flow-content-width", CONTENT_WIDTHS[appearance.contentWidth]);
+  root.style.setProperty("--flow-reply-gap", REPLY_SPACING[appearance.replySpacing]);
+  root.style.setProperty(
+    "--flow-border-color",
+    (BORDER_TONES[appearance.borderTone] ?? BORDER_TONES.subtle).value,
+  );
+  root.style.setProperty(
+    "--flow-border-width",
+    BORDER_THICKNESS[appearance.borderThickness] ?? BORDER_THICKNESS.hairline,
+  );
   root.style.setProperty("--flow-sidebar-width", SIDEBAR_WIDTHS[appearance.sidebarWidth]);
 }
