@@ -1,3 +1,4 @@
+import { FlowLogo } from "@/components/flow/flow-logo";
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
