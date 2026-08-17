@@ -43,7 +43,7 @@ export function Composer({
 
   return (
     <div className="border-t border-border bg-surface/80 backdrop-blur-sm">
-      <div className="mx-auto w-full max-w-[46rem] px-5 pb-5 pt-3.5 sm:px-8">
+      <div className="flow-shell px-5 pb-5 pt-3.5 sm:px-8">
         {replyingTo && (
           <div className="mb-2 flex items-center gap-2 text-[12px] text-muted-foreground">
             <span className="h-3.5 w-px shrink-0 bg-border-strong" aria-hidden />

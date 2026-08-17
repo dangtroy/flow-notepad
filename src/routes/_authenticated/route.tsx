@@ -21,7 +21,7 @@ function AppShell() {
 
   return (
     <div className="flex h-dvh overflow-hidden bg-background">
-      <aside className="hidden w-[13.5rem] shrink-0 border-r border-sidebar-border bg-sidebar md:block">
+      <aside className="hidden w-[var(--flow-sidebar-width,13.5rem)] shrink-0 border-r border-sidebar-border bg-sidebar md:block">
         <SidebarBody />
       </aside>
 

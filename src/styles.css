@@ -70,6 +70,16 @@
 :root {
   --radius: 0.625rem;
 
+  /* Appearance defaults — overridden per user on <html> at runtime. */
+  --flow-text-size: 0.9975rem;
+  --flow-line-height: 1.72;
+  --flow-row-pad: 0.55rem;
+  --flow-thread-gap: 1.15rem;
+  --flow-row-gap: 0.35rem;
+  --flow-content-width: 46rem;
+  --flow-sidebar-width: 13.5rem;
+
+
   --background: oklch(0.987 0.003 90);
   --foreground: oklch(0.235 0.006 264);
   --surface: oklch(1 0 0);
@@ -202,13 +212,14 @@
  * inside the editor so content looks identical while writing and after saving.
  */
 @utility flow-prose {
-  font-size: 0.9975rem;
-  line-height: 1.72;
+  font-size: var(--flow-text-size, 0.9975rem);
+  line-height: var(--flow-line-height, 1.72);
   letter-spacing: 0.001em;
 
   & > * + * {
     margin-top: 0.7em;
   }
+
 
   & strong {
     font-weight: 600;

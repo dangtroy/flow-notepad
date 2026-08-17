@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Pencil, Reply } from "lucide-react";
 
+import type { TagPosition, TagStyle } from "@/lib/appearance";
 import type { FlowMessage } from "@/lib/flow.server";
 import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,9 @@ function MessageRowBase({
   depth = 0,
   isReplyTarget,
   showTags = true,
+  showTimestamps = true,
+  tagStyle = "pill",
+  tagPosition = "right",
   onStartEdit,
   onCancelEdit,
   onSaveEdit,
@@ -30,6 +34,9 @@ function MessageRowBase({
   depth?: number;
   isReplyTarget?: boolean;
   showTags?: boolean;
+  showTimestamps?: boolean;
+  tagStyle?: TagStyle;
+  tagPosition?: TagPosition;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSaveEdit: (html: string) => void;
@@ -70,66 +77,86 @@ function MessageRowBase({
     onStartEdit();
   }
 
+  const isReply = depth > 0;
+  const tags = showTags && message.tags.length > 0 ? message.tags : [];
+
   return (
     <article
       onClick={handleSurfaceClick}
       className={cn(
-        "group relative -mx-3.5 rounded-lg px-3.5 py-2.5 transition-colors duration-200",
-        !isEditing && "cursor-text hover:bg-surface/70",
+        "group relative -mx-3 rounded-md px-3 transition-colors duration-200 flow-row-pad",
+        !isEditing && "cursor-text hover:bg-surface/55",
         isEditing && "bg-surface",
-        isReplyTarget && "bg-surface/70",
+        isReplyTarget && "bg-surface/55",
       )}
     >
       <div className="flex gap-3 sm:gap-4">
         {/* Time lives in a quiet left gutter, aligned across every depth. */}
-        {showTags && (
-          <div className="hidden w-12 shrink-0 pt-0.5 text-right text-[11px] leading-5 tracking-wide text-muted-foreground/60 sm:block">
+        {showTimestamps && (
+          <div className="hidden w-12 shrink-0 pt-[0.15rem] text-right text-[11px] leading-5 tracking-wide text-muted-foreground/55 sm:block">
             <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
-            {message.edited_at && <div className="text-muted-foreground/45">edited</div>}
-            {message.is_completed && <div className="text-muted-foreground/45">done</div>}
+            {message.edited_at && <div className="text-muted-foreground/40">edited</div>}
+            {message.is_completed && <div className="text-muted-foreground/40">done</div>}
           </div>
         )}
 
         <div
-          className={cn("min-w-0 flex-1", depth > 0 && "border-l border-border pl-4")}
-          style={depth > 1 ? { marginLeft: `${(depth - 1) * 1.25}rem` } : undefined}
+          className={cn(
+            "min-w-0 flex-1",
+            isReply && "border-l border-border/70 pl-3.5 sm:pl-4",
+          )}
+          style={depth > 1 ? { marginLeft: `${(depth - 1) * 1.1}rem` } : undefined}
         >
           {isEditing ? (
             <MessageEditor initialHtml={html} onCancel={onCancelEdit} onSave={onSaveEdit} />
           ) : (
             <>
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-4">
                 <div
                   className={cn(
                     "flow-prose min-w-0 flex-1 transition-opacity duration-200",
+                    isReply && "text-muted-foreground/95",
                     message.is_completed && "text-muted-foreground line-through decoration-1",
                   )}
                   dangerouslySetInnerHTML={{ __html: html }}
                 />
-                {/* Tags sit alongside the note and step aside for the hover actions. */}
-                {showTags && message.tags.length > 0 && (
-                  <span className="hidden max-w-[40%] shrink-0 flex-wrap items-center justify-end gap-1.5 pt-0.5 transition-opacity duration-150 group-hover:opacity-0 sm:flex">
-                    {message.tags.map((tag) => (
-                      <TagChip key={tag.id} tag={tag} />
+                {/* Tags sit beside the text and step aside for the hover actions. */}
+                {tagPosition === "right" && tags.length > 0 && (
+                  <span className="hidden max-w-[34%] shrink-0 flex-wrap items-center justify-end gap-1.5 pt-[0.2rem] transition-opacity duration-150 group-hover:opacity-0 sm:flex">
+                    {tags.map((tag) => (
+                      <TagChip key={tag.id} tag={tag} style={tagStyle} />
                     ))}
                   </span>
                 )}
               </div>
-              {showTags && (
-                <div className="mt-1 flex items-center gap-2 text-[11px] tracking-wide text-muted-foreground/60 sm:hidden">
-                  <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
-                  {message.edited_at && <span>edited</span>}
-                  {message.tags.map((tag) => <TagChip key={tag.id} tag={tag} />)}
+
+              {tagPosition === "below" && tags.length > 0 && (
+                <div className="mt-1.5 hidden flex-wrap items-center gap-1.5 sm:flex">
+                  {tags.map((tag) => (
+                    <TagChip key={tag.id} tag={tag} style={tagStyle} />
+                  ))}
                 </div>
               )}
+
+              {/* Narrow screens have no gutter: the meta line carries it. */}
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] tracking-wide text-muted-foreground/55 sm:hidden">
+                {showTimestamps && (
+                  <>
+                    <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
+                    {message.edited_at && <span>edited</span>}
+                  </>
+                )}
+                {tags.map((tag) => (
+                  <TagChip key={tag.id} tag={tag} style={tagStyle} />
+                ))}
+              </div>
             </>
           )}
         </div>
       </div>
 
-
       {!isEditing && (
-        <div className="absolute right-2 top-2 flex items-center gap-0.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
+        <div className="absolute right-2 top-1.5 flex items-center gap-0.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
           <button
             type="button"
             onClick={(event) => {
@@ -172,7 +199,6 @@ function MessageRowBase({
     </article>
   );
 }
-
 
 function MessageEditor({
   initialHtml,

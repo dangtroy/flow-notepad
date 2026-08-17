@@ -12,6 +12,8 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
+import { useAppearance } from "@/lib/use-appearance";
+
 
 
 function NotFoundComponent() {
@@ -130,6 +132,9 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  // Applies the saved appearance (theme, accent, rhythm) once after hydration.
+  useAppearance();
+
 
   return (
     <QueryClientProvider client={queryClient}>

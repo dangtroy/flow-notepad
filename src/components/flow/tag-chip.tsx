@@ -1,10 +1,49 @@
 import type { FlowTag } from "@/lib/flow.server";
+import type { TagStyle } from "@/lib/appearance";
 import { tagAccent } from "@/lib/tag-colors";
 import { cn } from "@/lib/utils";
 
-/** Secondary to the message: a small pill with the tag color as a quiet accent. */
-export function TagChip({ tag, className }: { tag: FlowTag; className?: string }) {
+/** Secondary to the message: the tag colour is a quiet accent, never a badge. */
+export function TagChip({
+  tag,
+  style = "pill",
+  className,
+}: {
+  tag: FlowTag;
+  style?: TagStyle;
+  className?: string;
+}) {
   const accent = tagAccent(tag.color);
+
+  if (style === "text") {
+    return (
+      <span
+        className={cn("text-[11px] leading-none text-muted-foreground/80", className)}
+        style={{ color: `color-mix(in oklab, ${accent} 55%, var(--muted-foreground))` }}
+      >
+        {tag.name}
+      </span>
+    );
+  }
+
+  if (style === "dot") {
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 text-[11px] leading-none text-muted-foreground",
+          className,
+        )}
+      >
+        <span
+          aria-hidden
+          className="h-1.5 w-1.5 rounded-full"
+          style={{ backgroundColor: accent }}
+        />
+        {tag.name}
+      </span>
+    );
+  }
+
   return (
     <span
       className={cn(
@@ -13,11 +52,7 @@ export function TagChip({ tag, className }: { tag: FlowTag; className?: string }
       )}
       style={{ borderColor: `color-mix(in oklab, ${accent} 32%, transparent)` }}
     >
-      <span
-        aria-hidden
-        className="h-1.5 w-1.5 rounded-full"
-        style={{ backgroundColor: accent }}
-      />
+      <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: accent }} />
       {tag.name}
     </span>
   );

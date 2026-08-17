@@ -5,7 +5,9 @@ import { useState } from "react";
 import { ArrowLeft, Check, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { AppearanceSettings } from "@/components/flow/appearance-settings";
 import {
+
   deleteTag,
   getPreferences,
   retagAllMessages,
@@ -78,7 +80,10 @@ function SettingsPage() {
 
         <h1 className="mt-8 font-display text-3xl tracking-tight">Settings</h1>
 
+        <AppearanceSettings />
+
         <TagsSection />
+
 
         <section className="mt-14">
           <h2 className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">
