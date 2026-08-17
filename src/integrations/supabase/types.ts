@@ -153,6 +153,7 @@ export type Database = {
         Row: {
           ai_context: Json
           ai_error: string | null
+          ai_fingerprint: string | null
           ai_processed_at: string | null
           ai_status: string
           attachments: Json
@@ -173,6 +174,7 @@ export type Database = {
         Insert: {
           ai_context?: Json
           ai_error?: string | null
+          ai_fingerprint?: string | null
           ai_processed_at?: string | null
           ai_status?: string
           attachments?: Json
@@ -193,6 +195,7 @@ export type Database = {
         Update: {
           ai_context?: Json
           ai_error?: string | null
+          ai_fingerprint?: string | null
           ai_processed_at?: string | null
           ai_status?: string
           attachments?: Json
@@ -254,6 +257,7 @@ export type Database = {
       tag_groups: {
         Row: {
           color: string | null
+          context: string
           created_at: string
           id: string
           is_collapsed: boolean
@@ -264,6 +268,7 @@ export type Database = {
         }
         Insert: {
           color?: string | null
+          context?: string
           created_at?: string
           id?: string
           is_collapsed?: boolean
@@ -274,6 +279,7 @@ export type Database = {
         }
         Update: {
           color?: string | null
+          context?: string
           created_at?: string
           id?: string
           is_collapsed?: boolean
@@ -284,8 +290,75 @@ export type Database = {
         }
         Relationships: []
       }
+      tag_suggestions: {
+        Row: {
+          created_at: string
+          evidence_count: number
+          id: string
+          kind: string
+          message_ids: string[]
+          name: string
+          normalized_name: string
+          reason: string
+          status: string
+          suggested_group_id: string | null
+          suggested_group_name: string | null
+          tag_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          evidence_count?: number
+          id?: string
+          kind?: string
+          message_ids?: string[]
+          name: string
+          normalized_name: string
+          reason?: string
+          status?: string
+          suggested_group_id?: string | null
+          suggested_group_name?: string | null
+          tag_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          evidence_count?: number
+          id?: string
+          kind?: string
+          message_ids?: string[]
+          name?: string
+          normalized_name?: string
+          reason?: string
+          status?: string
+          suggested_group_id?: string | null
+          suggested_group_name?: string | null
+          tag_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tag_suggestions_suggested_group_id_fkey"
+            columns: ["suggested_group_id"]
+            isOneToOne: false
+            referencedRelation: "tag_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tag_suggestions_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tags: {
         Row: {
+          auto_apply: boolean
           color: string | null
           context: string
           created_at: string
@@ -293,6 +366,7 @@ export type Database = {
           id: string
           is_enabled: boolean
           is_pinned: boolean
+          match_keywords: string[]
           name: string
           normalized_name: string
           sort_order: number
@@ -300,6 +374,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          auto_apply?: boolean
           color?: string | null
           context?: string
           created_at?: string
@@ -307,6 +382,7 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           is_pinned?: boolean
+          match_keywords?: string[]
           name: string
           normalized_name: string
           sort_order?: number
@@ -314,6 +390,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          auto_apply?: boolean
           color?: string | null
           context?: string
           created_at?: string
@@ -321,6 +398,7 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           is_pinned?: boolean
+          match_keywords?: string[]
           name?: string
           normalized_name?: string
           sort_order?: number
@@ -366,6 +444,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      group_message_counts: {
+        Args: never
+        Returns: {
+          group_id: string
+          message_count: number
+        }[]
+      }
       tag_message_counts: {
         Args: never
         Returns: {
