@@ -371,7 +371,7 @@ function FlowPage() {
 
 
       <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain">
-        <div className="mx-auto flex min-h-full w-full max-w-[46rem] flex-col justify-end px-5 pb-8 pt-8 sm:px-8">
+        <div className="flow-shell flex min-h-full flex-col justify-end px-5 pb-8 pt-8 sm:px-8">
           {hasNextPage && (
             <p className="pb-6 text-center text-[11px] uppercase tracking-[0.16em] text-muted-foreground/45">
               {isFetchingNextPage ? "Loading earlier thoughts…" : "Scroll up for earlier thoughts"}
@@ -400,39 +400,54 @@ function FlowPage() {
             </div>
           ) : (
             grouped.map((group) => (
-              <section key={group.label} className="mb-7">
-                <div className="mb-3.5 flex items-center gap-3">
+              <section key={group.label} className="mb-8 last:mb-0">
+                <div className="mb-4 flex items-center gap-3">
                   <span className="h-px flex-1 bg-border" />
                   <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/50">
                     {group.label}
                   </span>
                   <span className="h-px flex-1 bg-border" />
                 </div>
-                <div className="space-y-1">
-                  {group.items.map(({ message, depth }) => (
-                    <MessageRow
-                      key={message.id}
-                      message={message}
-                      depth={depth}
-                      isReplyTarget={replyTo?.id === message.id}
-                      isEditing={editingId === message.id}
-                      onStartEdit={() => setEditingId(message.id)}
-                      onCancelEdit={() => setEditingId(null)}
-                      onSaveEdit={(html) => void handleSaveEdit(message, html)}
-                      showTags={showTags}
-                      onToggleComplete={() => void handleToggleComplete(message)}
-                      onDeleteNow={() => void handleDeleteNow(message)}
-                      onReply={() =>
-                        setReplyTo({
-                          id: message.id,
-                          preview: message.content.slice(0, 120),
-                        })
-                      }
-                    />
+
+                <div className="flex flex-col">
+                  {group.threads.map((thread) => (
+                    <div
+                      key={thread.id}
+                      className="flow-row-stack border-t border-border/45 pt-[var(--flow-thread-gap)] first:border-t-0 first:pt-0"
+                      style={{ paddingBottom: "var(--flow-thread-gap)" }}
+                    >
+                      {thread.entries.map(({ message, depth }) => (
+                        <MessageRow
+                          key={message.id}
+                          message={message}
+                          depth={depth}
+                          isReplyTarget={replyTo?.id === message.id}
+                          isEditing={editingId === message.id}
+                          onStartEdit={() => setEditingId(message.id)}
+                          onCancelEdit={() => setEditingId(null)}
+                          onSaveEdit={(html) => void handleSaveEdit(message, html)}
+                          showTags={appearance.showTags}
+                          showTimestamps={appearance.showTimestamps}
+                          tagStyle={appearance.tagStyle}
+                          tagPosition={appearance.tagPosition}
+                          onToggleComplete={() => void handleToggleComplete(message)}
+                          onDeleteNow={() => void handleDeleteNow(message)}
+                          onReply={() =>
+                            setReplyTo({
+                              id: message.id,
+                              preview: message.content.slice(0, 120),
+                            })
+                          }
+                        />
+                      ))}
+                    </div>
                   ))}
                 </div>
               </section>
             ))
+          )}
+        </div>
+
           )}
         </div>
       </div>
