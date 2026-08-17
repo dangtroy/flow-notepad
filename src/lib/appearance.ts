@@ -8,10 +8,13 @@ export type ThemeChoice = "light" | "dark" | "system";
 export type AccentKey = "blue" | "teal" | "violet" | "amber" | "rose" | "graphite";
 export type TextSize = "small" | "default" | "large";
 export type Density = "compact" | "comfortable" | "spacious";
-export type ContentWidth = "narrow" | "default" | "wide";
+export type ContentWidth = "narrow" | "default" | "wide" | "full";
 export type TagStyle = "pill" | "dot" | "text";
 export type TagPosition = "right" | "below";
 export type SidebarWidth = "narrow" | "default" | "wide";
+export type ReplySpacing = "compact" | "comfortable" | "spacious";
+export type BorderTone = "subtle" | "medium" | "strong" | "accent";
+export type BorderThickness = "hairline" | "thin" | "medium" | "thick";
 
 export type Appearance = {
   theme: ThemeChoice;
@@ -22,8 +25,12 @@ export type Appearance = {
   tagStyle: TagStyle;
   tagPosition: TagPosition;
   showTimestamps: boolean;
+  showReplyTimestamps: boolean;
   showTags: boolean;
   sidebarWidth: SidebarWidth;
+  replySpacing: ReplySpacing;
+  borderTone: BorderTone;
+  borderThickness: BorderThickness;
 };
 
 export const DEFAULT_APPEARANCE: Appearance = {
@@ -35,8 +42,12 @@ export const DEFAULT_APPEARANCE: Appearance = {
   tagStyle: "pill",
   tagPosition: "right",
   showTimestamps: true,
+  showReplyTimestamps: true,
   showTags: true,
   sidebarWidth: "default",
+  replySpacing: "comfortable",
+  borderTone: "subtle",
+  borderThickness: "hairline",
 };
 
 export const APPEARANCE_STORAGE_KEY = "flow-appearance";
@@ -64,10 +75,33 @@ const DENSITY: Record<Density, { line: string; row: string; thread: string; gap:
   spacious: { line: "1.85", row: "0.8rem", thread: "1.9rem", gap: "0.6rem" },
 };
 
+const REPLY_SPACING: Record<ReplySpacing, string> = {
+  compact: "0.35rem",
+  comfortable: "0.9rem",
+  spacious: "1.6rem",
+};
+
+const BORDER_TONES: Record<BorderTone, { label: string; value: string }> = {
+  subtle: { label: "Subtle", value: "var(--border)" },
+  medium: { label: "Medium", value: "var(--border-strong)" },
+  strong: { label: "Strong", value: "color-mix(in oklab, var(--foreground) 34%, transparent)" },
+  accent: { label: "Accent", value: "color-mix(in oklab, var(--primary) 55%, transparent)" },
+};
+
+export const BORDER_TONE_LABELS = BORDER_TONES;
+
+const BORDER_THICKNESS: Record<BorderThickness, string> = {
+  hairline: "1px",
+  thin: "1.5px",
+  medium: "2px",
+  thick: "3px",
+};
+
 const CONTENT_WIDTHS: Record<ContentWidth, string> = {
   narrow: "38rem",
   default: "46rem",
   wide: "58rem",
+  full: "100%",
 };
 
 const SIDEBAR_WIDTHS: Record<SidebarWidth, string> = {
@@ -75,6 +109,7 @@ const SIDEBAR_WIDTHS: Record<SidebarWidth, string> = {
   default: "13.5rem",
   wide: "17rem",
 };
+
 
 export function resolveTheme(theme: ThemeChoice): "light" | "dark" {
   if (theme !== "system") return theme;
@@ -128,5 +163,14 @@ export function applyAppearance(appearance: Appearance) {
   root.style.setProperty("--flow-thread-gap", density.thread);
   root.style.setProperty("--flow-row-gap", density.gap);
   root.style.setProperty("--flow-content-width", CONTENT_WIDTHS[appearance.contentWidth]);
+  root.style.setProperty("--flow-reply-gap", REPLY_SPACING[appearance.replySpacing]);
+  root.style.setProperty(
+    "--flow-border-color",
+    (BORDER_TONES[appearance.borderTone] ?? BORDER_TONES.subtle).value,
+  );
+  root.style.setProperty(
+    "--flow-border-width",
+    BORDER_THICKNESS[appearance.borderThickness] ?? BORDER_THICKNESS.hairline,
+  );
   root.style.setProperty("--flow-sidebar-width", SIDEBAR_WIDTHS[appearance.sidebarWidth]);
 }
