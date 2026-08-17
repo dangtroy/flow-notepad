@@ -668,7 +668,9 @@ export const retagAllMessages = createServerFn({ method: "POST" })
         const id = queue.shift();
         if (!id) return;
         try {
-          await organizeMessage(supabase, userId, id);
+          // Rules changed, so this pass ignores fingerprints on purpose.
+          await organizeMessage(supabase, userId, id, { force: true });
+
           organized += 1;
         } catch {
           failed += 1;
