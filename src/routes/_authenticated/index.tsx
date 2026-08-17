@@ -218,6 +218,8 @@ function FlowPage() {
   async function handleSend(html: string) {
     const tempId = `temp-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
+    const parentMessageId = replyTo?.id ?? null;
+    setReplyTo(null);
     patchStream((current) => [
       ...current,
       {
@@ -230,13 +232,14 @@ function FlowPage() {
         created_at: now,
         updated_at: now,
         edited_at: null,
+        parent_message_id: parentMessageId,
         tags: [],
       },
     ]);
     requestAnimationFrame(scrollToBottom);
 
     try {
-      const saved = await send({ data: { html } });
+      const saved = await send({ data: { html, parentMessageId } });
       patchMessage(tempId, saved as FlowMessage);
       void organizeInBackground(saved.id);
     } catch (error) {
@@ -244,6 +247,7 @@ function FlowPage() {
       toast.error(error instanceof Error ? error.message : "Could not save that thought");
     }
   }
+
 
   async function handleToggleComplete(message: FlowMessage) {
     const next = !message.is_completed;
@@ -317,15 +321,23 @@ function FlowPage() {
                   <span className="h-px flex-1 bg-border" />
                 </div>
                 <div className="space-y-1">
-                  {group.items.map((message) => (
+                  {group.items.map(({ message, depth }) => (
                     <MessageRow
                       key={message.id}
                       message={message}
+                      isReply={depth > 0}
+                      isReplyTarget={replyTo?.id === message.id}
                       isEditing={editingId === message.id}
                       onStartEdit={() => setEditingId(message.id)}
                       onCancelEdit={() => setEditingId(null)}
                       onSaveEdit={(html) => void handleSaveEdit(message, html)}
                       onToggleComplete={() => void handleToggleComplete(message)}
+                      onReply={() =>
+                        setReplyTo({
+                          id: message.id,
+                          preview: message.content.slice(0, 120),
+                        })
+                      }
                     />
                   ))}
                 </div>
@@ -335,7 +347,12 @@ function FlowPage() {
         </div>
       </div>
 
-      <Composer onSend={(html) => void handleSend(html)} />
+      <Composer
+        onSend={(html) => void handleSend(html)}
+        replyingTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
+      />
+
     </div>
   );
 }
