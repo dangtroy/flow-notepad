@@ -78,6 +78,8 @@ function FlowPage() {
   const complete = useServerFn(setMessageCompletion);
   const organize = useServerFn(organizeMessageFn);
   const cleanup = useServerFn(cleanupCompleted);
+  const destroy = useServerFn(deleteMessageNow);
+  const { showTags } = useShowTags();
   
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -301,6 +303,29 @@ function FlowPage() {
     }
   }
 
+  async function handleDeleteNow(message: FlowMessage) {
+    patchStream((current) => current.filter((m) => m.id !== message.id));
+    queryClient.setQueryData<Stream>(streamKey, (current) =>
+      current
+        ? {
+            ...current,
+            pages: current.pages.map((page) => ({
+              ...page,
+              messages: page.messages.filter((m) => m.id !== message.id),
+            })),
+          }
+        : current,
+    );
+    try {
+      await destroy({ data: { id: message.id } });
+      void queryClient.invalidateQueries({ queryKey: TAGS_KEY });
+      toast.success("Deleted");
+    } catch {
+      void queryClient.invalidateQueries({ queryKey: ["stream"] });
+      toast.error("Could not delete that thought");
+    }
+  }
+
   async function handleSaveEdit(message: FlowMessage, html: string) {
     setEditingId(null);
     if (html === (message.content_html ?? "")) return;
@@ -378,7 +403,9 @@ function FlowPage() {
                       onStartEdit={() => setEditingId(message.id)}
                       onCancelEdit={() => setEditingId(null)}
                       onSaveEdit={(html) => void handleSaveEdit(message, html)}
+                      showTags={showTags}
                       onToggleComplete={() => void handleToggleComplete(message)}
+                      onDeleteNow={() => void handleDeleteNow(message)}
                       onReply={() =>
                         setReplyTo({
                           id: message.id,
