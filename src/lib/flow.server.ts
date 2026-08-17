@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { pickDefaultTagColor } from "./tag-colors";
 
 type Client = SupabaseClient<Database>;
 
@@ -15,6 +16,7 @@ export type FlowMessage = {
   created_at: string;
   updated_at: string;
   edited_at: string | null;
+  parent_message_id: string | null;
   tags: FlowTag[];
 };
 
@@ -25,6 +27,7 @@ export function normalizeTag(name: string): string {
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
+
 
 export async function ensureConversation(supabase: Client, userId: string): Promise<string> {
   const existing = await supabase
