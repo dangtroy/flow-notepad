@@ -202,13 +202,14 @@
  * inside the editor so content looks identical while writing and after saving.
  */
 @utility flow-prose {
-  font-size: 0.9975rem;
-  line-height: 1.72;
+  font-size: var(--flow-text-size, 0.9975rem);
+  line-height: var(--flow-line-height, 1.72);
   letter-spacing: 0.001em;
 
   & > * + * {
     margin-top: 0.7em;
   }
+
 
   & strong {
     font-weight: 600;
