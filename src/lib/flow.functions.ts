@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
-  ensureConversation,
   ensurePreferences,
   loadMessage,
   loadStreamPage,
@@ -13,6 +12,17 @@ import {
 } from "./flow.server";
 import { loadSuggestions, organizeMessage } from "./organize.server";
 import { applySuggestion, ignoreSuggestion } from "./suggestions.server";
+import {
+  createNotepad,
+  deleteNotepad,
+  listNotepads,
+  readActiveNotepad,
+  rememberActiveNotepad,
+  reorderNotepads,
+  resolveNotepad,
+  updateNotepad,
+} from "./notepads.server";
+import { isNotepadIcon } from "./notepads";
 import { normalizeTag } from "./tag-normalize";
 import { htmlToText, isEmptyDocument, sanitizeHtml, textToHtml } from "./rich-text";
 import { DEFAULT_TAG_COLOR, pickDefaultTagColor, TAG_COLOR_KEYS } from "./tag-colors";
@@ -22,11 +32,13 @@ export const getStreamPage = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
     (input?: {
+      notepadId?: string | null;
       before?: string | null;
       limit?: number;
       tagIds?: string[];
       mode?: "or" | "and";
     }) => ({
+      notepadId: input?.notepadId ?? null,
       before: input?.before ?? null,
       limit: Math.min(Math.max(input?.limit ?? 40, 5), 100),
       tagIds: Array.isArray(input?.tagIds) ? input!.tagIds.filter(Boolean).slice(0, 20) : [],
@@ -35,33 +47,34 @@ export const getStreamPage = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const conversationId = await ensureConversation(supabase, userId);
+    const notepadId = await resolveNotepad(supabase, userId, data.notepadId);
     await ensurePreferences(supabase, userId);
-    const page = await loadStreamPage(supabase, userId, {
+    const page = await loadStreamPage(supabase, userId, notepadId, {
       limit: data.limit,
       before: data.before,
       tagIds: data.tagIds,
       mode: data.mode,
     });
-    return { conversationId, ...page };
+    return { notepadId, ...page };
   });
 
 export const sendMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { html: string; parentMessageId?: string | null }) => {
+  .inputValidator((input: { html: string; parentMessageId?: string | null; notepadId?: string | null }) => {
     const html = sanitizeHtml(input?.html ?? "");
     if (!html || isEmptyDocument(html)) throw new Error("A thought cannot be empty");
     return {
       html: html.slice(0, 200000),
       text: htmlToText(html).slice(0, 20000),
       parentMessageId: input?.parentMessageId ?? null,
+      notepadId: input?.notepadId ?? null,
     };
   })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const conversationId = await ensureConversation(supabase, userId);
+    const conversationId = await resolveNotepad(supabase, userId, data.notepadId);
 
-    // A reply must point at one of the user's own messages; anything else is top-level.
+    // A reply must stay inside the same notepad as the note it answers; anything else is top-level.
     let parentId: string | null = null;
     if (data.parentMessageId) {
       const parent = await supabase
@@ -69,6 +82,7 @@ export const sendMessage = createServerFn({ method: "POST" })
         .select("id")
         .eq("id", data.parentMessageId)
         .eq("user_id", userId)
+        .eq("conversation_id", conversationId)
         .maybeSingle();
       parentId = parent.data?.id ?? null;
     }
@@ -175,8 +189,16 @@ export const organizeMessageFn = createServerFn({ method: "POST" })
 
 export const getPreferences = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const prefs = await ensurePreferences(context.supabase, context.userId);
+  .inputValidator((input?: { notepadId?: string | null }) => ({ notepadId: input?.notepadId ?? null }))
+  .handler(async ({ data, context }) => {
+    await ensurePreferences(context.supabase, context.userId);
+    const notepadId = await resolveNotepad(context.supabase, context.userId, data.notepadId);
+    const notepad = await context.supabase
+      .from("conversations")
+      .select("completed_retention_days")
+      .eq("id", notepadId)
+      .eq("user_id", context.userId)
+      .maybeSingle();
     const log = await context.supabase
       .from("deletion_log")
       .select("id, content_snapshot, completed_at, deleted_at")
@@ -184,24 +206,28 @@ export const getPreferences = createServerFn({ method: "GET" })
       .order("deleted_at", { ascending: false })
       .limit(25);
     return {
-      completedRetentionDays: prefs.completed_retention_days,
+      notepadId,
+      completedRetentionDays: notepad.data?.completed_retention_days ?? null,
       deletionHistory: log.data ?? [],
     };
   });
 
 export const updatePreferences = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { completedRetentionDays: number | null }) => ({
+  .inputValidator((input: { completedRetentionDays: number | null; notepadId?: string | null }) => ({
+    notepadId: input?.notepadId ?? null,
     completedRetentionDays:
       input?.completedRetentionDays === null || input?.completedRetentionDays === undefined
         ? null
         : Number(input.completedRetentionDays),
   }))
   .handler(async ({ data, context }) => {
-    await ensurePreferences(context.supabase, context.userId);
+    // Auto-delete is a per-notepad decision: Work can keep more than Personal.
+    const notepadId = await resolveNotepad(context.supabase, context.userId, data.notepadId);
     const { error } = await context.supabase
-      .from("user_preferences")
+      .from("conversations")
       .update({ completed_retention_days: data.completedRetentionDays })
+      .eq("id", notepadId)
       .eq("user_id", context.userId);
     if (error) throw error;
     return { completedRetentionDays: data.completedRetentionDays };
@@ -209,11 +235,14 @@ export const updatePreferences = createServerFn({ method: "POST" })
 
 export const listContextRules = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input?: { notepadId?: string | null }) => ({ notepadId: input?.notepadId ?? null }))
+  .handler(async ({ data: input, context }) => {
+    const notepadId = await resolveNotepad(context.supabase, context.userId, input.notepadId);
     const { data, error } = await context.supabase
       .from("context_rules")
       .select("id, tag_name, context, is_enabled, created_at")
       .eq("user_id", context.userId)
+      .eq("conversation_id", notepadId)
       .order("created_at", { ascending: true });
     if (error) throw error;
     return data ?? [];
@@ -221,20 +250,31 @@ export const listContextRules = createServerFn({ method: "GET" })
 
 export const saveContextRule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { id?: string; tagName: string; context: string; isEnabled?: boolean }) => {
+  .inputValidator(
+    (input: {
+      id?: string;
+      tagName: string;
+      context: string;
+      isEnabled?: boolean;
+      notepadId?: string | null;
+    }) => {
     const tagName = (input?.tagName ?? "").trim();
     if (!tagName) throw new Error("A rule needs a tag name");
     return {
       id: input?.id,
+      notepadId: input?.notepadId ?? null,
       tagName: tagName.slice(0, 60),
       context: (input?.context ?? "").trim().slice(0, 2000),
       isEnabled: input?.isEnabled ?? true,
     };
-  })
+  },
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const notepadId = await resolveNotepad(supabase, userId, data.notepadId);
     const payload = {
       user_id: userId,
+      conversation_id: notepadId,
       tag_name: data.tagName,
       context: data.context,
       is_enabled: data.isEnabled,
@@ -267,11 +307,12 @@ export const saveContextRule = createServerFn({ method: "POST" })
         .upsert(
           {
             user_id: userId,
+            conversation_id: notepadId,
             name: data.tagName,
             normalized_name: normalized,
             color: pickDefaultTagColor(normalized),
           },
-          { onConflict: "user_id,normalized_name" },
+          { onConflict: "conversation_id,normalized_name" },
         );
     }
     return row;
@@ -295,17 +336,24 @@ export const deleteContextRule = createServerFn({ method: "POST" })
 
 export const cleanupCompleted = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => runRetention(context.supabase, context.userId));
+  .inputValidator((input?: { notepadId?: string | null }) => ({ notepadId: input?.notepadId ?? null }))
+  .handler(async ({ data, context }) => {
+    const notepadId = await resolveNotepad(context.supabase, context.userId, data.notepadId);
+    return runRetention(context.supabase, context.userId, notepadId);
+  });
 
 /** Clears every thought already marked done, right now, without waiting for retention. */
 export const clearCompleted = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input?: { notepadId?: string | null }) => ({ notepadId: input?.notepadId ?? null }))
+  .handler(async ({ data: input, context }) => {
     const { supabase, userId } = context;
+    const notepadId = await resolveNotepad(supabase, userId, input.notepadId);
     const { data: rows, error } = await supabase
       .from("messages")
       .select("id, content, completed_at, created_at")
       .eq("user_id", userId)
+      .eq("conversation_id", notepadId)
       .eq("is_completed", true);
     if (error) throw error;
     if (!rows?.length) return { deleted: 0 };
@@ -325,6 +373,7 @@ export const clearCompleted = createServerFn({ method: "POST" })
       .from("messages")
       .delete()
       .eq("user_id", userId)
+      .eq("conversation_id", notepadId)
       .eq("is_completed", true);
     if (removed.error) throw removed.error;
     return { deleted: rows.length };
@@ -336,11 +385,19 @@ export const clearCompleted = createServerFn({ method: "POST" })
  */
 export const listTags = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => loadTags(context.supabase, context.userId));
+  .inputValidator((input?: { notepadId?: string | null }) => ({ notepadId: input?.notepadId ?? null }))
+  .handler(async ({ data, context }) => {
+    const notepadId = await resolveNotepad(context.supabase, context.userId, data.notepadId);
+    return loadTags(context.supabase, context.userId, notepadId);
+  });
 
 export const listTagGroups = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => loadTagGroups(context.supabase, context.userId));
+  .inputValidator((input?: { notepadId?: string | null }) => ({ notepadId: input?.notepadId ?? null }))
+  .handler(async ({ data, context }) => {
+    const notepadId = await resolveNotepad(context.supabase, context.userId, data.notepadId);
+    return loadTagGroups(context.supabase, context.userId, notepadId);
+  });
 
 export const saveTag = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
