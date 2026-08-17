@@ -230,6 +230,7 @@ function SettingsPage() {
           </ul>
         </section>
       )}
+      </div>
     </main>
   );
 }
