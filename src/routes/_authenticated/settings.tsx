@@ -429,6 +429,7 @@ function TagRow({
               onClick={() => {
                 setName(tag.name);
                 setContext(tag.context);
+                setKeywords(tag.match_keywords.join(", "));
               }}
               className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
             >
@@ -437,7 +438,11 @@ function TagRow({
             <button
               type="button"
               onClick={() =>
-                void onUpdate(tag.id, { name: name.trim(), context: context.trim() })
+                void onUpdate(tag.id, {
+                  name: name.trim(),
+                  context: context.trim(),
+                  matchKeywords: parsedKeywords,
+                })
               }
               className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 font-medium text-primary-foreground"
             >
