@@ -24,23 +24,6 @@ export { normalizeTag } from "./tag-normalize";
 
 
 
-export async function ensureConversation(supabase: Client, userId: string): Promise<string> {
-  const existing = await supabase
-    .from("conversations")
-    .select("id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (existing.data?.id) return existing.data.id;
-
-  const created = await supabase
-    .from("conversations")
-    .insert({ user_id: userId })
-    .select("id")
-    .single();
-  if (created.error) throw created.error;
-  return created.data.id;
-}
-
 export async function ensurePreferences(supabase: Client, userId: string) {
   const existing = await supabase
     .from("user_preferences")
@@ -152,6 +135,7 @@ export async function resolveTaggedMessageIds(
 export async function loadStreamPage(
   supabase: Client,
   userId: string,
+  notepadId: string,
   options: { limit: number; before?: string | null; tagIds?: string[]; mode?: FilterMode },
 ): Promise<StreamPage> {
   const tagIds = options.tagIds ?? [];
@@ -165,6 +149,7 @@ export async function loadStreamPage(
     .from("messages")
     .select(MESSAGE_SELECT)
     .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(options.limit + 1);
@@ -215,7 +200,11 @@ export type FlowTagGroup = {
 };
 
 /** One reusable list of tags with derived counts — the source for filters and management. */
-export async function loadTags(supabase: Client, userId: string): Promise<FlowTagDetail[]> {
+export async function loadTags(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+): Promise<FlowTagDetail[]> {
   const [tagRows, countRows] = await Promise.all([
     supabase
       .from("tags")
@@ -223,9 +212,10 @@ export async function loadTags(supabase: Client, userId: string): Promise<FlowTa
         "id, name, color, context, is_enabled, group_id, is_pinned, sort_order, match_keywords, auto_apply",
       )
       .eq("user_id", userId)
+      .eq("conversation_id", notepadId)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
-    supabase.rpc("tag_message_counts" as never),
+    supabase.rpc("tag_message_counts" as never, { p_conversation_id: notepadId } as never),
   ]);
   if (tagRows.error) throw tagRows.error;
 
@@ -250,16 +240,21 @@ export async function loadTags(supabase: Client, userId: string): Promise<FlowTa
 }
 
 
-export async function loadTagGroups(supabase: Client, userId: string): Promise<FlowTagGroup[]> {
+export async function loadTagGroups(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+): Promise<FlowTagGroup[]> {
   const [groups, counts] = await Promise.all([
     supabase
       .from("tag_groups")
       .select("id, name, color, sort_order, is_collapsed, context")
       .eq("user_id", userId)
+      .eq("conversation_id", notepadId)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     // Unique messages per group: a note tagged twice inside one group counts once.
-    supabase.rpc("group_message_counts" as never),
+    supabase.rpc("group_message_counts" as never, { p_conversation_id: notepadId } as never),
   ]);
   if (groups.error) throw groups.error;
 
@@ -305,9 +300,14 @@ export async function loadMessage(
  * Permanently removes completed messages whose retention window has passed and
  * records each removal in the deletion log. Unfinished messages are never touched.
  */
-export async function runRetention(supabase: Client, userId: string) {
-  const prefs = await ensurePreferences(supabase, userId);
-  const days = prefs.completed_retention_days;
+export async function runRetention(supabase: Client, userId: string, notepadId: string) {
+  const notepad = await supabase
+    .from("conversations")
+    .select("completed_retention_days")
+    .eq("id", notepadId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  const days = notepad.data?.completed_retention_days;
   if (days === null || days === undefined) return { deleted: 0 };
 
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -315,6 +315,7 @@ export async function runRetention(supabase: Client, userId: string) {
     .from("messages")
     .select("id, content, completed_at, created_at")
     .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
     .eq("is_completed", true)
     .not("completed_at", "is", null)
     .lt("completed_at", cutoff);
