@@ -12,6 +12,7 @@ import {
   runRetention,
 } from "./flow.server";
 import { loadSuggestions, organizeMessage } from "./organize.server";
+import { applySuggestion, ignoreSuggestion } from "./suggestions.server";
 import { normalizeTag } from "./tag-normalize";
 import { htmlToText, isEmptyDocument, sanitizeHtml, textToHtml } from "./rich-text";
 import { DEFAULT_TAG_COLOR, pickDefaultTagColor, TAG_COLOR_KEYS } from "./tag-colors";
@@ -702,9 +703,8 @@ export const applyTagSuggestion = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const applied = await applySuggestionRow(supabase, userId, data.id, data.learnMode);
-    return { applied, tags: await loadTags(supabase, userId) };
+    const applied = await applySuggestion(context.supabase, context.userId, data.id, data.learnMode);
+    return { applied, tags: await loadTags(context.supabase, context.userId) };
   });
 
 export const ignoreTagSuggestion = createServerFn({ method: "POST" })
@@ -713,43 +713,28 @@ export const ignoreTagSuggestion = createServerFn({ method: "POST" })
     if (!input?.id) throw new Error("Missing suggestion");
     return { id: input.id };
   })
-  .handler(async ({ data, context }) => {
-    // Ignored stays ignored: the same concept will not come back unprompted.
-    const { error } = await context.supabase
-      .from("tag_suggestions")
-      .update({ status: "ignored" })
-      .eq("id", data.id)
-      .eq("user_id", context.userId);
-    if (error) throw error;
-    return { id: data.id };
-  });
+  .handler(async ({ data, context }) =>
+    ignoreSuggestion(context.supabase, context.userId, data.id),
+  );
 
+/** Bulk apply or dismiss: the user should never approve the same tag repeatedly. */
 export const resolveAllTagSuggestions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { action: "apply" | "ignore"; learnMode?: "auto" | "suggest" | "once" }) => ({
     action: input?.action === "ignore" ? ("ignore" as const) : ("apply" as const),
     learnMode:
-      input?.learnMode === "suggest" || input?.learnMode === "once" ? input.learnMode : ("auto" as const),
+      input?.learnMode === "suggest" || input?.learnMode === "once"
+        ? input.learnMode
+        : ("auto" as const),
   }))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const pending = await loadSuggestions(supabase, userId);
-
-    if (data.action === "ignore") {
-      for (const suggestion of pending) {
-        await supabase
-          .from("tag_suggestions")
-          .update({ status: "ignored" })
-          .eq("id", suggestion.id)
-          .eq("user_id", userId);
-      }
-      return { resolved: pending.length, tags: await loadTags(supabase, userId) };
-    }
-
     let resolved = 0;
     for (const suggestion of pending) {
       try {
-        await applySuggestionRow(supabase, userId, suggestion.id, data.learnMode);
+        if (data.action === "ignore") await ignoreSuggestion(supabase, userId, suggestion.id);
+        else await applySuggestion(supabase, userId, suggestion.id, data.learnMode);
         resolved += 1;
       } catch {
         /* keep going: one bad suggestion should not block the rest */
@@ -757,82 +742,3 @@ export const resolveAllTagSuggestions = createServerFn({ method: "POST" })
     }
     return { resolved, tags: await loadTags(supabase, userId) };
   });
-
-/**
- * Applying a suggestion tags every message it was gathered from in one step —
- * the user approves the concept once, not once per message.
- */
-async function applySuggestionRow(
-  supabase: Parameters<typeof loadTags>[0],
-  userId: string,
-  id: string,
-  learnMode: "auto" | "suggest" | "once",
-) {
-  const suggestion = await supabase
-    .from("tag_suggestions")
-    .select("id, kind, tag_id, name, normalized_name, reason, suggested_group_id, message_ids, status")
-    .eq("id", id)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (suggestion.error) throw suggestion.error;
-  const row = suggestion.data;
-  if (!row || row.status !== "pending") return 0;
-
-  let tagId = row.tag_id;
-  if (!tagId) {
-    const existing = await supabase
-      .from("tags")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("normalized_name", row.normalized_name)
-      .maybeSingle();
-    tagId = existing.data?.id ?? null;
-  }
-
-  if (!tagId) {
-    const created = await supabase
-      .from("tags")
-      .insert({
-        user_id: userId,
-        name: row.name,
-        normalized_name: row.normalized_name,
-        color: pickDefaultTagColor(row.normalized_name),
-        // The suggestion's own explanation becomes the tag's starting rule.
-        context: learnMode === "once" ? "" : row.reason,
-        is_enabled: learnMode !== "once",
-        auto_apply: learnMode === "auto",
-        group_id: row.suggested_group_id ?? null,
-      })
-      .select("id")
-      .single();
-    if (created.error) throw created.error;
-    tagId = created.data.id;
-  } else {
-    await supabase
-      .from("tags")
-      .update({ auto_apply: learnMode === "auto", is_enabled: learnMode !== "once" })
-      .eq("id", tagId)
-      .eq("user_id", userId);
-  }
-
-  const messageIds = (row.message_ids ?? []).slice(0, 500);
-  if (messageIds.length) {
-    await supabase.from("message_tags").upsert(
-      messageIds.map((messageId) => ({
-        user_id: userId,
-        message_id: messageId,
-        tag_id: tagId!,
-        source: "user",
-      })),
-      { onConflict: "message_id,tag_id" },
-    );
-  }
-
-  await supabase
-    .from("tag_suggestions")
-    .update({ status: "applied", tag_id: tagId })
-    .eq("id", row.id)
-    .eq("user_id", userId);
-
-  return messageIds.length;
-}
