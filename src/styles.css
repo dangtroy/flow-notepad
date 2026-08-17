@@ -376,6 +376,35 @@
 }
 
 @layer components {
+  /* The reading column: width is a curated appearance choice. */
+  .flow-shell {
+    width: 100%;
+    max-width: var(--flow-content-width, 46rem);
+    margin-inline: auto;
+  }
+
+  .flow-row-pad {
+    padding-block: var(--flow-row-pad, 0.55rem);
+  }
+
+  /* Rhythm inside one thread: replies breathe more than the root row. */
+  .flow-row-stack > * + * {
+    margin-top: var(--flow-row-gap, 0.35rem);
+  }
+
+  .flow-row-stack > * + [data-reply="true"] {
+    margin-top: var(--flow-reply-gap, 0.9rem);
+  }
+
+  .flow-reply-rail {
+    border-left: var(--flow-border-width, 1px) solid var(--flow-border-color, var(--border));
+  }
+
+  .flow-thread-divider {
+    border-top: var(--flow-border-width, 1px) solid var(--flow-border-color, var(--border));
+  }
+
+
   /* TipTap surface: no chrome of its own, inherits the prose rhythm. */
   .flow-editor .tiptap {
     outline: none;
