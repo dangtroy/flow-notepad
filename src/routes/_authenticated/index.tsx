@@ -413,7 +413,7 @@ function FlowPage() {
                   {group.threads.map((thread) => (
                     <div
                       key={thread.id}
-                      className="flow-row-stack border-t border-border/45 pt-[var(--flow-thread-gap)] first:border-t-0 first:pt-0"
+                      className="flow-row-stack flow-thread-divider pt-[var(--flow-thread-gap)] first:border-t-0 first:pt-0"
                       style={{ paddingBottom: "var(--flow-thread-gap)" }}
                     >
                       {thread.entries.map(({ message, depth }) => (
@@ -428,8 +428,10 @@ function FlowPage() {
                           onSaveEdit={(html) => void handleSaveEdit(message, html)}
                           showTags={appearance.showTags}
                           showTimestamps={appearance.showTimestamps}
+                          showReplyTimestamps={appearance.showReplyTimestamps}
                           tagStyle={appearance.tagStyle}
                           tagPosition={appearance.tagPosition}
+
                           onToggleComplete={() => void handleToggleComplete(message)}
                           onDeleteNow={() => void handleDeleteNow(message)}
                           onReply={() =>
