@@ -127,15 +127,21 @@ export async function updateNotepad(
     completedRetentionDays?: number | null;
   },
 ): Promise<Notepad[]> {
-  const patch: Record<string, unknown> = {};
-  if (input.name) patch["title"] = input.name;
-  if (input.icon !== undefined) patch["icon"] = isNotepadIcon(input.icon) ? input.icon : null;
+  const patch: {
+    title?: string;
+    icon?: string | null;
+    accent?: string;
+    is_pinned?: boolean;
+    completed_retention_days?: number | null;
+  } = {};
+  if (input.name) patch.title = input.name;
+  if (input.icon !== undefined) patch.icon = isNotepadIcon(input.icon) ? input.icon : null;
   if (input.accent !== undefined && TAG_COLOR_KEYS.includes(input.accent as never)) {
-    patch["accent"] = input.accent;
+    patch.accent = input.accent!;
   }
-  if (input.isPinned !== undefined) patch["is_pinned"] = input.isPinned;
+  if (input.isPinned !== undefined) patch.is_pinned = input.isPinned;
   if (input.completedRetentionDays !== undefined) {
-    patch["completed_retention_days"] = input.completedRetentionDays;
+    patch.completed_retention_days = input.completedRetentionDays;
   }
 
   if (Object.keys(patch).length) {
@@ -203,7 +209,10 @@ export async function rememberActiveNotepad(
   settings["activeNotepadId"] = notepadId;
   await supabase
     .from("user_preferences")
-    .upsert({ user_id: userId, settings }, { onConflict: "user_id" });
+    .upsert(
+      { user_id: userId, settings: settings as Database["public"]["Tables"]["user_preferences"]["Row"]["settings"] },
+      { onConflict: "user_id" },
+    );
 }
 
 export async function readActiveNotepad(
