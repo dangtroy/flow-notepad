@@ -20,12 +20,8 @@ export type FlowMessage = {
 };
 
 
-export function normalizeTag(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
+export { normalizeTag } from "./tag-normalize";
+
 
 
 export async function ensureConversation(supabase: Client, userId: string): Promise<string> {
@@ -199,6 +195,10 @@ export type FlowTagDetail = {
   group_id: string | null;
   is_pinned: boolean;
   sort_order: number;
+  /** Literal words that apply this tag with no AI call at all. */
+  match_keywords: string[];
+  /** false = Flow only ever suggests this tag, never applies it silently. */
+  auto_apply: boolean;
 };
 
 /** Groups are the user's own organizing layer over AI-applied tags. */
@@ -208,6 +208,10 @@ export type FlowTagGroup = {
   color: string | null;
   sort_order: number;
   is_collapsed: boolean;
+  /** Broad, plain-English context the AI may weigh alongside child tags. */
+  context: string;
+  /** Unique messages across all child tags. */
+  message_count: number;
 };
 
 /** One reusable list of tags with derived counts — the source for filters and management. */
@@ -215,7 +219,9 @@ export async function loadTags(supabase: Client, userId: string): Promise<FlowTa
   const [tagRows, countRows] = await Promise.all([
     supabase
       .from("tags")
-      .select("id, name, color, context, is_enabled, group_id, is_pinned, sort_order")
+      .select(
+        "id, name, color, context, is_enabled, group_id, is_pinned, sort_order, match_keywords, auto_apply",
+      )
       .eq("user_id", userId)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
@@ -238,19 +244,41 @@ export async function loadTags(supabase: Client, userId: string): Promise<FlowTa
     group_id: (tag as { group_id?: string | null }).group_id ?? null,
     is_pinned: (tag as { is_pinned?: boolean }).is_pinned ?? false,
     sort_order: (tag as { sort_order?: number }).sort_order ?? 0,
+    match_keywords: (tag as { match_keywords?: string[] | null }).match_keywords ?? [],
+    auto_apply: (tag as { auto_apply?: boolean }).auto_apply ?? true,
   }));
 }
 
+
 export async function loadTagGroups(supabase: Client, userId: string): Promise<FlowTagGroup[]> {
-  const { data, error } = await supabase
-    .from("tag_groups")
-    .select("id, name, color, sort_order, is_collapsed")
-    .eq("user_id", userId)
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as FlowTagGroup[];
+  const [groups, counts] = await Promise.all([
+    supabase
+      .from("tag_groups")
+      .select("id, name, color, sort_order, is_collapsed, context")
+      .eq("user_id", userId)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
+    // Unique messages per group: a note tagged twice inside one group counts once.
+    supabase.rpc("group_message_counts" as never),
+  ]);
+  if (groups.error) throw groups.error;
+
+  const byGroup = new Map<string, number>();
+  for (const row of (counts.data ?? []) as Array<{ group_id: string; message_count: number }>) {
+    byGroup.set(row.group_id, Number(row.message_count));
+  }
+
+  return (groups.data ?? []).map((group) => ({
+    id: group.id,
+    name: group.name,
+    color: group.color,
+    sort_order: group.sort_order,
+    is_collapsed: group.is_collapsed,
+    context: (group as { context?: string }).context ?? "",
+    message_count: byGroup.get(group.id) ?? 0,
+  }));
 }
+
 
 
 export async function loadMessage(
@@ -269,165 +297,9 @@ export async function loadMessage(
 }
 
 
-type AiResult = { tags: string[]; summary: string; topics: string[] };
+/* Organizing lives in organize.server.ts: deterministic rules first, then a
+   small, tightly scoped AI classification step. */
 
-/**
- * Classification only — never invention. The model may pick from the user's own
- * tags and must justify each pick against that tag's written context rule.
- */
-async function askAi(
-  content: string,
-  rules: Array<{ tag_name: string; context: string }>,
-): Promise<AiResult> {
-  const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) throw new Error("AI is not configured");
-
-  const rulesText = rules.map((r) => `- "${r.tag_name}": ${r.context}`).join("\n");
-
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-3.7-flash",
-      messages: [
-        {
-          role: "system",
-          content: [
-            "You classify one personal thought against a fixed list of user-defined tags.",
-            "You may ONLY use tag names from the provided list, copied exactly. Never invent, rename, pluralise, or suggest any other tag.",
-            "Select a tag only when the thought clearly matches that tag's context rule, judged by meaning rather than keywords.",
-            "If no rule matches, return an empty tags array. Returning no tags is correct and expected.",
-            "Also return a one-sentence summary and key topics.",
-            'Respond ONLY with JSON: {"tags":["..."],"summary":"...","topics":["..."]}',
-          ].join("\n"),
-        },
-        {
-          role: "user",
-          content: [
-            `Allowed tags and their context rules:\n${rulesText}`,
-            `Thought: ${content}`,
-          ].join("\n\n"),
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`AI gateway error ${response.status}`);
-  }
-
-  const payload = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const raw = payload.choices?.[0]?.message?.content ?? "";
-  const jsonText = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
-  const parsed = JSON.parse(jsonText) as Partial<AiResult>;
-
-  return {
-    tags: Array.isArray(parsed.tags) ? parsed.tags.filter((t) => typeof t === "string").slice(0, 4) : [],
-    summary: typeof parsed.summary === "string" ? parsed.summary : "",
-    topics: Array.isArray(parsed.topics) ? parsed.topics.filter((t) => typeof t === "string") : [],
-  };
-}
-
-/**
- * Organizes one message in the background. Never called before the message is
- * saved, and any failure leaves the message itself untouched.
- */
-export async function organizeMessage(supabase: Client, userId: string, messageId: string) {
-  const message = await supabase
-    .from("messages")
-    .select("id, content")
-    .eq("id", messageId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (message.error) throw message.error;
-  if (!message.data) return { ok: false as const, reason: "not_found" };
-
-  try {
-    const { data: tagRows } = await supabase
-      .from("tags")
-      .select("id, name, normalized_name, context, is_enabled")
-      .eq("user_id", userId);
-
-    const existing = (tagRows ?? []) as Array<{
-      id: string;
-      name: string;
-      normalized_name: string;
-      context?: string | null;
-      is_enabled?: boolean | null;
-    }>;
-
-    /**
-     * No auto-discovery: a tag is only ever applied when the user enabled it and
-     * wrote a context rule for it. Nothing new is ever created here.
-     */
-    const candidates = existing.filter(
-      (t) => t.is_enabled !== false && (t.context ?? "").trim().length > 0,
-    );
-
-    if (!candidates.length) {
-      await supabase.from("message_tags").delete().eq("message_id", messageId).eq("source", "ai");
-      await supabase
-        .from("messages")
-        .update({ ai_status: "done", ai_processed_at: new Date().toISOString(), ai_error: null })
-        .eq("id", messageId)
-        .eq("user_id", userId);
-      return { ok: true as const };
-    }
-
-    const result = await askAi(
-      message.data.content,
-      candidates.map((t) => ({ tag_name: t.name, context: (t.context ?? "").trim() })),
-    );
-
-    const allowed = new Map(candidates.map((t) => [t.normalized_name, t.id]));
-    const tagIds: string[] = [];
-    for (const rawName of result.tags) {
-      const id = allowed.get(normalizeTag(rawName.trim()));
-      if (id && !tagIds.includes(id)) tagIds.push(id);
-    }
-
-
-    // Replace AI-applied tags for this message; user-applied links are kept.
-    await supabase.from("message_tags").delete().eq("message_id", messageId).eq("source", "ai");
-    if (tagIds.length) {
-      await supabase.from("message_tags").upsert(
-        tagIds.map((tagId) => ({
-          user_id: userId,
-          message_id: messageId,
-          tag_id: tagId,
-          source: "ai",
-        })),
-        { onConflict: "message_id,tag_id" },
-      );
-    }
-
-    await supabase
-      .from("messages")
-      .update({
-        ai_status: "done",
-        ai_processed_at: new Date().toISOString(),
-        ai_error: null,
-        ai_context: { summary: result.summary, topics: result.topics },
-      })
-      .eq("id", messageId)
-      .eq("user_id", userId);
-
-    return { ok: true as const };
-  } catch (error) {
-    const messageText = error instanceof Error ? error.message : "unknown AI error";
-    await supabase
-      .from("messages")
-      .update({ ai_status: "failed", ai_error: messageText })
-      .eq("id", messageId)
-      .eq("user_id", userId);
-    return { ok: false as const, reason: messageText };
-  }
-}
 
 /**
  * Permanently removes completed messages whose retention window has passed and
