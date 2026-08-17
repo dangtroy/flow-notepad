@@ -96,7 +96,7 @@ export async function loadNotepad(
 export async function createNotepad(
   supabase: Client,
   userId: string,
-  input: { name: string; icon?: string | null; accent?: string | null },
+  input: { name: string; icon?: string | null | undefined; accent?: string | null | undefined },
 ): Promise<Notepad> {
   const existing = await listNotepads(supabase, userId);
   const { data, error } = await supabase
@@ -120,11 +120,11 @@ export async function updateNotepad(
   userId: string,
   input: {
     id: string;
-    name?: string;
-    icon?: string | null;
-    accent?: string | null;
-    isPinned?: boolean;
-    completedRetentionDays?: number | null;
+    name?: string | undefined;
+    icon?: string | null | undefined;
+    accent?: string | null | undefined;
+    isPinned?: boolean | undefined;
+    completedRetentionDays?: number | null | undefined;
   },
 ): Promise<Notepad[]> {
   const patch: {
