@@ -1,10 +1,11 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Inbox, LogOut, Moon, Settings, Sun } from "lucide-react";
+import { Eye, EyeOff, Inbox, LogOut, Moon, Settings, Sun } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { tagAccent } from "@/lib/tag-colors";
 import { tagIdsFrom, tagsParam, toggleTagId } from "@/lib/tag-filter";
+import { useShowTags } from "@/lib/use-show-tags";
 import { useTags } from "@/lib/use-tags";
 import { useTheme } from "@/lib/use-theme";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const search = useSearch({ strict: false }) as { tags?: string; mode?: "or" | "and" };
   const tags = useTags();
   const { theme, toggleTheme } = useTheme();
+  const { showTags, toggleTags } = useShowTags();
 
   const selected = tagIdsFrom(search.tags);
   const mode = search.mode === "and" ? "and" : "or";
@@ -108,6 +110,15 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         >
           {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
           {theme === "dark" ? "Light mode" : "Dark mode"}
+        </button>
+        <button
+          type="button"
+          onClick={toggleTags}
+          className={cn(itemClass, "w-full text-left")}
+          aria-pressed={!showTags}
+        >
+          {showTags ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+          {showTags ? "Hide tags" : "Show tags"}
         </button>
         <Link to="/settings" onClick={onNavigate} className={itemClass}>
           <Settings className="h-3.5 w-3.5" />

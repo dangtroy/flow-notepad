@@ -392,3 +392,77 @@ export const deleteTag = createServerFn({ method: "POST" })
     if (error) throw error;
     return loadTags(context.supabase, context.userId);
   });
+
+/** Permanent, immediate delete — skips the retention timer entirely. */
+export const deleteMessageNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("Missing message");
+    return { id: input.id };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: row, error } = await supabase
+      .from("messages")
+      .select("id, content, completed_at, created_at")
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!row) return { id: data.id };
+
+    await supabase.from("deletion_log").insert({
+      user_id: userId,
+      message_id: row.id,
+      content_snapshot: row.content,
+      completed_at: row.completed_at,
+      message_created_at: row.created_at,
+      reason: "manual",
+    });
+
+    const removed = await supabase
+      .from("messages")
+      .delete()
+      .eq("id", row.id)
+      .eq("user_id", userId);
+    if (removed.error) throw removed.error;
+    return { id: row.id };
+  });
+
+/**
+ * Re-reads every thought against the current tags and their context rules.
+ * Run after a rule changes so existing notes reflect the new intent.
+ */
+export const retagAllMessages = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data, error } = await supabase
+      .from("messages")
+      .select("id")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(400);
+    if (error) throw error;
+
+    const ids = (data ?? []).map((row) => row.id);
+    let organized = 0;
+    let failed = 0;
+    const queue = [...ids];
+
+    async function worker() {
+      for (;;) {
+        const id = queue.shift();
+        if (!id) return;
+        try {
+          await organizeMessage(supabase, userId, id);
+          organized += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+    }
+
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    return { total: ids.length, organized, failed };
+  });
