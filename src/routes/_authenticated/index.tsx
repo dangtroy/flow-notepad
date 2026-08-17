@@ -69,6 +69,8 @@ function FlowPage() {
   const cleanup = useServerFn(cleanupCompleted);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<{ id: string; preview: string } | null>(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<number | null>(null);
   const settledRef = useRef(false);
