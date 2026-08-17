@@ -77,7 +77,7 @@ function FlowPage() {
   const complete = useServerFn(setMessageCompletion);
   const organize = useServerFn(organizeMessageFn);
   const cleanup = useServerFn(cleanupCompleted);
-  const tags = useTags();
+  
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; preview: string } | null>(null);
@@ -111,14 +111,6 @@ function FlowPage() {
     getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
 
-  function applyFilter(nextIds: string[], nextMode: FilterMode = mode) {
-    void navigate({
-      search: {
-        tags: tagsParam(nextIds),
-        mode: nextIds.length > 1 && nextMode === "and" ? "and" : undefined,
-      },
-    });
-  }
 
   // Pages arrive newest-first; render them oldest-first.
   const messages = useMemo(() => {
