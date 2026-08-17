@@ -177,6 +177,7 @@ async function classifyWithAi(input: {
 async function recordSuggestion(
   supabase: Client,
   userId: string,
+  notepadId: string,
   suggestion: {
     kind: SuggestionKind;
     name: string;
@@ -194,6 +195,7 @@ async function recordSuggestion(
     .from("tag_suggestions")
     .select("id, status, message_ids, evidence_count, reason")
     .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
     .eq("kind", suggestion.kind)
     .eq("normalized_name", normalized)
     .maybeSingle();
@@ -217,6 +219,7 @@ async function recordSuggestion(
 
   await supabase.from("tag_suggestions").insert({
     user_id: userId,
+    conversation_id: notepadId,
     kind: suggestion.kind,
     tag_id: suggestion.tagId ?? null,
     name: suggestion.name.trim().slice(0, 60),
@@ -246,13 +249,15 @@ export async function organizeMessage(
 ): Promise<OrganizeResult> {
   const message = await supabase
     .from("messages")
-    .select("id, content, ai_status, ai_fingerprint, parent_message_id")
+    .select("id, content, ai_status, ai_fingerprint, parent_message_id, conversation_id")
     .eq("id", messageId)
     .eq("user_id", userId)
     .maybeSingle();
   if (message.error) throw message.error;
   if (!message.data) return { ok: false, reason: "not_found" };
 
+  // A note is only ever organized against its own notepad's tags and rules.
+  const notepadId = message.data.conversation_id;
   const content = (message.data.content ?? "").trim();
   const stamp = fingerprint(content);
 
@@ -266,8 +271,13 @@ export async function organizeMessage(
       supabase
         .from("tags")
         .select("id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id")
-        .eq("user_id", userId),
-      supabase.from("tag_groups").select("id, name").eq("user_id", userId),
+        .eq("user_id", userId)
+        .eq("conversation_id", notepadId),
+      supabase
+        .from("tag_groups")
+        .select("id, name")
+        .eq("user_id", userId)
+        .eq("conversation_id", notepadId),
     ]);
 
     const tags = ((tagRows.data ?? []) as TagRow[]).filter((tag) => tag.is_enabled !== false);
@@ -284,7 +294,7 @@ export async function organizeMessage(
       decided.add(tag.id);
       if (tag.auto_apply !== false) autoTagIds.add(tag.id);
       else {
-        await recordSuggestion(supabase, userId, {
+        await recordSuggestion(supabase, userId, notepadId, {
           kind: "existing_tag",
           tagId: tag.id,
           name: tag.name,
@@ -346,7 +356,7 @@ export async function organizeMessage(
           autoTagIds.add(tag.id);
         } else if (choice.confidence >= SUGGEST_CONFIDENCE) {
           suggested += 1;
-          await recordSuggestion(supabase, userId, {
+          await recordSuggestion(supabase, userId, notepadId, {
             kind: "existing_tag",
             tagId: tag.id,
             name: tag.name,
@@ -367,7 +377,7 @@ export async function organizeMessage(
           (candidate) => normalizeTag(candidate.name) === normalizeTag(concept.group ?? ""),
         );
         suggested += 1;
-        await recordSuggestion(supabase, userId, {
+        await recordSuggestion(supabase, userId, notepadId, {
           kind: "new_tag",
           name: concept.name,
           reason: concept.reason,
@@ -417,13 +427,18 @@ export async function organizeMessage(
 }
 
 /** Only suggestions with real, repeated evidence are shown. */
-export async function loadSuggestions(supabase: Client, userId: string): Promise<TagSuggestion[]> {
+export async function loadSuggestions(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+): Promise<TagSuggestion[]> {
   const { data, error } = await supabase
     .from("tag_suggestions")
     .select(
       "id, kind, tag_id, name, reason, message_ids, evidence_count, suggested_group_id, suggested_group_name",
     )
     .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
     .eq("status", "pending")
     .order("evidence_count", { ascending: false })
     .limit(50);
