@@ -33,7 +33,7 @@ type TagRow = {
   group_id: string | null;
 };
 
-type GroupRow = { id: string; name: string; context: string | null };
+type GroupRow = { id: string; name: string };
 
 /** Stable, cheap content fingerprint so unchanged notes are skipped entirely. */
 export function fingerprint(text: string): string {
@@ -82,7 +82,7 @@ export function matchesKeyword(content: string, keyword: string): boolean {
 function relevance(content: string, tag: TagRow, group?: GroupRow): number {
   const haystack = content.toLowerCase();
   const words = new Set(
-    `${tag.name} ${tag.context ?? ""} ${group?.name ?? ""} ${group?.context ?? ""}`
+    `${tag.name} ${tag.context ?? ""} ${group?.name ?? ""}`
       .toLowerCase()
       .split(/[^a-z0-9]+/)
       .filter((word) => word.length > 3),
@@ -99,7 +99,6 @@ async function classifyWithAi(input: {
   content: string;
   parent: string | null;
   tags: Array<{ name: string; context: string; group?: string | null }>;
-  groups: Array<{ name: string; context: string }>;
 }): Promise<{ tags: AiTag[]; concepts: AiConcept[]; summary: string }> {
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("AI is not configured");
@@ -107,7 +106,6 @@ async function classifyWithAi(input: {
   const tagLines = input.tags
     .map((tag) => `- "${tag.name}"${tag.group ? ` (group: ${tag.group})` : ""}: ${tag.context}`)
     .join("\n");
-  const groupLines = input.groups.map((g) => `- "${g.name}": ${g.context}`).join("\n");
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -131,7 +129,6 @@ async function classifyWithAi(input: {
           role: "user",
           content: [
             tagLines ? `Existing tags and their context rules:\n${tagLines}` : "Existing tags: none",
-            groupLines ? `Groups and their context rules:\n${groupLines}` : "",
             input.parent ? `This note replies to: ${input.parent}` : "",
             `Note: ${input.content}`,
           ]
@@ -270,7 +267,7 @@ export async function organizeMessage(
         .from("tags")
         .select("id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id")
         .eq("user_id", userId),
-      supabase.from("tag_groups").select("id, name, context").eq("user_id", userId),
+      supabase.from("tag_groups").select("id, name").eq("user_id", userId),
     ]);
 
     const tags = ((tagRows.data ?? []) as TagRow[]).filter((tag) => tag.is_enabled !== false);
@@ -337,9 +334,6 @@ export async function organizeMessage(
           context: (tag.context ?? "").trim(),
           group: tag.group_id ? (groupById.get(tag.group_id)?.name ?? null) : null,
         })),
-        groups: groups
-          .filter((group) => (group.context ?? "").trim().length > 0)
-          .map((group) => ({ name: group.name, context: (group.context ?? "").trim() })),
       });
       usedAi = true;
       summary = result.summary;

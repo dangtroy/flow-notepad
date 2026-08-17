@@ -3,10 +3,24 @@ import type { FlowTagDetail, FlowTagGroup } from "./flow.server";
 export type TagSort = "alphabetical" | "most-used" | "manual";
 
 export const TAG_SORTS: Array<{ value: TagSort; label: string }> = [
-  { value: "alphabetical", label: "Alphabetical" },
-  { value: "most-used", label: "Most used" },
+  { value: "alphabetical", label: "Name" },
+  { value: "most-used", label: "Number of tags" },
   { value: "manual", label: "Manual" },
 ];
+
+/** Groups follow the same choice: name, how many tags they hold, or manual order. */
+export function sortGroups(groups: FlowTagGroup[], sort: TagSort, tags: FlowTagDetail[]): FlowTagGroup[] {
+  const list = [...groups];
+  if (sort === "alphabetical") {
+    list.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (sort === "most-used") {
+    const count = (id: string) => tags.filter((tag) => tag.group_id === id).length;
+    list.sort((a, b) => count(b.id) - count(a.id) || a.name.localeCompare(b.name));
+  } else {
+    list.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+  }
+  return list;
+}
 
 export function sortTags(tags: FlowTagDetail[], sort: TagSort): FlowTagDetail[] {
   const list = [...tags];
@@ -47,7 +61,7 @@ export function buildTagSections(
     sections.push({ group: null, kind: "pinned", label: "Pinned", tags: pinned, count: total(pinned) });
   }
 
-  for (const group of [...groups].sort((a, b) => a.sort_order - b.sort_order)) {
+  for (const group of sortGroups(groups, sort, tags)) {
     const members = sorted.filter((tag) => tag.group_id === group.id);
     sections.push({
       group,
