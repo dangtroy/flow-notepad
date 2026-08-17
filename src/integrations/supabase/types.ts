@@ -17,6 +17,7 @@ export type Database = {
       context_rules: {
         Row: {
           context: string
+          conversation_id: string
           created_at: string
           id: string
           is_enabled: boolean
@@ -27,6 +28,7 @@ export type Database = {
         }
         Insert: {
           context?: string
+          conversation_id: string
           created_at?: string
           id?: string
           is_enabled?: boolean
@@ -37,6 +39,7 @@ export type Database = {
         }
         Update: {
           context?: string
+          conversation_id?: string
           created_at?: string
           id?: string
           is_enabled?: boolean
@@ -45,26 +48,49 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "context_rules_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conversations: {
         Row: {
+          accent: string
+          completed_retention_days: number | null
           created_at: string
+          icon: string | null
           id: string
+          is_pinned: boolean
+          sort_order: number
           title: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          accent?: string
+          completed_retention_days?: number | null
           created_at?: string
+          icon?: string | null
           id?: string
+          is_pinned?: boolean
+          sort_order?: number
           title?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          accent?: string
+          completed_retention_days?: number | null
           created_at?: string
+          icon?: string | null
           id?: string
+          is_pinned?: boolean
+          sort_order?: number
           title?: string
           updated_at?: string
           user_id?: string
@@ -258,6 +284,7 @@ export type Database = {
         Row: {
           color: string | null
           context: string
+          conversation_id: string
           created_at: string
           id: string
           is_collapsed: boolean
@@ -269,6 +296,7 @@ export type Database = {
         Insert: {
           color?: string | null
           context?: string
+          conversation_id: string
           created_at?: string
           id?: string
           is_collapsed?: boolean
@@ -280,6 +308,7 @@ export type Database = {
         Update: {
           color?: string | null
           context?: string
+          conversation_id?: string
           created_at?: string
           id?: string
           is_collapsed?: boolean
@@ -288,10 +317,19 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tag_groups_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tag_suggestions: {
         Row: {
+          conversation_id: string
           created_at: string
           evidence_count: number
           id: string
@@ -308,6 +346,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          conversation_id: string
           created_at?: string
           evidence_count?: number
           id?: string
@@ -324,6 +363,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          conversation_id?: string
           created_at?: string
           evidence_count?: number
           id?: string
@@ -340,6 +380,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tag_suggestions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tag_suggestions_suggested_group_id_fkey"
             columns: ["suggested_group_id"]
@@ -361,6 +408,7 @@ export type Database = {
           auto_apply: boolean
           color: string | null
           context: string
+          conversation_id: string
           created_at: string
           group_id: string | null
           id: string
@@ -377,6 +425,7 @@ export type Database = {
           auto_apply?: boolean
           color?: string | null
           context?: string
+          conversation_id: string
           created_at?: string
           group_id?: string | null
           id?: string
@@ -393,6 +442,7 @@ export type Database = {
           auto_apply?: boolean
           color?: string | null
           context?: string
+          conversation_id?: string
           created_at?: string
           group_id?: string | null
           id?: string
@@ -406,6 +456,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tags_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tags_group_id_fkey"
             columns: ["group_id"]
@@ -445,14 +502,14 @@ export type Database = {
     }
     Functions: {
       group_message_counts: {
-        Args: never
+        Args: { p_conversation_id: string }
         Returns: {
           group_id: string
           message_count: number
         }[]
       }
       tag_message_counts: {
-        Args: never
+        Args: { p_conversation_id: string }
         Returns: {
           message_count: number
           tag_id: string
