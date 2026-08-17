@@ -173,10 +173,10 @@ function MessageRowBase({
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              handleDoneClick();
+              onToggleComplete();
             }}
             aria-label={message.is_completed ? "Mark as not done" : "Mark as done"}
-            title="Click to mark done · double-click to delete now"
+            title={message.is_completed ? "Mark as not done" : "Mark as done"}
             className={cn(
               "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 hover:bg-elevated hover:text-foreground",
               message.is_completed ? "text-primary" : "text-muted-foreground",
@@ -184,6 +184,19 @@ function MessageRowBase({
           >
             <Check className="h-3.5 w-3.5" />
           </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDeleteNow();
+            }}
+            aria-label="Delete"
+            title="Delete now"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-destructive"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+
         </div>
       )}
     </article>
