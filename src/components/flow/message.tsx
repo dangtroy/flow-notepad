@@ -130,7 +130,7 @@ function MessageRowBase({
 
               {/* Narrow screens have no gutter: the meta line carries it. */}
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] tracking-wide text-muted-foreground/55 sm:hidden">
-                {showTimestamps && (
+                {withTime && (
                   <>
                     <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
                     {message.edited_at && <span>edited</span>}
