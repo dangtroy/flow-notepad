@@ -21,6 +21,7 @@ import type { FlowTagDetail, FlowTagGroup } from "@/lib/flow.server";
 import { TAG_COLOR_KEYS, TAG_COLORS, tagColorKey } from "@/lib/tag-colors";
 import { findSimilarTag } from "@/lib/tag-filter";
 import { tagsKey, tagGroupsKey, useTagGroups, useTags } from "@/lib/use-tags";
+import { useActiveNotepadId } from "@/lib/use-notepad";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -146,6 +147,7 @@ function SettingsPage() {
  */
 function TagsSection() {
   const queryClient = useQueryClient();
+  const notepadId = useActiveNotepadId();
   const persist = useServerFn(saveTag);
   const remove = useServerFn(deleteTag);
   const retagAll = useServerFn(retagAllMessages);
@@ -154,7 +156,7 @@ function TagsSection() {
   async function retagEverything() {
     const pending = toast.loading("Re-reading your notes with the new rules…");
     try {
-      const result = await retagAll();
+      const result = await retagAll({ data: { notepadId } });
       toast.success(`Re-organized ${result.organized} of ${result.total} notes`, { id: pending });
     } catch {
       toast.error("Could not re-organize your notes", { id: pending });
@@ -461,6 +463,7 @@ function TagRow({
  */
 function GroupsSection() {
   const queryClient = useQueryClient();
+  const notepadId = useActiveNotepadId();
   const persist = useServerFn(saveTagGroup);
   const remove = useServerFn(deleteTagGroup);
   const reorder = useServerFn(reorderTagGroups);

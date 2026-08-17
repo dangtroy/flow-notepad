@@ -29,6 +29,8 @@ import { tagAccent } from "@/lib/tag-colors";
 import { tagIdsFrom, tagsParam, toggleTagId } from "@/lib/tag-filter";
 import { TAG_SORTS, buildTagSections, moveTagWithin, sortTags, type TagSection } from "@/lib/tag-organization";
 import { useAppearance } from "@/lib/use-appearance";
+import { useActiveNotepadId } from "@/lib/use-notepad";
+import { NotepadSwitcher } from "./notepad-switcher";
 import { SuggestionsBell } from "./suggestions-bell";
 
 
@@ -42,6 +44,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const search = useSearch({ strict: false }) as { tags?: string; mode?: "or" | "and" };
+  const notepadId = useActiveNotepadId();
   const tags = useTags();
   const groups = useTagGroups();
   const { appearance, update, mode: themeMode } = useAppearance();
@@ -59,7 +62,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
   async function handleClearDone() {
     try {
-      const { deleted } = await clearDone();
+      const { deleted } = await clearDone({ data: { notepadId } });
       void queryClient.invalidateQueries({ queryKey: ["stream"] });
       void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
       toast.success(
@@ -107,7 +110,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       (current ?? []).map((row) => (row.id === tag.id ? { ...row, is_pinned: !row.is_pinned } : row)),
     );
     try {
-      queryClient.setQueryData(tagsKey(notepadId), await persistTag({ data: { id: tag.id, isPinned: !tag.is_pinned } }));
+      queryClient.setQueryData(tagsKey(notepadId), await persistTag({ data: { id: tag.id, isPinned: !tag.is_pinned, notepadId } }));
     } catch {
       toast.error("Could not update that tag");
       void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
@@ -120,7 +123,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
     try {
       queryClient.setQueryData(
         tagGroupsKey(notepadId),
-        await persistGroup({ data: { id: section.group.id, isCollapsed: next } }),
+        await persistGroup({ data: { id: section.group.id, isCollapsed: next, notepadId } }),
       );
     } catch {
       toast.error("Could not update that group");
@@ -151,7 +154,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
     if (sort !== "manual") update({ tagSort: "manual" });
     try {
-      queryClient.setQueryData(tagsKey(notepadId), await persistOrder({ data: { items } }));
+      queryClient.setQueryData(tagsKey(notepadId), await persistOrder({ data: { items, notepadId } }));
     } catch {
       toast.error("Could not move that tag");
       void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
@@ -218,8 +221,11 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between px-4 pb-5 pt-5">
-        <FlowLogo className="h-5" />
+      <div className="flex items-center justify-between gap-2 px-4 pb-5 pt-5">
+        <div className="flex min-w-0 items-center gap-2">
+          <FlowLogo className="h-5 shrink-0" />
+          <NotepadSwitcher onNavigate={onNavigate} />
+        </div>
         <div className="flex items-center gap-1">
           <div className="relative">
             <button
