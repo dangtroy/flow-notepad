@@ -78,6 +78,10 @@
   --flow-row-gap: 0.35rem;
   --flow-content-width: 46rem;
   --flow-sidebar-width: 13.5rem;
+  --flow-reply-gap: 0.9rem;
+  --flow-border-color: var(--border);
+  --flow-border-width: 1px;
+
 
 
   --background: oklch(0.987 0.003 90);
