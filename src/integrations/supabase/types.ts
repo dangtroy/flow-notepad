@@ -155,8 +155,10 @@ export type Database = {
           ai_error: string | null
           ai_processed_at: string | null
           ai_status: string
+          attachments: Json
           completed_at: string | null
           content: string
+          content_html: string | null
           conversation_id: string
           created_at: string
           deleted_at: string | null
@@ -172,8 +174,10 @@ export type Database = {
           ai_error?: string | null
           ai_processed_at?: string | null
           ai_status?: string
+          attachments?: Json
           completed_at?: string | null
           content: string
+          content_html?: string | null
           conversation_id: string
           created_at?: string
           deleted_at?: string | null
@@ -189,8 +193,10 @@ export type Database = {
           ai_error?: string | null
           ai_processed_at?: string | null
           ai_status?: string
+          attachments?: Json
           completed_at?: string | null
           content?: string
+          content_html?: string | null
           conversation_id?: string
           created_at?: string
           deleted_at?: string | null
