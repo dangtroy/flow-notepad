@@ -13,6 +13,7 @@ import {
   PinOff,
   Settings,
   Sun,
+  ArrowDownUp,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -25,7 +26,7 @@ import type { FlowTagDetail } from "@/lib/flow.server";
 import { TAGS_KEY, TAG_GROUPS_KEY, useTagGroups, useTags } from "@/lib/use-tags";
 import { tagAccent } from "@/lib/tag-colors";
 import { tagIdsFrom, tagsParam, toggleTagId } from "@/lib/tag-filter";
-import { buildTagSections, moveTagWithin, sortTags, type TagSection } from "@/lib/tag-organization";
+import { TAG_SORTS, buildTagSections, moveTagWithin, sortTags, type TagSection } from "@/lib/tag-organization";
 import { useAppearance } from "@/lib/use-appearance";
 import { SuggestionsBell } from "./suggestions-bell";
 
@@ -51,6 +52,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const persistGroup = useServerFn(saveTagGroup);
   const persistOrder = useServerFn(reorderTags);
 
+  const [sortOpen, setSortOpen] = useState(false);
   const [dragTagId, setDragTagId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
@@ -217,7 +219,41 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-4 pb-5 pt-5">
         <span className="font-display text-[1.35rem] tracking-tight text-foreground">Flow</span>
-        <SuggestionsBell />
+        <div className="flex items-center gap-1">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setSortOpen((open) => !open)}
+              aria-label="Sort sidebar"
+              aria-expanded={sortOpen}
+              className="rounded p-1.5 text-muted-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <ArrowDownUp className="h-3.5 w-3.5" />
+            </button>
+            {sortOpen && (
+              <div className="absolute right-0 z-30 mt-1 w-44 overflow-hidden rounded-md border border-border bg-popover py-1 shadow-lg">
+                {TAG_SORTS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      update({ tagSort: option.value });
+                      setSortOpen(false);
+                    }}
+                    aria-pressed={sort === option.value}
+                    className={cn(
+                      "flex w-full items-center px-3 py-1.5 text-left text-[13px] text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                      sort === option.value && "text-foreground",
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <SuggestionsBell />
+        </div>
       </div>
 
 
