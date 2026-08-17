@@ -130,6 +130,9 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  // Applies the saved appearance (theme, accent, rhythm) once after hydration.
+  useAppearance();
+
 
   return (
     <QueryClientProvider client={queryClient}>
