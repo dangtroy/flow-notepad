@@ -244,17 +244,18 @@ export async function loadMessage(
 
 type AiResult = { tags: string[]; summary: string; topics: string[] };
 
+/**
+ * Classification only — never invention. The model may pick from the user's own
+ * tags and must justify each pick against that tag's written context rule.
+ */
 async function askAi(
   content: string,
-  existingTags: string[],
   rules: Array<{ tag_name: string; context: string }>,
 ): Promise<AiResult> {
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("AI is not configured");
 
-  const rulesText = rules.length
-    ? rules.map((r) => `- Tag "${r.tag_name}": ${r.context}`).join("\n")
-    : "(none)";
+  const rulesText = rules.map((r) => `- "${r.tag_name}": ${r.context}`).join("\n");
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -268,19 +269,18 @@ async function askAi(
         {
           role: "system",
           content: [
-            "You organize a person's stream of personal thoughts.",
-            "Given one thought, return 1-3 concise reusable tags, a one-sentence summary, and key topics.",
-            "Strongly prefer reusing an existing tag when it means the same concept; never invent a near-duplicate (e.g. do not add 'Trips' when 'Travel' exists).",
-            "Tags are short Title Case concepts (project, person, place, product, or theme). No hashtags, no sentences.",
-            "Apply the user's context rules by meaning, not by keyword: if the thought is about what a rule describes, include that rule's tag even when the exact words never appear.",
+            "You classify one personal thought against a fixed list of user-defined tags.",
+            "You may ONLY use tag names from the provided list, copied exactly. Never invent, rename, pluralise, or suggest any other tag.",
+            "Select a tag only when the thought clearly matches that tag's context rule, judged by meaning rather than keywords.",
+            "If no rule matches, return an empty tags array. Returning no tags is correct and expected.",
+            "Also return a one-sentence summary and key topics.",
             'Respond ONLY with JSON: {"tags":["..."],"summary":"...","topics":["..."]}',
           ].join("\n"),
         },
         {
           role: "user",
           content: [
-            `Existing tags: ${existingTags.length ? existingTags.join(", ") : "(none yet)"}`,
-            `User context rules:\n${rulesText}`,
+            `Allowed tags and their context rules:\n${rulesText}`,
             `Thought: ${content}`,
           ].join("\n\n"),
         },
