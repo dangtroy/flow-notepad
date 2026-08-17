@@ -29,14 +29,31 @@ export const getStreamPage = createServerFn({ method: "GET" })
 
 export const sendMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { html: string }) => {
+  .inputValidator((input: { html: string; parentMessageId?: string | null }) => {
     const html = sanitizeHtml(input?.html ?? "");
     if (!html || isEmptyDocument(html)) throw new Error("A thought cannot be empty");
-    return { html: html.slice(0, 200000), text: htmlToText(html).slice(0, 20000) };
+    return {
+      html: html.slice(0, 200000),
+      text: htmlToText(html).slice(0, 20000),
+      parentMessageId: input?.parentMessageId ?? null,
+    };
   })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const conversationId = await ensureConversation(supabase, userId);
+
+    // A reply must point at one of the user's own messages; anything else is top-level.
+    let parentId: string | null = null;
+    if (data.parentMessageId) {
+      const parent = await supabase
+        .from("messages")
+        .select("id")
+        .eq("id", data.parentMessageId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      parentId = parent.data?.id ?? null;
+    }
+
     const { data: message, error } = await supabase
       .from("messages")
       .insert({
@@ -44,12 +61,14 @@ export const sendMessage = createServerFn({ method: "POST" })
         conversation_id: conversationId,
         content: data.text,
         content_html: data.html,
+        parent_message_id: parentId,
       })
       .select(MESSAGE_SELECT)
       .single();
     if (error) throw error;
     return mapMessage(message as never);
   });
+
 
 export const updateMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
