@@ -260,7 +260,7 @@ function FlowPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain">
-        <div className="mx-auto w-full max-w-[46rem] px-5 pb-10 pt-8 sm:px-8">
+        <div className="mx-auto flex min-h-full w-full max-w-[46rem] flex-col justify-end px-5 pb-8 pt-8 sm:px-8">
           {hasNextPage && (
             <p className="pb-6 text-center text-[11px] uppercase tracking-[0.16em] text-muted-foreground/45">
               {isFetchingNextPage ? "Loading earlier thoughts…" : "Scroll up for earlier thoughts"}
