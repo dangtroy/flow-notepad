@@ -148,7 +148,9 @@ function FlowPage() {
                 ai_status: "pending",
                 created_at: now,
                 updated_at: now,
+                edited_at: null,
                 tags: [],
+
               },
             ],
           }
