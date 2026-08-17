@@ -335,16 +335,7 @@ function FlowPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {(tags.data?.length ?? 0) > 0 && (
-        <TagFilterBar
-          tags={tags.data ?? []}
-          selected={selectedTagIds}
-          mode={mode}
-          onToggle={(id) => applyFilter(toggleTagId(selectedTagIds, id))}
-          onClear={() => applyFilter([])}
-          onModeChange={(next) => applyFilter(selectedTagIds, next)}
-        />
-      )}
+
 
       <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto flex min-h-full w-full max-w-[46rem] flex-col justify-end px-5 pb-8 pt-8 sm:px-8">
