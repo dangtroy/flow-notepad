@@ -135,7 +135,8 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           aria-pressed={!showTags}
         >
           {showTags ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-          {showTags ? "Hide tags" : "Show tags"}
+          {showTags ? "Hide tags & timestamps" : "Show tags & timestamps"}
+
         </button>
         <button
           type="button"

@@ -397,7 +397,7 @@ function FlowPage() {
                     <MessageRow
                       key={message.id}
                       message={message}
-                      isReply={depth > 0}
+                      depth={depth}
                       isReplyTarget={replyTo?.id === message.id}
                       isEditing={editingId === message.id}
                       onStartEdit={() => setEditingId(message.id)}

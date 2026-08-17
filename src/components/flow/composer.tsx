@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowUp, Paperclip, Type, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -32,7 +32,14 @@ export function Composer({
     },
   });
 
+  // Choosing Reply hands the cursor straight to the composer.
+  const replyId = replyingTo?.id ?? null;
+  useEffect(() => {
+    if (replyId && editor) editor.commands.focus("end");
+  }, [replyId, editor]);
+
   const showToolbar = pinnedToolbar || focused || !isEmpty;
+
 
   return (
     <div className="border-t border-border bg-surface/80 backdrop-blur-sm">
