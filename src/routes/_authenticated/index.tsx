@@ -14,11 +14,10 @@ import {
 } from "@/lib/flow.functions";
 import type { FlowMessage } from "@/lib/flow.server";
 import { htmlToText } from "@/lib/rich-text";
-import { tagIdsFrom, tagsParam, toggleTagId, type FilterMode } from "@/lib/tag-filter";
-import { TAGS_KEY, useTags } from "@/lib/use-tags";
+import { tagIdsFrom, type FilterMode } from "@/lib/tag-filter";
+import { TAGS_KEY } from "@/lib/use-tags";
 import { Composer } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
-import { TagFilterBar } from "@/components/flow/tag-filter-bar";
 
 export const Route = createFileRoute("/_authenticated/")({
   validateSearch: (
