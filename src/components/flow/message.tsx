@@ -81,32 +81,45 @@ function MessageRowBase({
         isReply && "ml-5 border-l border-border pl-4",
       )}
     >
-      {isEditing ? (
-        <MessageEditor initialHtml={html} onCancel={onCancelEdit} onSave={onSaveEdit} />
-      ) : (
-        <div
-          className={cn(
-            "flow-prose transition-opacity duration-200",
-            message.is_completed && "text-muted-foreground line-through decoration-1",
-          )}
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
-      )}
+      <div className="flex gap-3 sm:gap-4">
+        {/* Time lives in a quiet left gutter, never under the note. */}
+        <div className="hidden w-12 shrink-0 pt-0.5 text-right text-[11px] leading-5 tracking-wide text-muted-foreground/60 sm:block">
+          <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
+          {message.edited_at && <div className="text-muted-foreground/45">edited</div>}
+          {message.is_completed && <div className="text-muted-foreground/45">done</div>}
+        </div>
 
-      {/* Meta and tags share one quiet line, so nothing stacks under the note. */}
-      <div className="mt-1.5 flex items-center gap-2 text-[11px] tracking-wide text-muted-foreground/70">
-        <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
-        {message.edited_at && <span>edited</span>}
-        {message.is_completed && message.completed_at && (
-          <span>done {timeLabel(message.completed_at)}</span>
-        )}
-        {!isEditing && showTags && message.tags.length > 0 && (
-          <span className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5 pr-16 group-hover:pr-16">
-            {message.tags.map((tag) => (
-              <TagChip key={tag.id} tag={tag} />
-            ))}
-          </span>
-        )}
+        <div className="min-w-0 flex-1">
+          {isEditing ? (
+            <MessageEditor initialHtml={html} onCancel={onCancelEdit} onSave={onSaveEdit} />
+          ) : (
+            <>
+              <div className="flex items-start gap-3">
+                <div
+                  className={cn(
+                    "flow-prose min-w-0 flex-1 transition-opacity duration-200",
+                    message.is_completed && "text-muted-foreground line-through decoration-1",
+                  )}
+                  dangerouslySetInnerHTML={{ __html: html }}
+                />
+                {/* Tags sit alongside the note and step aside for the hover actions. */}
+                {showTags && message.tags.length > 0 && (
+                  <span className="hidden max-w-[40%] shrink-0 flex-wrap items-center justify-end gap-1.5 pt-0.5 transition-opacity duration-150 group-hover:opacity-0 sm:flex">
+                    {message.tags.map((tag) => (
+                      <TagChip key={tag.id} tag={tag} />
+                    ))}
+                  </span>
+                )}
+              </div>
+              <div className="mt-1 flex items-center gap-2 text-[11px] tracking-wide text-muted-foreground/60 sm:hidden">
+                <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
+                {message.edited_at && <span>edited</span>}
+                {showTags &&
+                  message.tags.map((tag) => <TagChip key={tag.id} tag={tag} />)}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {!isEditing && (

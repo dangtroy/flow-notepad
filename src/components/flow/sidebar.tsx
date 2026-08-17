@@ -1,8 +1,13 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, Inbox, LogOut, Moon, Settings, Sun } from "lucide-react";
+import { CheckCheck, Eye, EyeOff, Inbox, LogOut, Moon, Settings, Sun } from "lucide-react";
+
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
+import { clearCompleted } from "@/lib/flow.functions";
+import { TAGS_KEY } from "@/lib/use-tags";
 import { tagAccent } from "@/lib/tag-colors";
 import { tagIdsFrom, tagsParam, toggleTagId } from "@/lib/tag-filter";
 import { useShowTags } from "@/lib/use-show-tags";
@@ -18,6 +23,18 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const tags = useTags();
   const { theme, toggleTheme } = useTheme();
   const { showTags, toggleTags } = useShowTags();
+  const clearDone = useServerFn(clearCompleted);
+
+  async function handleClearDone() {
+    try {
+      const { deleted } = await clearDone();
+      void queryClient.invalidateQueries({ queryKey: ["stream"] });
+      void queryClient.invalidateQueries({ queryKey: TAGS_KEY });
+      toast.success(deleted > 0 ? `Cleared ${deleted} done ${deleted === 1 ? "note" : "notes"}` : "Nothing marked done");
+    } catch {
+      toast.error("Could not clear done notes");
+    }
+  }
 
   const selected = tagIdsFrom(search.tags);
   const mode = search.mode === "and" ? "and" : "or";
@@ -119,6 +136,14 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         >
           {showTags ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
           {showTags ? "Hide tags" : "Show tags"}
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleClearDone()}
+          className={cn(itemClass, "w-full text-left")}
+        >
+          <CheckCheck className="h-3.5 w-3.5" />
+          Clear done notes
         </button>
         <Link to="/settings" onClick={onNavigate} className={itemClass}>
           <Settings className="h-3.5 w-3.5" />

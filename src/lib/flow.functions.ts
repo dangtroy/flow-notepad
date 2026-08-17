@@ -294,6 +294,39 @@ export const cleanupCompleted = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => runRetention(context.supabase, context.userId));
 
+/** Clears every thought already marked done, right now, without waiting for retention. */
+export const clearCompleted = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: rows, error } = await supabase
+      .from("messages")
+      .select("id, content, completed_at, created_at")
+      .eq("user_id", userId)
+      .eq("is_completed", true);
+    if (error) throw error;
+    if (!rows?.length) return { deleted: 0 };
+
+    await supabase.from("deletion_log").insert(
+      rows.map((row) => ({
+        user_id: userId,
+        message_id: row.id,
+        content_snapshot: row.content,
+        completed_at: row.completed_at,
+        message_created_at: row.created_at,
+        reason: "manual",
+      })),
+    );
+
+    const removed = await supabase
+      .from("messages")
+      .delete()
+      .eq("user_id", userId)
+      .eq("is_completed", true);
+    if (removed.error) throw removed.error;
+    return { deleted: rows.length };
+  });
+
 /**
  * Tags are reusable entities: name, colour, plain-English context, enabled state,
  * plus a derived count. Default tags are ordinary rows, so they behave identically.
