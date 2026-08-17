@@ -213,6 +213,9 @@ function SettingsPage() {
         </ul>
       </section>
 
+      <TagsSection />
+
+
       {(prefs.data?.deletionHistory.length ?? 0) > 0 && (
         <section className="mt-12 pb-16">
           <h2 className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">
