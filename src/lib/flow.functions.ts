@@ -12,6 +12,7 @@ import {
   runRetention,
 } from "./flow.server";
 import { htmlToText, isEmptyDocument, sanitizeHtml, textToHtml } from "./rich-text";
+import { DEFAULT_TAG_COLOR, pickDefaultTagColor, TAG_COLOR_KEYS } from "./tag-colors";
 
 export const getStreamPage = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -246,7 +247,12 @@ export const saveContextRule = createServerFn({ method: "POST" })
       await supabase
         .from("tags")
         .upsert(
-          { user_id: userId, name: data.tagName, normalized_name: normalized },
+          {
+            user_id: userId,
+            name: data.tagName,
+            normalized_name: normalized,
+            color: pickDefaultTagColor(normalized),
+          },
           { onConflict: "user_id,normalized_name" },
         );
     }
@@ -272,3 +278,35 @@ export const deleteContextRule = createServerFn({ method: "POST" })
 export const cleanupCompleted = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => runRetention(context.supabase, context.userId));
+
+/** Tags are reusable entities; the AI layer and the user both link to the same rows. */
+export const listTags = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("tags")
+      .select("id, name, color, created_at")
+      .eq("user_id", context.userId)
+      .order("name", { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+  });
+
+export const updateTagColor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string; color: string }) => {
+    if (!input?.id) throw new Error("Missing tag");
+    const color = TAG_COLOR_KEYS.includes(input?.color as never) ? input.color : DEFAULT_TAG_COLOR;
+    return { id: input.id, color };
+  })
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("tags")
+      .update({ color: data.color })
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .select("id, name, color")
+      .single();
+    if (error) throw error;
+    return row;
+  });
