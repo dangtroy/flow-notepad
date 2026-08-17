@@ -16,6 +16,7 @@ import {
 import type { FlowMessage } from "@/lib/flow.server";
 import { htmlToText } from "@/lib/rich-text";
 import { tagIdsFrom, type FilterMode } from "@/lib/tag-filter";
+import { useShowTags } from "@/lib/use-show-tags";
 import { TAGS_KEY } from "@/lib/use-tags";
 import { Composer } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
