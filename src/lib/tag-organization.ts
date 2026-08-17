@@ -54,9 +54,11 @@ export function buildTagSections(
       kind: "group",
       label: group.name,
       tags: members,
-      count: total(members),
+      // Unique messages across the group's tags — never a sum of tag counts.
+      count: group.message_count,
     });
   }
+
 
   const ungrouped = sorted.filter((tag) => !tag.group_id);
   if (ungrouped.length) {

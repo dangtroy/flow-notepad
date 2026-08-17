@@ -27,6 +27,8 @@ import { tagAccent } from "@/lib/tag-colors";
 import { tagIdsFrom, tagsParam, toggleTagId } from "@/lib/tag-filter";
 import { buildTagSections, moveTagWithin, sortTags, type TagSection } from "@/lib/tag-organization";
 import { useAppearance } from "@/lib/use-appearance";
+import { SuggestionsBell } from "./suggestions-bell";
+
 
 import { cn } from "@/lib/utils";
 
@@ -213,9 +215,11 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="px-4 pb-5 pt-5">
+      <div className="flex items-center justify-between px-4 pb-5 pt-5">
         <span className="font-display text-[1.35rem] tracking-tight text-foreground">Flow</span>
+        <SuggestionsBell />
       </div>
+
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-4">
         <Link
