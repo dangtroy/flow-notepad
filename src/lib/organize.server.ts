@@ -114,7 +114,7 @@ async function classifyWithAi(input: {
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       // Deliberately the cheapest capable model: this runs on every new note.
-      model: "google/gemini-3.7-flash-lite",
+      model: "google/gemini-3.1-flash-lite",
       messages: [
         {
           role: "system",
