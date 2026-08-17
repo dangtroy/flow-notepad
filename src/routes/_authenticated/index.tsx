@@ -447,9 +447,6 @@ function FlowPage() {
             ))
           )}
         </div>
-
-          )}
-        </div>
       </div>
 
       <Composer
