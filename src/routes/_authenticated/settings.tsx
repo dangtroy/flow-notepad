@@ -455,6 +455,16 @@ function GroupsSection() {
     }
   }
 
+  async function saveContext(group: FlowTagGroup, context: string) {
+    if (context.trim() === group.context) return;
+    try {
+      apply(await persist({ data: { id: group.id, context: context.trim() } }));
+    } catch {
+      toast.error("Could not save that group context");
+    }
+  }
+
+
   async function move(index: number, delta: number) {
     const next = [...list];
     const target = index + delta;
@@ -510,9 +520,11 @@ function GroupsSection() {
             count={(tags.data ?? []).filter((tag) => tag.group_id === group.id).length}
             onRename={rename}
             onRecolor={recolor}
+            onContext={saveContext}
             onMove={(delta) => move(index, delta)}
             onDelete={drop}
           />
+
         ))}
         {list.length === 0 && <li className="text-sm text-muted-foreground">No groups yet.</li>}
       </ul>
@@ -525,6 +537,7 @@ function GroupRow({
   count,
   onRename,
   onRecolor,
+  onContext,
   onMove,
   onDelete,
 }: {
@@ -532,13 +545,18 @@ function GroupRow({
   count: number;
   onRename: (group: FlowTagGroup, name: string) => Promise<void>;
   onRecolor: (group: FlowTagGroup, color: string) => Promise<void>;
+  onContext: (group: FlowTagGroup, context: string) => Promise<void>;
   onMove: (delta: number) => Promise<void>;
   onDelete: (group: FlowTagGroup) => Promise<void>;
 }) {
   const [name, setName] = useState(group.name);
 
+
+  const [context, setContext] = useState(group.context);
+
   return (
-    <li className="flex flex-wrap items-center gap-3 rounded-lg border border-border/70 bg-card px-4 py-3">
+    <li className="rounded-lg border border-border/70 bg-card px-4 py-3">
+      <div className="flex flex-wrap items-center gap-3">
       <span
         aria-hidden
         className="h-2 w-2 shrink-0 rounded-sm"
@@ -554,6 +572,7 @@ function GroupRow({
       <span className="shrink-0 text-[12px] text-muted-foreground/70">
         {count} {count === 1 ? "tag" : "tags"}
       </span>
+
       <div className="flex shrink-0 items-center gap-1.5">
         {TAG_COLOR_KEYS.map((key) => (
           <button
@@ -585,6 +604,19 @@ function GroupRow({
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
+      </div>
+
+      {/* A group can carry its own broad context; Flow weighs it with child tags. */}
+      <textarea
+        value={context}
+        onChange={(e) => setContext(e.target.value)}
+        onBlur={() => void onContext(group, context)}
+        rows={2}
+        aria-label={`Context for ${group.name}`}
+        placeholder="Broad context for this group — Flow reads it alongside each child tag."
+        className="mt-2 w-full resize-none bg-transparent text-sm leading-relaxed text-muted-foreground outline-none"
+      />
     </li>
   );
 }
+
