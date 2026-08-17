@@ -139,12 +139,12 @@ export function AppearanceSettings() {
           />
         </Row>
 
-        <Row label="Tag order">
+        <Row label="Sidebar order">
           <Choices
             value={appearance.tagSort}
             options={[
-              { label: "Alphabetical", value: "alphabetical" },
-              { label: "Most used", value: "most-used" },
+              { label: "Name", value: "alphabetical" },
+              { label: "Number of tags", value: "most-used" },
               { label: "Manual", value: "manual" },
             ]}
             onSelect={(tagSort) => update({ tagSort })}
