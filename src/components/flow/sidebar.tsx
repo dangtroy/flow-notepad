@@ -22,6 +22,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { clearCompleted, reorderTags, saveTag, saveTagGroup } from "@/lib/flow.functions";
+import { FlowLogo } from "@/components/flow/flow-logo";
 import type { FlowTagDetail } from "@/lib/flow.server";
 import { TAGS_KEY, TAG_GROUPS_KEY, useTagGroups, useTags } from "@/lib/use-tags";
 import { tagAccent } from "@/lib/tag-colors";
@@ -218,7 +219,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-4 pb-5 pt-5">
-        <span className="font-display text-[1.35rem] tracking-tight text-foreground">Flow</span>
+        <FlowLogo className="h-5" />
         <div className="flex items-center gap-1">
           <div className="relative">
             <button

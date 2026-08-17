@@ -1,3 +1,4 @@
+import { FlowLogo } from "@/components/flow/flow-logo";
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,7 +90,8 @@ function AuthPage() {
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-16">
       <div className="w-full max-w-sm">
-        <h1 className="font-display text-5xl tracking-tight text-foreground">Flow</h1>
+        <h1 className="sr-only">Flow</h1>
+        <FlowLogo className="h-10" />
         <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
           One permanent conversation. Send a thought, it stays — and quietly organizes itself.
         </p>

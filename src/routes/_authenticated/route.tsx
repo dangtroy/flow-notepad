@@ -4,6 +4,7 @@ import { PanelLeft } from "lucide-react";
 
 import { SidebarBody } from "@/components/flow/sidebar";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { FlowLogo } from "@/components/flow/flow-logo";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -39,7 +40,7 @@ function AppShell() {
               <SidebarBody onNavigate={() => setDrawerOpen(false)} />
             </SheetContent>
           </Sheet>
-          <span className="font-display text-lg tracking-tight">Flow</span>
+          <FlowLogo className="h-5" />
         </div>
 
         {/* Required: nested routes render here. */}
