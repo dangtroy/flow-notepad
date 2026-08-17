@@ -80,7 +80,8 @@ function FlowPage() {
   const organize = useServerFn(organizeMessageFn);
   const cleanup = useServerFn(cleanupCompleted);
   const destroy = useServerFn(deleteMessageNow);
-  const { showTags } = useShowTags();
+  const { appearance } = useAppearance();
+
   
 
   const [editingId, setEditingId] = useState<string | null>(null);
