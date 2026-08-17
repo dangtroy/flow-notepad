@@ -21,7 +21,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const queryClient = useQueryClient();
   const search = useSearch({ strict: false }) as { tags?: string; mode?: "or" | "and" };
   const tags = useTags();
-  const { appearance, update, mode } = useAppearance();
+  const { appearance, update, mode: themeMode } = useAppearance();
   const showTags = appearance.showTags;
 
   const clearDone = useServerFn(clearCompleted);
