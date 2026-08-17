@@ -178,6 +178,12 @@ function FlowPage() {
       .catch(() => {});
   }, [cleanup, queryClient]);
 
+  // A filter change is a new view of the stream: land at the newest again.
+  useEffect(() => {
+    settledRef.current = false;
+    anchorRef.current = null;
+  }, [streamKey]);
+
   // Open where the user left off: at the bottom, without any visible motion.
   useLayoutEffect(() => {
     const element = scrollRef.current;
