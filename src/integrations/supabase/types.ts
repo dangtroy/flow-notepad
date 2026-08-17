@@ -14,7 +14,278 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      context_rules: {
+        Row: {
+          context: string
+          created_at: string
+          id: string
+          is_enabled: boolean
+          priority: number
+          tag_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          context?: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          priority?: number
+          tag_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          context?: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          priority?: number
+          tag_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      deletion_log: {
+        Row: {
+          completed_at: string | null
+          content_snapshot: string
+          deleted_at: string
+          id: string
+          message_created_at: string | null
+          message_id: string
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          content_snapshot: string
+          deleted_at?: string
+          id?: string
+          message_created_at?: string | null
+          message_id: string
+          reason?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          content_snapshot?: string
+          deleted_at?: string
+          id?: string
+          message_created_at?: string | null
+          message_id?: string
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      message_tags: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          id: string
+          message_id: string
+          source: string
+          tag_id: string
+          user_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          message_id: string
+          source?: string
+          tag_id: string
+          user_id: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          message_id?: string
+          source?: string
+          tag_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_tags_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          ai_context: Json
+          ai_error: string | null
+          ai_processed_at: string | null
+          ai_status: string
+          completed_at: string | null
+          content: string
+          conversation_id: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          is_completed: boolean
+          metadata: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_context?: Json
+          ai_error?: string | null
+          ai_processed_at?: string | null
+          ai_status?: string
+          completed_at?: string | null
+          content: string
+          conversation_id: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          is_completed?: boolean
+          metadata?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_context?: Json
+          ai_error?: string | null
+          ai_processed_at?: string | null
+          ai_status?: string
+          completed_at?: string | null
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          is_completed?: boolean
+          metadata?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tags: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          normalized_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          normalized_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          normalized_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          completed_retention_days: number | null
+          created_at: string
+          settings: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_retention_days?: number | null
+          created_at?: string
+          settings?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_retention_days?: number | null
+          created_at?: string
+          settings?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
