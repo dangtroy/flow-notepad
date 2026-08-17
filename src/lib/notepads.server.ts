@@ -218,12 +218,16 @@ export async function rememberActiveNotepad(
 export async function readActiveNotepad(
   supabase: Client,
   userId: string,
-): Promise<string | null> {
+  notepads?: Notepad[],
+): Promise<string> {
   const { data } = await supabase
     .from("user_preferences")
     .select("settings")
     .eq("user_id", userId)
     .maybeSingle();
   const value = (data?.settings as Record<string, unknown> | null)?.["activeNotepadId"];
-  return typeof value === "string" ? value : null;
+  const list = notepads ?? (await listNotepads(supabase, userId));
+  // A remembered notepad that no longer exists must not strand the user.
+  if (typeof value === "string" && list.some((notepad) => notepad.id === value)) return value;
+  return list[0]!.id;
 }

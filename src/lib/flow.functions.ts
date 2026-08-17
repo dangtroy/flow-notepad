@@ -886,11 +886,11 @@ export const saveNotepad = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     if (data.id) {
-      await updateNotepad(supabase, userId, data.id, data);
+      await updateNotepad(supabase, userId, { ...data, id: data.id });
       return { notepads: await listNotepads(supabase, userId), activeId: data.id };
     }
     // New notepads start empty on purpose: no forced setup before the first thought.
-    const created = await createNotepad(supabase, userId, data);
+    const created = await createNotepad(supabase, userId, { ...data, name: data.name });
     await rememberActiveNotepad(supabase, userId, created.id);
     return { notepads: await listNotepads(supabase, userId), activeId: created.id };
   });
