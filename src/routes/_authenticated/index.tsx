@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -69,7 +69,6 @@ function dayLabel(iso: string) {
 
 function FlowPage() {
   const queryClient = useQueryClient();
-  const navigate = useNavigate({ from: "/" });
   const search = Route.useSearch();
   const fetchPage = useServerFn(getStreamPage);
   const send = useServerFn(sendMessage);
@@ -345,7 +344,7 @@ function FlowPage() {
                   <>
                     Nothing tagged this way yet.
                     <br />
-                    Clear the filter above to see your whole stream.
+                    Choose All in the sidebar to see your whole stream.
                   </>
                 ) : (
                   <>
