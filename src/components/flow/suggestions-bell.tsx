@@ -67,7 +67,7 @@ export function SuggestionsBell() {
   async function handleIgnore(suggestion: TagSuggestion) {
     setBusy(true);
     try {
-      await ignore({ data: { id: suggestion.id, notepadId } });
+      await ignore({ data: { id: suggestion.id } });
       refresh();
     } finally {
       setBusy(false);

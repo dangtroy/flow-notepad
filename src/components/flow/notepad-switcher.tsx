@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
  * The quiet way between streams: name of the current notepad, one tap to change.
  * Nothing about switching asks the user to configure anything.
  */
-export function NotepadSwitcher({ onNavigate }: { onNavigate?: () => void }) {
+export function NotepadSwitcher({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   const { notepads, activeId, active, switchTo, create } = useNotepads();
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
