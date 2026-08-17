@@ -10,9 +10,9 @@ import { clearCompleted } from "@/lib/flow.functions";
 import { TAGS_KEY } from "@/lib/use-tags";
 import { tagAccent } from "@/lib/tag-colors";
 import { tagIdsFrom, tagsParam, toggleTagId } from "@/lib/tag-filter";
-import { useShowTags } from "@/lib/use-show-tags";
+import { useAppearance } from "@/lib/use-appearance";
 import { useTags } from "@/lib/use-tags";
-import { useTheme } from "@/lib/use-theme";
+
 import { cn } from "@/lib/utils";
 
 /** Navigation, not a dashboard: All plus the user's own tags as filters. */
