@@ -6,6 +6,7 @@ import { ArrowLeft, Check, ChevronDown, ChevronUp, Trash2, X } from "lucide-reac
 import { toast } from "sonner";
 
 import { AppearanceSettings } from "@/components/flow/appearance-settings";
+import { NotepadsSettings } from "@/components/flow/notepads-settings";
 import {
 
   deleteTag,
@@ -55,14 +56,20 @@ const RETENTION_OPTIONS: Array<{ label: string; value: number | null }> = [
 
 function SettingsPage() {
   const queryClient = useQueryClient();
+  const notepadId = useActiveNotepadId();
   const fetchPrefs = useServerFn(getPreferences);
   const savePrefs = useServerFn(updatePreferences);
 
-  const prefs = useQuery({ queryKey: ["preferences"], queryFn: () => fetchPrefs() });
+  // Retention is a per-notepad setting, so it is cached per notepad too.
+  const prefs = useQuery({
+    queryKey: ["preferences", notepadId ?? "none"],
+    queryFn: () => fetchPrefs({ data: { notepadId } }),
+    enabled: Boolean(notepadId),
+  });
 
   async function chooseRetention(value: number | null) {
     try {
-      await savePrefs({ data: { completedRetentionDays: value } });
+      await savePrefs({ data: { completedRetentionDays: value, notepadId } });
       queryClient.invalidateQueries({ queryKey: ["preferences"] });
     } catch {
       toast.error("Could not save that preference");
@@ -83,6 +90,8 @@ function SettingsPage() {
         </Link>
 
         <h1 className="mt-8 font-display text-3xl tracking-tight">Settings</h1>
+
+        <NotepadsSettings />
 
         <AppearanceSettings />
 

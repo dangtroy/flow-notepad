@@ -5,6 +5,8 @@ import { PanelLeft } from "lucide-react";
 import { SidebarBody } from "@/components/flow/sidebar";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { FlowLogo } from "@/components/flow/flow-logo";
+import { NotepadSwitcher } from "@/components/flow/notepad-switcher";
+import { NotepadProvider } from "@/lib/use-notepad";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -21,7 +23,8 @@ function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-background">
+    <NotepadProvider>
+      <div className="flex h-dvh overflow-hidden bg-background">
       <aside className="hidden w-[var(--flow-sidebar-width,13.5rem)] shrink-0 border-r border-sidebar-border bg-sidebar md:block">
         <SidebarBody />
       </aside>
@@ -41,11 +44,13 @@ function AppShell() {
             </SheetContent>
           </Sheet>
           <FlowLogo className="h-5" />
+          <NotepadSwitcher onNavigate={() => setDrawerOpen(false)} />
         </div>
 
         {/* Required: nested routes render here. */}
         <Outlet />
+        </div>
       </div>
-    </div>
+    </NotepadProvider>
   );
 }
