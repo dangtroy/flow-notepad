@@ -196,6 +196,18 @@ export type FlowTagDetail = {
   context: string;
   is_enabled: boolean;
   message_count: number;
+  group_id: string | null;
+  is_pinned: boolean;
+  sort_order: number;
+};
+
+/** Groups are the user's own organizing layer over AI-applied tags. */
+export type FlowTagGroup = {
+  id: string;
+  name: string;
+  color: string | null;
+  sort_order: number;
+  is_collapsed: boolean;
 };
 
 /** One reusable list of tags with derived counts — the source for filters and management. */
@@ -203,8 +215,9 @@ export async function loadTags(supabase: Client, userId: string): Promise<FlowTa
   const [tagRows, countRows] = await Promise.all([
     supabase
       .from("tags")
-      .select("id, name, color, context, is_enabled")
+      .select("id, name, color, context, is_enabled, group_id, is_pinned, sort_order")
       .eq("user_id", userId)
+      .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
     supabase.rpc("tag_message_counts" as never),
   ]);
@@ -222,8 +235,23 @@ export async function loadTags(supabase: Client, userId: string): Promise<FlowTa
     context: (tag as { context?: string }).context ?? "",
     is_enabled: (tag as { is_enabled?: boolean }).is_enabled ?? true,
     message_count: counts.get(tag.id) ?? 0,
+    group_id: (tag as { group_id?: string | null }).group_id ?? null,
+    is_pinned: (tag as { is_pinned?: boolean }).is_pinned ?? false,
+    sort_order: (tag as { sort_order?: number }).sort_order ?? 0,
   }));
 }
+
+export async function loadTagGroups(supabase: Client, userId: string): Promise<FlowTagGroup[]> {
+  const { data, error } = await supabase
+    .from("tag_groups")
+    .select("id, name, color, sort_order, is_collapsed")
+    .eq("user_id", userId)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as FlowTagGroup[];
+}
+
 
 export async function loadMessage(
   supabase: Client,

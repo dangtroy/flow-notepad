@@ -5,6 +5,7 @@ import {
   ensurePreferences,
   loadMessage,
   loadStreamPage,
+  loadTagGroups,
   loadTags,
   MESSAGE_SELECT,
   mapMessage,
@@ -335,6 +336,10 @@ export const listTags = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => loadTags(context.supabase, context.userId));
 
+export const listTagGroups = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => loadTagGroups(context.supabase, context.userId));
+
 export const saveTag = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
@@ -344,6 +349,9 @@ export const saveTag = createServerFn({ method: "POST" })
       color?: string;
       context?: string;
       isEnabled?: boolean;
+      groupId?: string | null;
+      isPinned?: boolean;
+      sortOrder?: number;
     }) => {
       const name = (input?.name ?? "").trim().slice(0, 60);
       if (!input?.id && !name) throw new Error("A tag needs a name");
@@ -353,6 +361,9 @@ export const saveTag = createServerFn({ method: "POST" })
         color: TAG_COLOR_KEYS.includes(input?.color as never) ? input!.color! : undefined,
         context: input?.context === undefined ? undefined : input.context.trim().slice(0, 2000),
         isEnabled: input?.isEnabled,
+        groupId: input?.groupId,
+        isPinned: input?.isPinned,
+        sortOrder: typeof input?.sortOrder === "number" ? input.sortOrder : undefined,
       };
     },
   )
@@ -366,6 +377,9 @@ export const saveTag = createServerFn({ method: "POST" })
         color?: string;
         context?: string;
         is_enabled?: boolean;
+        group_id?: string | null;
+        is_pinned?: boolean;
+        sort_order?: number;
       } = {};
       if (data.name) {
         patch.name = data.name;
@@ -374,6 +388,9 @@ export const saveTag = createServerFn({ method: "POST" })
       if (data.color) patch.color = data.color;
       if (data.context !== undefined) patch.context = data.context;
       if (data.isEnabled !== undefined) patch.is_enabled = data.isEnabled;
+      if (data.groupId !== undefined) patch.group_id = data.groupId;
+      if (data.isPinned !== undefined) patch.is_pinned = data.isPinned;
+      if (data.sortOrder !== undefined) patch.sort_order = data.sortOrder;
 
       const { error } = await supabase
         .from("tags")
@@ -404,10 +421,150 @@ export const saveTag = createServerFn({ method: "POST" })
       color: data.color ?? pickDefaultTagColor(normalized),
       context: data.context ?? "",
       is_enabled: data.isEnabled ?? true,
+      group_id: data.groupId ?? null,
+      is_pinned: data.isPinned ?? false,
     });
     if (error) throw error;
     return loadTags(supabase, userId);
   });
+
+/**
+ * Manual ordering and group membership in one call so a drag lands atomically:
+ * the client sends the tags whose position or group changed.
+ */
+export const reorderTags = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: { items: Array<{ id: string; sortOrder: number; groupId?: string | null }> }) => {
+      const items = (input?.items ?? [])
+        .filter((item) => item && typeof item.id === "string")
+        .slice(0, 300)
+        .map((item) => ({
+          id: item.id,
+          sortOrder: Number(item.sortOrder) || 0,
+          groupId: item.groupId === undefined ? undefined : item.groupId,
+        }));
+      if (!items.length) throw new Error("Nothing to reorder");
+      return { items };
+    },
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    for (const item of data.items) {
+      const patch: { sort_order: number; group_id?: string | null } = { sort_order: item.sortOrder };
+      if (item.groupId !== undefined) patch.group_id = item.groupId;
+      const { error } = await supabase
+        .from("tags")
+        .update(patch)
+        .eq("id", item.id)
+        .eq("user_id", userId);
+      if (error) throw error;
+    }
+    return loadTags(supabase, userId);
+  });
+
+/** Groups are created and edited by the user only — never by AI. */
+export const saveTagGroup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: {
+      id?: string;
+      name?: string;
+      color?: string;
+      isCollapsed?: boolean;
+      sortOrder?: number;
+    }) => {
+      const name = (input?.name ?? "").trim().slice(0, 60);
+      if (!input?.id && !name) throw new Error("A group needs a name");
+      return {
+        id: input?.id,
+        name,
+        color: TAG_COLOR_KEYS.includes(input?.color as never) ? input!.color! : undefined,
+        isCollapsed: input?.isCollapsed,
+        sortOrder: typeof input?.sortOrder === "number" ? input.sortOrder : undefined,
+      };
+    },
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    if (data.id) {
+      const patch: {
+        name?: string;
+        color?: string;
+        is_collapsed?: boolean;
+        sort_order?: number;
+      } = {};
+      if (data.name) patch.name = data.name;
+      if (data.color) patch.color = data.color;
+      if (data.isCollapsed !== undefined) patch.is_collapsed = data.isCollapsed;
+      if (data.sortOrder !== undefined) patch.sort_order = data.sortOrder;
+
+      const { error } = await supabase
+        .from("tag_groups")
+        .update(patch)
+        .eq("id", data.id)
+        .eq("user_id", userId);
+      if (error) throw error;
+      return loadTagGroups(supabase, userId);
+    }
+
+    const existing = await loadTagGroups(supabase, userId);
+    const { error } = await supabase.from("tag_groups").insert({
+      user_id: userId,
+      name: data.name,
+      color: data.color ?? DEFAULT_TAG_COLOR,
+      sort_order: existing.length,
+    });
+    if (error) throw error;
+    return loadTagGroups(supabase, userId);
+  });
+
+/** Deleting a group never touches its tags: they simply become ungrouped. */
+export const deleteTagGroup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("Missing group");
+    return { id: input.id };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const cleared = await supabase
+      .from("tags")
+      .update({ group_id: null })
+      .eq("group_id", data.id)
+      .eq("user_id", userId);
+    if (cleared.error) throw cleared.error;
+
+    const { error } = await supabase
+      .from("tag_groups")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw error;
+    return loadTagGroups(supabase, userId);
+  });
+
+export const reorderTagGroups = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { ids: string[] }) => {
+    const ids = (input?.ids ?? []).filter(Boolean).slice(0, 100);
+    if (!ids.length) throw new Error("Nothing to reorder");
+    return { ids };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    for (let index = 0; index < data.ids.length; index++) {
+      const { error } = await supabase
+        .from("tag_groups")
+        .update({ sort_order: index })
+        .eq("id", data.ids[index]!)
+        .eq("user_id", userId);
+      if (error) throw error;
+    }
+    return loadTagGroups(supabase, userId);
+  });
+
 
 export const deleteTag = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

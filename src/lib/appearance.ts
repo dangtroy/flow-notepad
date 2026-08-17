@@ -15,6 +15,7 @@ export type SidebarWidth = "narrow" | "default" | "wide";
 export type ReplySpacing = "compact" | "comfortable" | "spacious";
 export type BorderTone = "subtle" | "medium" | "strong" | "accent";
 export type BorderThickness = "hairline" | "thin" | "medium" | "thick";
+export type TagSortChoice = "alphabetical" | "most-used" | "manual";
 
 export type Appearance = {
   theme: ThemeChoice;
@@ -31,6 +32,7 @@ export type Appearance = {
   replySpacing: ReplySpacing;
   borderTone: BorderTone;
   borderThickness: BorderThickness;
+  tagSort: TagSortChoice;
 };
 
 export const DEFAULT_APPEARANCE: Appearance = {
@@ -48,7 +50,9 @@ export const DEFAULT_APPEARANCE: Appearance = {
   replySpacing: "comfortable",
   borderTone: "subtle",
   borderThickness: "hairline",
+  tagSort: "alphabetical",
 };
+
 
 export const APPEARANCE_STORAGE_KEY = "flow-appearance";
 export const APPEARANCE_EVENT = "flow-appearance";

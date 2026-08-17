@@ -2,22 +2,25 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { ArrowLeft, Check, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronUp, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppearanceSettings } from "@/components/flow/appearance-settings";
 import {
 
   deleteTag,
+  deleteTagGroup,
   getPreferences,
   retagAllMessages,
+  reorderTagGroups,
   saveTag,
+  saveTagGroup,
   updatePreferences,
 } from "@/lib/flow.functions";
-import type { FlowTagDetail } from "@/lib/flow.server";
+import type { FlowTagDetail, FlowTagGroup } from "@/lib/flow.server";
 import { TAG_COLOR_KEYS, TAG_COLORS, tagColorKey } from "@/lib/tag-colors";
 import { findSimilarTag } from "@/lib/tag-filter";
-import { TAGS_KEY, useTags } from "@/lib/use-tags";
+import { TAGS_KEY, TAG_GROUPS_KEY, useTagGroups, useTags } from "@/lib/use-tags";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -83,6 +86,10 @@ function SettingsPage() {
         <AppearanceSettings />
 
         <TagsSection />
+
+        <GroupsSection />
+
+
 
 
         <section className="mt-14">
@@ -156,6 +163,8 @@ function TagsSection() {
     queryClient.invalidateQueries({ queryKey: ["stream"] });
   }
   const tags = useTags();
+  const groups = useTagGroups();
+
 
   const [newName, setNewName] = useState("");
   const [newContext, setNewContext] = useState("");
@@ -183,7 +192,13 @@ function TagsSection() {
 
   async function update(
     id: string,
-    patch: { name?: string; color?: string; context?: string; isEnabled?: boolean },
+    patch: {
+      name?: string;
+      color?: string;
+      context?: string;
+      isEnabled?: boolean;
+      groupId?: string | null;
+    },
   ) {
     try {
       refresh(await persist({ data: { id, ...patch } }));
@@ -242,7 +257,13 @@ function TagsSection() {
 
       <ul className="mt-8 space-y-3">
         {list.map((tag) => (
-          <TagRow key={tag.id} tag={tag} onUpdate={update} onDelete={drop} />
+          <TagRow
+            key={tag.id}
+            tag={tag}
+            groups={groups.data ?? []}
+            onUpdate={update}
+            onDelete={drop}
+          />
         ))}
         {list.length === 0 && (
           <li className="text-sm text-muted-foreground">No tags yet.</li>
@@ -254,13 +275,21 @@ function TagsSection() {
 
 function TagRow({
   tag,
+  groups,
   onUpdate,
   onDelete,
 }: {
   tag: FlowTagDetail;
+  groups: FlowTagGroup[];
   onUpdate: (
     id: string,
-    patch: { name?: string; color?: string; context?: string; isEnabled?: boolean },
+    patch: {
+      name?: string;
+      color?: string;
+      context?: string;
+      isEnabled?: boolean;
+      groupId?: string | null;
+    },
   ) => Promise<void>;
   onDelete: (tag: FlowTagDetail) => Promise<void>;
 }) {
@@ -335,6 +364,21 @@ function TagRow({
           ))}
         </div>
 
+        <select
+          value={tag.group_id ?? ""}
+          onChange={(e) => void onUpdate(tag.id, { groupId: e.target.value || null })}
+          aria-label={`Group for ${tag.name}`}
+          className="rounded-md border border-border/70 bg-transparent px-2 py-1 text-xs text-muted-foreground outline-none focus:border-ring"
+        >
+          <option value="">Ungrouped</option>
+          {groups.map((group) => (
+            <option key={group.id} value={group.id}>
+              {group.name}
+            </option>
+          ))}
+        </select>
+
+
         {dirty && (
           <div className="flex items-center gap-2 text-xs">
             <button
@@ -358,6 +402,188 @@ function TagRow({
             </button>
           </div>
         )}
+      </div>
+    </li>
+  );
+}
+
+/**
+ * Groups are the user's organizing layer over AI-applied tags. Deleting one
+ * only removes the grouping — tags and messages are untouched.
+ */
+function GroupsSection() {
+  const queryClient = useQueryClient();
+  const persist = useServerFn(saveTagGroup);
+  const remove = useServerFn(deleteTagGroup);
+  const reorder = useServerFn(reorderTagGroups);
+
+  const groups = useTagGroups();
+  const tags = useTags();
+  const [newName, setNewName] = useState("");
+  const list = groups.data ?? [];
+
+  function apply(next: FlowTagGroup[]) {
+    queryClient.setQueryData(TAG_GROUPS_KEY, next);
+    queryClient.invalidateQueries({ queryKey: TAGS_KEY });
+  }
+
+  async function create(event: React.FormEvent) {
+    event.preventDefault();
+    if (!newName.trim()) return;
+    try {
+      apply(await persist({ data: { name: newName } }));
+      setNewName("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not create that group");
+    }
+  }
+
+  async function rename(group: FlowTagGroup, name: string) {
+    if (!name.trim() || name.trim() === group.name) return;
+    try {
+      apply(await persist({ data: { id: group.id, name: name.trim() } }));
+    } catch {
+      toast.error("Could not rename that group");
+    }
+  }
+
+  async function recolor(group: FlowTagGroup, color: string) {
+    try {
+      apply(await persist({ data: { id: group.id, color } }));
+    } catch {
+      toast.error("Could not update that group");
+    }
+  }
+
+  async function move(index: number, delta: number) {
+    const next = [...list];
+    const target = index + delta;
+    if (target < 0 || target >= next.length) return;
+    const [item] = next.splice(index, 1);
+    next.splice(target, 0, item!);
+    try {
+      apply(await reorder({ data: { ids: next.map((group) => group.id) } }));
+    } catch {
+      toast.error("Could not reorder groups");
+    }
+  }
+
+  async function drop(group: FlowTagGroup) {
+    try {
+      apply(await remove({ data: { id: group.id } }));
+    } catch {
+      toast.error("Could not delete that group");
+    }
+  }
+
+  return (
+    <section className="mt-14">
+      <h2 className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        Groups
+      </h2>
+      <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+        Tags describe what a note is about. Groups are yours: gather related tags together so the
+        sidebar reads the way you think. Deleting a group keeps its tags.
+      </p>
+
+      <form onSubmit={create} className="mt-5 flex gap-2">
+        <input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="New group, e.g. Work"
+          className="min-w-0 flex-1 rounded-lg border border-border bg-card px-4 py-2.5 text-[15px] outline-none focus:border-ring"
+        />
+        <button
+          type="submit"
+          disabled={!newName.trim()}
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
+        >
+          Add group
+        </button>
+      </form>
+
+      <ul className="mt-6 space-y-2">
+        {list.map((group, index) => (
+          <GroupRow
+            key={group.id}
+            group={group}
+            count={(tags.data ?? []).filter((tag) => tag.group_id === group.id).length}
+            onRename={rename}
+            onRecolor={recolor}
+            onMove={(delta) => move(index, delta)}
+            onDelete={drop}
+          />
+        ))}
+        {list.length === 0 && <li className="text-sm text-muted-foreground">No groups yet.</li>}
+      </ul>
+    </section>
+  );
+}
+
+function GroupRow({
+  group,
+  count,
+  onRename,
+  onRecolor,
+  onMove,
+  onDelete,
+}: {
+  group: FlowTagGroup;
+  count: number;
+  onRename: (group: FlowTagGroup, name: string) => Promise<void>;
+  onRecolor: (group: FlowTagGroup, color: string) => Promise<void>;
+  onMove: (delta: number) => Promise<void>;
+  onDelete: (group: FlowTagGroup) => Promise<void>;
+}) {
+  const [name, setName] = useState(group.name);
+
+  return (
+    <li className="flex flex-wrap items-center gap-3 rounded-lg border border-border/70 bg-card px-4 py-3">
+      <span
+        aria-hidden
+        className="h-2 w-2 shrink-0 rounded-sm"
+        style={{ backgroundColor: TAG_COLORS[tagColorKey(group.color)].accent }}
+      />
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={() => void onRename(group, name)}
+        aria-label={`Name for ${group.name}`}
+        className="min-w-0 flex-1 bg-transparent text-[15px] font-medium outline-none"
+      />
+      <span className="shrink-0 text-[12px] text-muted-foreground/70">
+        {count} {count === 1 ? "tag" : "tags"}
+      </span>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {TAG_COLOR_KEYS.map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => void onRecolor(group, key)}
+            aria-label={`${TAG_COLORS[key].label} for ${group.name}`}
+            className={cn(
+              "h-3.5 w-3.5 rounded-sm ring-offset-2 ring-offset-card transition-shadow",
+              tagColorKey(group.color) === key && "ring-1 ring-border-strong",
+            )}
+            style={{ backgroundColor: TAG_COLORS[key].accent }}
+          />
+        ))}
+      </div>
+      <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+        <button type="button" onClick={() => void onMove(-1)} aria-label={`Move ${group.name} up`} className="hover:text-foreground">
+          <ChevronUp className="h-3.5 w-3.5" />
+        </button>
+        <button type="button" onClick={() => void onMove(1)} aria-label={`Move ${group.name} down`} className="hover:text-foreground">
+          <ChevronDown className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => void onDelete(group)}
+          aria-label={`Delete ${group.name}`}
+          className="hover:text-destructive"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </div>
     </li>
   );
