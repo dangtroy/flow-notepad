@@ -38,7 +38,7 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/flow" });
+      if (data.session) navigate({ to: "/" });
     });
   }, [navigate]);
 
@@ -50,7 +50,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/flow` },
+          options: { emailRedirectTo: `${window.location.origin}/` },
         });
         if (error) throw error;
         toast.success("Account created. Welcome to Flow.");
@@ -59,7 +59,7 @@ function AuthPage() {
         if (error) throw error;
       }
       await router.invalidate();
-      navigate({ to: "/flow" });
+      navigate({ to: "/" });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
@@ -78,7 +78,7 @@ function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate({ to: "/flow" });
+    navigate({ to: "/" });
   }
 
   return (

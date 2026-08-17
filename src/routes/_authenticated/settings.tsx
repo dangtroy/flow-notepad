@@ -109,7 +109,7 @@ function SettingsPage() {
   return (
     <main className="mx-auto min-h-screen w-full max-w-2xl px-6 py-10">
       <Link
-        to="/flow"
+        to="/"
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> Back to Flow
