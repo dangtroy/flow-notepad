@@ -17,7 +17,7 @@ import type { FlowMessage } from "@/lib/flow.server";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_authenticated/flow")({
+export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
       { title: "Flow — one continuous stream of your thoughts" },
