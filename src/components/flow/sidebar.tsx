@@ -218,7 +218,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between px-4 pb-5 pt-5">
-        <span className="font-display text-[1.35rem] tracking-tight text-foreground">Flow</span>
+        <FlowLogo className="h-5" />
         <div className="flex items-center gap-1">
           <div className="relative">
             <button
