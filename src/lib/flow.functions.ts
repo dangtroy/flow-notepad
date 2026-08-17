@@ -353,6 +353,8 @@ export const saveTag = createServerFn({ method: "POST" })
       groupId?: string | null;
       isPinned?: boolean;
       sortOrder?: number;
+      matchKeywords?: string[];
+      autoApply?: boolean;
     }) => {
       const name = (input?.name ?? "").trim().slice(0, 60);
       if (!input?.id && !name) throw new Error("A tag needs a name");
@@ -365,6 +367,13 @@ export const saveTag = createServerFn({ method: "POST" })
         groupId: input?.groupId,
         isPinned: input?.isPinned,
         sortOrder: typeof input?.sortOrder === "number" ? input.sortOrder : undefined,
+        matchKeywords: Array.isArray(input?.matchKeywords)
+          ? input!
+              .matchKeywords!.map((keyword) => String(keyword).trim().slice(0, 60))
+              .filter((keyword) => keyword.length >= 2)
+              .slice(0, 20)
+          : undefined,
+        autoApply: input?.autoApply,
       };
     },
   )
@@ -381,6 +390,8 @@ export const saveTag = createServerFn({ method: "POST" })
         group_id?: string | null;
         is_pinned?: boolean;
         sort_order?: number;
+        match_keywords?: string[];
+        auto_apply?: boolean;
       } = {};
       if (data.name) {
         patch.name = data.name;
@@ -392,6 +403,8 @@ export const saveTag = createServerFn({ method: "POST" })
       if (data.groupId !== undefined) patch.group_id = data.groupId;
       if (data.isPinned !== undefined) patch.is_pinned = data.isPinned;
       if (data.sortOrder !== undefined) patch.sort_order = data.sortOrder;
+      if (data.matchKeywords !== undefined) patch.match_keywords = data.matchKeywords;
+      if (data.autoApply !== undefined) patch.auto_apply = data.autoApply;
 
       const { error } = await supabase
         .from("tags")
@@ -424,10 +437,13 @@ export const saveTag = createServerFn({ method: "POST" })
       is_enabled: data.isEnabled ?? true,
       group_id: data.groupId ?? null,
       is_pinned: data.isPinned ?? false,
+      match_keywords: data.matchKeywords ?? [],
+      auto_apply: data.autoApply ?? true,
     });
     if (error) throw error;
     return loadTags(supabase, userId);
   });
+
 
 /**
  * Manual ordering and group membership in one call so a drag lands atomically:
