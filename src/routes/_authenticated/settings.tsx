@@ -5,7 +5,13 @@ import { useState } from "react";
 import { ArrowLeft, Check, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { deleteTag, getPreferences, saveTag, updatePreferences } from "@/lib/flow.functions";
+import {
+  deleteTag,
+  getPreferences,
+  retagAllMessages,
+  saveTag,
+  updatePreferences,
+} from "@/lib/flow.functions";
 import type { FlowTagDetail } from "@/lib/flow.server";
 import { TAG_COLOR_KEYS, TAG_COLORS, tagColorKey } from "@/lib/tag-colors";
 import { findSimilarTag } from "@/lib/tag-filter";
@@ -130,6 +136,20 @@ function TagsSection() {
   const queryClient = useQueryClient();
   const persist = useServerFn(saveTag);
   const remove = useServerFn(deleteTag);
+  const retagAll = useServerFn(retagAllMessages);
+
+  /** A changed rule changes meaning: every existing note is read again. */
+  async function retagEverything() {
+    const pending = toast.loading("Re-reading your notes with the new rules…");
+    try {
+      const result = await retagAll();
+      toast.success(`Re-organized ${result.organized} of ${result.total} notes`, { id: pending });
+    } catch {
+      toast.error("Could not re-organize your notes", { id: pending });
+    }
+    queryClient.invalidateQueries({ queryKey: TAGS_KEY });
+    queryClient.invalidateQueries({ queryKey: ["stream"] });
+  }
   const tags = useTags();
 
   const [newName, setNewName] = useState("");
@@ -150,6 +170,7 @@ function TagsSection() {
       refresh(await persist({ data: { name: newName, context: newContext } }));
       setNewName("");
       setNewContext("");
+      void retagEverything();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not create that tag");
     }
@@ -161,6 +182,9 @@ function TagsSection() {
   ) {
     try {
       refresh(await persist({ data: { id, ...patch } }));
+      if (patch.context !== undefined || patch.isEnabled !== undefined || patch.name !== undefined) {
+        void retagEverything();
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not update that tag");
     }
