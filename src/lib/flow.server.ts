@@ -108,6 +108,47 @@ export type StreamPage = {
   nextCursor: string | null;
 };
 
+export type FilterMode = "or" | "and";
+
+/**
+ * Tags are a filter layer over the one conversation — never a copy of it. This
+ * resolves the selected tags to the message ids they point at; the stream query
+ * then narrows the same permanent conversation to those ids.
+ */
+export async function resolveTaggedMessageIds(
+  supabase: Client,
+  userId: string,
+  tagIds: string[],
+  mode: FilterMode,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("message_tags")
+    .select("message_id, tag_id")
+    .eq("user_id", userId)
+    .in("tag_id", tagIds);
+  if (error) throw error;
+
+  const byMessage = new Map<string, Set<string>>();
+  for (const row of data ?? []) {
+    const set = byMessage.get(row.message_id) ?? new Set<string>();
+    set.add(row.tag_id);
+    byMessage.set(row.message_id, set);
+  }
+
+  const wanted = new Set(tagIds);
+  const matches: string[] = [];
+  for (const [messageId, tags] of byMessage) {
+    if (mode === "and") {
+      let all = true;
+      for (const tagId of wanted) if (!tags.has(tagId)) all = false;
+      if (all) matches.push(messageId);
+    } else {
+      matches.push(messageId);
+    }
+  }
+  return matches;
+}
+
 /**
  * Keyset pagination over the stream: newest first from the database, returned
  * oldest-first for rendering. The conversation can grow to tens of thousands of
@@ -116,8 +157,15 @@ export type StreamPage = {
 export async function loadStreamPage(
   supabase: Client,
   userId: string,
-  options: { limit: number; before?: string | null },
+  options: { limit: number; before?: string | null; tagIds?: string[]; mode?: FilterMode },
 ): Promise<StreamPage> {
+  const tagIds = options.tagIds ?? [];
+  let ids: string[] | null = null;
+  if (tagIds.length) {
+    ids = await resolveTaggedMessageIds(supabase, userId, tagIds, options.mode ?? "or");
+    if (!ids.length) return { messages: [], nextCursor: null };
+  }
+
   let query = supabase
     .from("messages")
     .select(MESSAGE_SELECT)
@@ -125,6 +173,7 @@ export async function loadStreamPage(
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(options.limit + 1);
+  if (ids) query = query.in("id", ids);
   if (options.before) query = query.lt("created_at", options.before);
 
   const { data, error } = await query;
@@ -139,6 +188,42 @@ export async function loadStreamPage(
     messages: page.map(mapMessage).reverse(),
     nextCursor: hasMore && oldest ? oldest.created_at : null,
   };
+}
+
+export type FlowTagDetail = {
+  id: string;
+  name: string;
+  color: string | null;
+  context: string;
+  is_enabled: boolean;
+  message_count: number;
+};
+
+/** One reusable list of tags with derived counts — the source for filters and management. */
+export async function loadTags(supabase: Client, userId: string): Promise<FlowTagDetail[]> {
+  const [tagRows, countRows] = await Promise.all([
+    supabase
+      .from("tags")
+      .select("id, name, color, context, is_enabled")
+      .eq("user_id", userId)
+      .order("name", { ascending: true }),
+    supabase.rpc("tag_message_counts" as never),
+  ]);
+  if (tagRows.error) throw tagRows.error;
+
+  const counts = new Map<string, number>();
+  for (const row of (countRows.data ?? []) as Array<{ tag_id: string; message_count: number }>) {
+    counts.set(row.tag_id, Number(row.message_count));
+  }
+
+  return (tagRows.data ?? []).map((tag) => ({
+    id: tag.id,
+    name: tag.name,
+    color: tag.color,
+    context: (tag as { context?: string }).context ?? "",
+    is_enabled: (tag as { is_enabled?: boolean }).is_enabled ?? true,
+    message_count: counts.get(tag.id) ?? 0,
+  }));
 }
 
 export async function loadMessage(
@@ -187,7 +272,7 @@ async function askAi(
             "Given one thought, return 1-3 concise reusable tags, a one-sentence summary, and key topics.",
             "Strongly prefer reusing an existing tag when it means the same concept; never invent a near-duplicate (e.g. do not add 'Trips' when 'Travel' exists).",
             "Tags are short Title Case concepts (project, person, place, product, or theme). No hashtags, no sentences.",
-            "Apply the user's context rules: if a thought matches a rule's context, include that rule's tag.",
+            "Apply the user's context rules by meaning, not by keyword: if the thought is about what a rule describes, include that rule's tag even when the exact words never appear.",
             'Respond ONLY with JSON: {"tags":["..."],"summary":"...","topics":["..."]}',
           ].join("\n"),
         },
@@ -237,7 +322,10 @@ export async function organizeMessage(supabase: Client, userId: string, messageI
 
   try {
     const [tagRows, ruleRows] = await Promise.all([
-      supabase.from("tags").select("id, name, normalized_name").eq("user_id", userId),
+      supabase
+        .from("tags")
+        .select("id, name, normalized_name, context, is_enabled")
+        .eq("user_id", userId),
       supabase
         .from("context_rules")
         .select("tag_name, context")
@@ -245,11 +333,28 @@ export async function organizeMessage(supabase: Client, userId: string, messageI
         .eq("is_enabled", true),
     ]);
 
-    const existing = tagRows.data ?? [];
+    const existing = (tagRows.data ?? []) as Array<{
+      id: string;
+      name: string;
+      normalized_name: string;
+      context?: string | null;
+      is_enabled?: boolean | null;
+    }>;
+    // A disabled tag stays a real tag; it is simply never applied automatically.
+    const disabled = new Set(existing.filter((t) => t.is_enabled === false).map((t) => t.id));
+
+    // Each tag carries its own plain-English context; legacy standalone rules still count.
+    const rules = [
+      ...existing
+        .filter((t) => t.is_enabled !== false && (t.context ?? "").trim())
+        .map((t) => ({ tag_name: t.name, context: (t.context ?? "").trim() })),
+      ...(ruleRows.data ?? []),
+    ];
+
     const result = await askAi(
       message.data.content,
-      existing.map((t) => t.name),
-      ruleRows.data ?? [],
+      existing.filter((t) => t.is_enabled !== false).map((t) => t.name),
+      rules,
     );
 
     const tagIds: string[] = [];
@@ -260,7 +365,7 @@ export async function organizeMessage(supabase: Client, userId: string, messageI
 
       const match = existing.find((t) => t.normalized_name === normalized);
       if (match) {
-        tagIds.push(match.id);
+        if (!disabled.has(match.id)) tagIds.push(match.id);
         continue;
       }
       const inserted = await supabase
