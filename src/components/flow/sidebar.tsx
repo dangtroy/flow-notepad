@@ -1,11 +1,12 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Inbox, LogOut, Settings } from "lucide-react";
+import { Inbox, LogOut, Moon, Settings, Sun } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { tagAccent } from "@/lib/tag-colors";
 import { tagIdsFrom, tagsParam, toggleTagId } from "@/lib/tag-filter";
 import { useTags } from "@/lib/use-tags";
+import { useTheme } from "@/lib/use-theme";
 import { cn } from "@/lib/utils";
 
 /** Navigation, not a dashboard: All plus the user's own tags as filters. */
@@ -14,6 +15,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const queryClient = useQueryClient();
   const search = useSearch({ strict: false }) as { tags?: string; mode?: "or" | "and" };
   const tags = useTags();
+  const { theme, toggleTheme } = useTheme();
 
   const selected = tagIdsFrom(search.tags);
   const mode = search.mode === "and" ? "and" : "or";
