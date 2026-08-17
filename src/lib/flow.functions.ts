@@ -9,12 +9,13 @@ import {
   loadTags,
   MESSAGE_SELECT,
   mapMessage,
-  normalizeTag,
-  organizeMessage,
   runRetention,
 } from "./flow.server";
+import { loadSuggestions, organizeMessage } from "./organize.server";
+import { normalizeTag } from "./tag-normalize";
 import { htmlToText, isEmptyDocument, sanitizeHtml, textToHtml } from "./rich-text";
 import { DEFAULT_TAG_COLOR, pickDefaultTagColor, TAG_COLOR_KEYS } from "./tag-colors";
+
 
 export const getStreamPage = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
