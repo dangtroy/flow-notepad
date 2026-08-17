@@ -503,15 +503,6 @@ function GroupsSection() {
     }
   }
 
-  async function saveContext(group: FlowTagGroup, context: string) {
-    if (context.trim() === group.context) return;
-    try {
-      apply(await persist({ data: { id: group.id, context: context.trim() } }));
-    } catch {
-      toast.error("Could not save that group context");
-    }
-  }
-
 
   async function move(index: number, delta: number) {
     const next = [...list];
@@ -540,8 +531,8 @@ function GroupsSection() {
         Groups
       </h2>
       <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
-        Tags describe what a note is about. Groups are yours: gather related tags together so the
-        sidebar reads the way you think. Deleting a group keeps its tags.
+        Tags describe what a note is about. Groups are yours: create one here, then drag tags into
+        it from the sidebar. Deleting a group keeps its tags.
       </p>
 
       <form onSubmit={create} className="mt-5 flex gap-2">
@@ -568,7 +559,6 @@ function GroupsSection() {
             count={(tags.data ?? []).filter((tag) => tag.group_id === group.id).length}
             onRename={rename}
             onRecolor={recolor}
-            onContext={saveContext}
             onMove={(delta) => move(index, delta)}
             onDelete={drop}
           />
@@ -585,7 +575,6 @@ function GroupRow({
   count,
   onRename,
   onRecolor,
-  onContext,
   onMove,
   onDelete,
 }: {
@@ -593,14 +582,12 @@ function GroupRow({
   count: number;
   onRename: (group: FlowTagGroup, name: string) => Promise<void>;
   onRecolor: (group: FlowTagGroup, color: string) => Promise<void>;
-  onContext: (group: FlowTagGroup, context: string) => Promise<void>;
   onMove: (delta: number) => Promise<void>;
   onDelete: (group: FlowTagGroup) => Promise<void>;
 }) {
   const [name, setName] = useState(group.name);
 
 
-  const [context, setContext] = useState(group.context);
 
   return (
     <li className="rounded-lg border border-border/70 bg-card px-4 py-3">
@@ -654,16 +641,6 @@ function GroupRow({
       </div>
       </div>
 
-      {/* A group can carry its own broad context; Flow weighs it with child tags. */}
-      <textarea
-        value={context}
-        onChange={(e) => setContext(e.target.value)}
-        onBlur={() => void onContext(group, context)}
-        rows={2}
-        aria-label={`Context for ${group.name}`}
-        placeholder="Broad context for this group — Flow reads it alongside each child tag."
-        className="mt-2 w-full resize-none bg-transparent text-sm leading-relaxed text-muted-foreground outline-none"
-      />
     </li>
   );
 }
