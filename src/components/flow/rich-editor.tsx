@@ -215,6 +215,17 @@ export function useFlowEditor({
   onCancel,
   onEmptyChange,
 }: UseFlowEditorOptions) {
+  const editorRef = useRef<Editor | null>(null);
+  const handlers = useRef({ onSubmit, onCancel, onEmptyChange });
+  handlers.current = { onSubmit, onCancel, onEmptyChange };
+
+  function submitFromEditor() {
+    const instance = editorRef.current;
+    const submit = handlers.current.onSubmit;
+    if (!instance || instance.isEmpty || !submit) return;
+    submit(instance.getHTML());
+  }
+
   const editor = useEditor({
     extensions: editorExtensions,
     content: initialHtml ?? "",
@@ -223,43 +234,38 @@ export function useFlowEditor({
     editorProps: {
       attributes: { class: "flow-prose focus:outline-none", spellcheck: "true" },
       handleKeyDown: (_view, event) => {
-        if (event.key === "Escape" && onCancel) {
+        const instance = editorRef.current;
+        if (event.key === "Escape" && handlers.current.onCancel) {
           event.preventDefault();
-          onCancel();
+          handlers.current.onCancel();
           return true;
         }
-        if (event.key !== "Enter" || !onSubmit) return false;
+        if (event.key !== "Enter" || !handlers.current.onSubmit || !instance) return false;
         if (event.metaKey || event.ctrlKey) {
           event.preventDefault();
-          submitFrom();
+          submitFromEditor();
           return true;
         }
         if (event.shiftKey) return false;
-        if (!editorRef.current) return false;
         const inStructuredBlock =
-          editorRef.current.isActive("listItem") ||
-          editorRef.current.isActive("taskItem") ||
-          editorRef.current.isActive("codeBlock") ||
-          editorRef.current.isActive("blockquote");
+          instance.isActive("listItem") ||
+          instance.isActive("taskItem") ||
+          instance.isActive("codeBlock") ||
+          instance.isActive("blockquote");
         if (inStructuredBlock) return false;
         event.preventDefault();
-        submitFrom();
+        submitFromEditor();
         return true;
       },
     },
-    onUpdate: ({ editor: instance }) => onEmptyChange?.(instance.isEmpty),
+    onUpdate: ({ editor: instance }) => handlers.current.onEmptyChange?.(instance.isEmpty),
   });
 
-  const editorRef = { current: editor };
-
-  function submitFrom() {
-    const instance = editorRef.current;
-    if (!instance || instance.isEmpty || !onSubmit) return;
-    onSubmit(instance.getHTML());
-  }
+  editorRef.current = editor ?? null;
 
   return editor;
 }
+
 
 export function FlowEditorSurface({
   editor,
