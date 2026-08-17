@@ -321,72 +321,49 @@ export async function organizeMessage(supabase: Client, userId: string, messageI
   if (!message.data) return { ok: false as const, reason: "not_found" };
 
   try {
-    const [tagRows, ruleRows] = await Promise.all([
-      supabase
-        .from("tags")
-        .select("id, name, normalized_name, context, is_enabled")
-        .eq("user_id", userId),
-      supabase
-        .from("context_rules")
-        .select("tag_name, context")
-        .eq("user_id", userId)
-        .eq("is_enabled", true),
-    ]);
+    const { data: tagRows } = await supabase
+      .from("tags")
+      .select("id, name, normalized_name, context, is_enabled")
+      .eq("user_id", userId);
 
-    const existing = (tagRows.data ?? []) as Array<{
+    const existing = (tagRows ?? []) as Array<{
       id: string;
       name: string;
       normalized_name: string;
       context?: string | null;
       is_enabled?: boolean | null;
     }>;
-    // A disabled tag stays a real tag; it is simply never applied automatically.
-    const disabled = new Set(existing.filter((t) => t.is_enabled === false).map((t) => t.id));
 
-    // Each tag carries its own plain-English context; legacy standalone rules still count.
-    const rules = [
-      ...existing
-        .filter((t) => t.is_enabled !== false && (t.context ?? "").trim())
-        .map((t) => ({ tag_name: t.name, context: (t.context ?? "").trim() })),
-      ...(ruleRows.data ?? []),
-    ];
+    /**
+     * No auto-discovery: a tag is only ever applied when the user enabled it and
+     * wrote a context rule for it. Nothing new is ever created here.
+     */
+    const candidates = existing.filter(
+      (t) => t.is_enabled !== false && (t.context ?? "").trim().length > 0,
+    );
+
+    if (!candidates.length) {
+      await supabase.from("message_tags").delete().eq("message_id", messageId).eq("source", "ai");
+      await supabase
+        .from("messages")
+        .update({ ai_status: "done", ai_processed_at: new Date().toISOString(), ai_error: null })
+        .eq("id", messageId)
+        .eq("user_id", userId);
+      return { ok: true as const };
+    }
 
     const result = await askAi(
       message.data.content,
-      existing.filter((t) => t.is_enabled !== false).map((t) => t.name),
-      rules,
+      candidates.map((t) => ({ tag_name: t.name, context: (t.context ?? "").trim() })),
     );
 
+    const allowed = new Map(candidates.map((t) => [t.normalized_name, t.id]));
     const tagIds: string[] = [];
     for (const rawName of result.tags) {
-      const name = rawName.trim().slice(0, 60);
-      const normalized = normalizeTag(name);
-      if (!normalized) continue;
-
-      const match = existing.find((t) => t.normalized_name === normalized);
-      if (match) {
-        if (!disabled.has(match.id)) tagIds.push(match.id);
-        continue;
-      }
-      const inserted = await supabase
-        .from("tags")
-        .upsert(
-          {
-            user_id: userId,
-            name,
-            normalized_name: normalized,
-            color: pickDefaultTagColor(normalized),
-          },
-          { onConflict: "user_id,normalized_name" },
-        )
-        .select("id, name, normalized_name")
-        .single();
-
-      if (inserted.data) {
-        existing.push(inserted.data);
-        tagIds.push(inserted.data.id);
-      }
+      const id = allowed.get(normalizeTag(rawName.trim()));
+      if (id && !tagIds.includes(id)) tagIds.push(id);
     }
+
 
     // Replace AI-applied tags for this message; user-applied links are kept.
     await supabase.from("message_tags").delete().eq("message_id", messageId).eq("source", "ai");
