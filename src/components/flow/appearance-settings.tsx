@@ -83,8 +83,47 @@ export function AppearanceSettings() {
               { label: "Narrow", value: "narrow" },
               { label: "Default", value: "default" },
               { label: "Wide", value: "wide" },
+              { label: "Full", value: "full" },
             ]}
             onSelect={(contentWidth) => update({ contentWidth })}
+          />
+        </Row>
+
+        <Row label="Reply spacing">
+          <Choices
+            value={appearance.replySpacing}
+            options={[
+              { label: "Compact", value: "compact" },
+              { label: "Comfortable", value: "comfortable" },
+              { label: "Spacious", value: "spacious" },
+            ]}
+            onSelect={(replySpacing) => update({ replySpacing })}
+          />
+        </Row>
+
+        <Row label="Border colour">
+          <Choices
+            value={appearance.borderTone}
+            options={[
+              { label: "Subtle", value: "subtle" },
+              { label: "Medium", value: "medium" },
+              { label: "Strong", value: "strong" },
+              { label: "Accent", value: "accent" },
+            ]}
+            onSelect={(borderTone) => update({ borderTone })}
+          />
+        </Row>
+
+        <Row label="Border thickness">
+          <Choices
+            value={appearance.borderThickness}
+            options={[
+              { label: "Hairline", value: "hairline" },
+              { label: "Thin", value: "thin" },
+              { label: "Medium", value: "medium" },
+              { label: "Thick", value: "thick" },
+            ]}
+            onSelect={(borderThickness) => update({ borderThickness })}
           />
         </Row>
 
@@ -131,12 +170,18 @@ export function AppearanceSettings() {
               onClick={() => update({ showTimestamps: !appearance.showTimestamps })}
             />
             <Toggle
+              label="Reply timestamps"
+              active={appearance.showReplyTimestamps}
+              onClick={() => update({ showReplyTimestamps: !appearance.showReplyTimestamps })}
+            />
+            <Toggle
               label="Tags"
               active={appearance.showTags}
               onClick={() => update({ showTags: !appearance.showTags })}
             />
           </div>
         </Row>
+
       </div>
     </section>
   );
