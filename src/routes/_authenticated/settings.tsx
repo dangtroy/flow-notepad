@@ -6,6 +6,7 @@ import { ArrowLeft, Check, ChevronDown, ChevronUp, Trash2, X } from "lucide-reac
 import { toast } from "sonner";
 
 import { AppearanceSettings } from "@/components/flow/appearance-settings";
+import { NotepadsSettings } from "@/components/flow/notepads-settings";
 import {
 
   deleteTag,
@@ -21,6 +22,7 @@ import type { FlowTagDetail, FlowTagGroup } from "@/lib/flow.server";
 import { TAG_COLOR_KEYS, TAG_COLORS, tagColorKey } from "@/lib/tag-colors";
 import { findSimilarTag } from "@/lib/tag-filter";
 import { tagsKey, tagGroupsKey, useTagGroups, useTags } from "@/lib/use-tags";
+import { useActiveNotepadId } from "@/lib/use-notepad";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -54,14 +56,20 @@ const RETENTION_OPTIONS: Array<{ label: string; value: number | null }> = [
 
 function SettingsPage() {
   const queryClient = useQueryClient();
+  const notepadId = useActiveNotepadId();
   const fetchPrefs = useServerFn(getPreferences);
   const savePrefs = useServerFn(updatePreferences);
 
-  const prefs = useQuery({ queryKey: ["preferences"], queryFn: () => fetchPrefs() });
+  // Retention is a per-notepad setting, so it is cached per notepad too.
+  const prefs = useQuery({
+    queryKey: ["preferences", notepadId ?? "none"],
+    queryFn: () => fetchPrefs({ data: { notepadId } }),
+    enabled: Boolean(notepadId),
+  });
 
   async function chooseRetention(value: number | null) {
     try {
-      await savePrefs({ data: { completedRetentionDays: value } });
+      await savePrefs({ data: { completedRetentionDays: value, notepadId } });
       queryClient.invalidateQueries({ queryKey: ["preferences"] });
     } catch {
       toast.error("Could not save that preference");
@@ -82,6 +90,8 @@ function SettingsPage() {
         </Link>
 
         <h1 className="mt-8 font-display text-3xl tracking-tight">Settings</h1>
+
+        <NotepadsSettings />
 
         <AppearanceSettings />
 
@@ -146,6 +156,7 @@ function SettingsPage() {
  */
 function TagsSection() {
   const queryClient = useQueryClient();
+  const notepadId = useActiveNotepadId();
   const persist = useServerFn(saveTag);
   const remove = useServerFn(deleteTag);
   const retagAll = useServerFn(retagAllMessages);
@@ -154,7 +165,7 @@ function TagsSection() {
   async function retagEverything() {
     const pending = toast.loading("Re-reading your notes with the new rules…");
     try {
-      const result = await retagAll();
+      const result = await retagAll({ data: { notepadId } });
       toast.success(`Re-organized ${result.organized} of ${result.total} notes`, { id: pending });
     } catch {
       toast.error("Could not re-organize your notes", { id: pending });
@@ -461,6 +472,7 @@ function TagRow({
  */
 function GroupsSection() {
   const queryClient = useQueryClient();
+  const notepadId = useActiveNotepadId();
   const persist = useServerFn(saveTagGroup);
   const remove = useServerFn(deleteTagGroup);
   const reorder = useServerFn(reorderTagGroups);

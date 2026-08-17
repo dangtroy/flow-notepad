@@ -13,6 +13,7 @@ import {
 } from "@/lib/flow.functions";
 import { LEARN_MODES, type LearnMode, type TagSuggestion } from "@/lib/suggestions";
 import { tagsKey } from "@/lib/use-tags";
+import { useActiveNotepadId } from "@/lib/use-notepad";
 import { cn } from "@/lib/utils";
 
 export const SUGGESTIONS_KEY = ["tag-suggestions"] as const;
@@ -23,6 +24,7 @@ export const SUGGESTIONS_KEY = ["tag-suggestions"] as const;
  */
 export function SuggestionsBell() {
   const queryClient = useQueryClient();
+  const notepadId = useActiveNotepadId();
   const fetchSuggestions = useServerFn(listTagSuggestions);
   const apply = useServerFn(applyTagSuggestion);
   const ignore = useServerFn(ignoreTagSuggestion);
@@ -32,9 +34,10 @@ export function SuggestionsBell() {
   const [busy, setBusy] = useState(false);
 
   const suggestions = useQuery({
-    queryKey: SUGGESTIONS_KEY,
-    queryFn: () => fetchSuggestions(),
+    queryKey: [...SUGGESTIONS_KEY, notepadId ?? "none"],
+    queryFn: () => fetchSuggestions({ data: { notepadId } }),
     refetchInterval: 90_000,
+    enabled: Boolean(notepadId),
   });
 
   const list = suggestions.data ?? [];
@@ -49,7 +52,7 @@ export function SuggestionsBell() {
   async function handleApply(suggestion: TagSuggestion, learnMode: LearnMode) {
     setBusy(true);
     try {
-      const { applied } = await apply({ data: { id: suggestion.id, learnMode } });
+      const { applied } = await apply({ data: { id: suggestion.id, learnMode, notepadId } });
       toast.success(
         `${suggestion.name} applied to ${applied} ${applied === 1 ? "note" : "notes"}`,
       );
@@ -74,7 +77,7 @@ export function SuggestionsBell() {
   async function handleAll(action: "apply" | "ignore") {
     setBusy(true);
     try {
-      const { resolved } = await resolveAll({ data: { action, learnMode: "suggest" } });
+      const { resolved } = await resolveAll({ data: { notepadId, action, learnMode: "suggest" } });
       toast.success(
         action === "apply" ? `Applied ${resolved} suggestions` : `Dismissed ${resolved} suggestions`,
       );
