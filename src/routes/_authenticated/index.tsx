@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import {
   cleanupCompleted,
+  deleteMessageNow,
   getStreamPage,
   organizeMessageFn,
   sendMessage,
