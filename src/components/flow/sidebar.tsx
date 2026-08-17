@@ -122,23 +122,23 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       <div className="space-y-0.5 border-t border-sidebar-border px-2 py-2">
         <button
           type="button"
-          onClick={toggleTheme}
+          onClick={() => update({ theme: themeMode === "dark" ? "light" : "dark" })}
           className={cn(itemClass, "w-full text-left")}
-          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          aria-label={themeMode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
         >
-          {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-          {theme === "dark" ? "Light mode" : "Dark mode"}
+          {themeMode === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          {themeMode === "dark" ? "Light mode" : "Dark mode"}
         </button>
         <button
           type="button"
-          onClick={toggleTags}
+          onClick={() => update({ showTags: !showTags, showTimestamps: !showTags })}
           className={cn(itemClass, "w-full text-left")}
           aria-pressed={!showTags}
         >
           {showTags ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
           {showTags ? "Hide tags & timestamps" : "Show tags & timestamps"}
-
         </button>
+
         <button
           type="button"
           onClick={() => void handleClearDone()}
