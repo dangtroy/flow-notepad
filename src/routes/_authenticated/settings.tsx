@@ -20,7 +20,7 @@ import {
 import type { FlowTagDetail, FlowTagGroup } from "@/lib/flow.server";
 import { TAG_COLOR_KEYS, TAG_COLORS, tagColorKey } from "@/lib/tag-colors";
 import { findSimilarTag } from "@/lib/tag-filter";
-import { TAGS_KEY, TAG_GROUPS_KEY, useTagGroups, useTags } from "@/lib/use-tags";
+import { tagsKey, tagGroupsKey, useTagGroups, useTags } from "@/lib/use-tags";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -159,7 +159,7 @@ function TagsSection() {
     } catch {
       toast.error("Could not re-organize your notes", { id: pending });
     }
-    queryClient.invalidateQueries({ queryKey: TAGS_KEY });
+    queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
     queryClient.invalidateQueries({ queryKey: ["stream"] });
   }
   const tags = useTags();
@@ -172,8 +172,8 @@ function TagsSection() {
   const similar = findSimilarTag(newName, list);
 
   function refresh(next?: FlowTagDetail[]) {
-    if (next) queryClient.setQueryData(TAGS_KEY, next);
-    else queryClient.invalidateQueries({ queryKey: TAGS_KEY });
+    if (next) queryClient.setQueryData(tagsKey(notepadId), next);
+    else queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
     queryClient.invalidateQueries({ queryKey: ["stream"] });
   }
 
@@ -471,8 +471,8 @@ function GroupsSection() {
   const list = groups.data ?? [];
 
   function apply(next: FlowTagGroup[]) {
-    queryClient.setQueryData(TAG_GROUPS_KEY, next);
-    queryClient.invalidateQueries({ queryKey: TAGS_KEY });
+    queryClient.setQueryData(tagGroupsKey(notepadId), next);
+    queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
   }
 
   async function create(event: React.FormEvent) {

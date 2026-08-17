@@ -17,7 +17,8 @@ import type { FlowMessage } from "@/lib/flow.server";
 import { htmlToText } from "@/lib/rich-text";
 import { tagIdsFrom, type FilterMode } from "@/lib/tag-filter";
 import { useAppearance } from "@/lib/use-appearance";
-import { TAGS_KEY } from "@/lib/use-tags";
+import { tagsKey } from "@/lib/use-tags";
+import { useActiveNotepadId } from "@/lib/use-notepad";
 import { Composer } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
 
@@ -50,7 +51,7 @@ export const Route = createFileRoute("/_authenticated/")({
   component: FlowPage,
 });
 
-type Page = { conversationId: string; messages: FlowMessage[]; nextCursor: string | null };
+type Page = { notepadId: string; messages: FlowMessage[]; nextCursor: string | null };
 type Stream = InfiniteData<Page, string | null>;
 
 const PAGE_SIZE = 40;
@@ -81,6 +82,7 @@ function FlowPage() {
   const cleanup = useServerFn(cleanupCompleted);
   const destroy = useServerFn(deleteMessageNow);
   const { appearance } = useAppearance();
+  const notepadId = useActiveNotepadId();
 
   
 
@@ -95,9 +97,16 @@ function FlowPage() {
   const selectedTagIds = useMemo(() => tagIdsFrom(search.tags), [search.tags]);
   const mode: FilterMode = search.mode === "and" ? "and" : "or";
   const isFiltered = selectedTagIds.length > 0;
+  // Each notepad is its own stream: switching never mixes two conversations.
   const streamKey = useMemo(
-    () => ["stream", selectedTagIds.join(","), selectedTagIds.length > 1 ? mode : "or"] as const,
-    [selectedTagIds, mode],
+    () =>
+      [
+        "stream",
+        notepadId ?? "none",
+        selectedTagIds.join(","),
+        selectedTagIds.length > 1 ? mode : "or",
+      ] as const,
+    [notepadId, selectedTagIds, mode],
   );
 
   const { data, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery<
@@ -111,9 +120,10 @@ function FlowPage() {
     initialPageParam: null,
     queryFn: ({ pageParam }) =>
       fetchPage({
-        data: { before: pageParam, limit: PAGE_SIZE, tagIds: selectedTagIds, mode },
+        data: { notepadId, before: pageParam, limit: PAGE_SIZE, tagIds: selectedTagIds, mode },
       }),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: Boolean(notepadId),
   });
 
 
@@ -181,12 +191,13 @@ function FlowPage() {
 
   useEffect(() => {
     // Retention pass on open: expired completed thoughts are removed for good.
-    cleanup()
+    if (!notepadId) return;
+    cleanup({ data: { notepadId } })
       .then((result) => {
         if (result.deleted > 0) queryClient.invalidateQueries({ queryKey: ["stream"] });
       })
       .catch(() => {});
-  }, [cleanup, queryClient]);
+  }, [cleanup, queryClient, notepadId]);
 
   // A filter change is a new view of the stream: land at the newest again.
   useEffect(() => {
@@ -261,7 +272,7 @@ function FlowPage() {
       const { message } = await organize({ data: { id } });
       if (message) patchMessage(id, message);
       // New links may have changed tag counts (and may have created a tag).
-      void queryClient.invalidateQueries({ queryKey: TAGS_KEY });
+      void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
     } catch {
       // Organizing is optional: the thought is already saved and fully usable.
       patchMessage(id, { ai_status: "failed" });
@@ -292,7 +303,7 @@ function FlowPage() {
     requestAnimationFrame(scrollToBottom);
 
     try {
-      const saved = await send({ data: { html, parentMessageId } });
+      const saved = await send({ data: { html, parentMessageId, notepadId } });
       patchMessage(tempId, saved as FlowMessage);
       void organizeInBackground(saved.id);
     } catch (error) {
@@ -334,7 +345,7 @@ function FlowPage() {
     );
     try {
       await destroy({ data: { id: message.id } });
-      void queryClient.invalidateQueries({ queryKey: TAGS_KEY });
+      void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
       toast.success("Deleted");
     } catch {
       void queryClient.invalidateQueries({ queryKey: ["stream"] });
