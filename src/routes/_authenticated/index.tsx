@@ -153,16 +153,30 @@ function FlowPage() {
     return ordered;
   }, [messages]);
 
+  /**
+   * Days hold threads; threads hold a root note plus its replies. Grouping this
+   * way lets each thread read as one distinct unit without becoming a card.
+   */
+  type Entry = (typeof threaded)[number];
   const grouped = useMemo(() => {
-    const groups: Array<{ label: string; items: typeof threaded }> = [];
+    const groups: Array<{ label: string; threads: Array<{ id: string; entries: Entry[] }> }> = [];
     for (const entry of threaded) {
       const label = dayLabel(entry.rootAt);
-      const last = groups[groups.length - 1];
-      if (last && last.label === label) last.items.push(entry);
-      else groups.push({ label, items: [entry] });
+      let group = groups[groups.length - 1];
+      if (!group || group.label !== label) {
+        group = { label, threads: [] };
+        groups.push(group);
+      }
+      const thread = group.threads[group.threads.length - 1];
+      if (entry.depth === 0 || !thread) {
+        group.threads.push({ id: entry.message.id, entries: [entry] });
+      } else {
+        thread.entries.push(entry);
+      }
     }
     return groups;
   }, [threaded]);
+
 
 
   useEffect(() => {
