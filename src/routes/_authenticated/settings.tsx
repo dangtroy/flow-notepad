@@ -198,17 +198,26 @@ function TagsSection() {
       context?: string;
       isEnabled?: boolean;
       groupId?: string | null;
+      matchKeywords?: string[];
+      autoApply?: boolean;
     },
   ) {
     try {
       refresh(await persist({ data: { id, ...patch } }));
-      if (patch.context !== undefined || patch.isEnabled !== undefined || patch.name !== undefined) {
+      // Rules changed, so existing notes are re-read against the new intent.
+      if (
+        patch.context !== undefined ||
+        patch.isEnabled !== undefined ||
+        patch.name !== undefined ||
+        patch.matchKeywords !== undefined
+      ) {
         void retagEverything();
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not update that tag");
     }
   }
+
 
   async function drop(tag: FlowTagDetail) {
     try {
@@ -289,13 +298,24 @@ function TagRow({
       context?: string;
       isEnabled?: boolean;
       groupId?: string | null;
+      matchKeywords?: string[];
+      autoApply?: boolean;
     },
   ) => Promise<void>;
   onDelete: (tag: FlowTagDetail) => Promise<void>;
 }) {
   const [name, setName] = useState(tag.name);
   const [context, setContext] = useState(tag.context);
-  const dirty = name.trim() !== tag.name || context.trim() !== tag.context;
+  const [keywords, setKeywords] = useState(tag.match_keywords.join(", "));
+  const parsedKeywords = keywords
+    .split(",")
+    .map((keyword) => keyword.trim())
+    .filter((keyword) => keyword.length >= 2);
+  const dirty =
+    name.trim() !== tag.name ||
+    context.trim() !== tag.context ||
+    parsedKeywords.join("|") !== tag.match_keywords.join("|");
+
 
   return (
     <li
@@ -322,11 +342,24 @@ function TagRow({
         <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
           <button
             type="button"
+            onClick={() => void onUpdate(tag.id, { autoApply: !tag.auto_apply })}
+            title={
+              tag.auto_apply
+                ? "Applied automatically when Flow is confident"
+                : "Flow will only suggest this tag"
+            }
+            className="transition-colors hover:text-foreground"
+          >
+            {tag.auto_apply ? "Auto" : "Suggest only"}
+          </button>
+          <button
+            type="button"
             onClick={() => void onUpdate(tag.id, { isEnabled: !tag.is_enabled })}
             className="transition-colors hover:text-foreground"
           >
             {tag.is_enabled ? "Disable" : "Enable"}
           </button>
+
           <button
             type="button"
             onClick={() => void onDelete(tag)}
@@ -346,6 +379,16 @@ function TagRow({
         placeholder="What does this tag mean? Flow uses this to decide."
         className="mt-2 w-full resize-none bg-transparent text-sm leading-relaxed text-muted-foreground outline-none"
       />
+
+      {/* Literal words: a match here is handled instantly, with no AI call. */}
+      <input
+        value={keywords}
+        onChange={(e) => setKeywords(e.target.value)}
+        aria-label={`Match words for ${tag.name}`}
+        placeholder="Instant match words, comma separated (e.g. ShipHero, inventory sync)"
+        className="mt-1.5 w-full bg-transparent text-[13px] text-muted-foreground/85 outline-none"
+      />
+
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1.5">
@@ -386,6 +429,7 @@ function TagRow({
               onClick={() => {
                 setName(tag.name);
                 setContext(tag.context);
+                setKeywords(tag.match_keywords.join(", "));
               }}
               className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
             >
@@ -394,7 +438,11 @@ function TagRow({
             <button
               type="button"
               onClick={() =>
-                void onUpdate(tag.id, { name: name.trim(), context: context.trim() })
+                void onUpdate(tag.id, {
+                  name: name.trim(),
+                  context: context.trim(),
+                  matchKeywords: parsedKeywords,
+                })
               }
               className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 font-medium text-primary-foreground"
             >
@@ -455,6 +503,16 @@ function GroupsSection() {
     }
   }
 
+  async function saveContext(group: FlowTagGroup, context: string) {
+    if (context.trim() === group.context) return;
+    try {
+      apply(await persist({ data: { id: group.id, context: context.trim() } }));
+    } catch {
+      toast.error("Could not save that group context");
+    }
+  }
+
+
   async function move(index: number, delta: number) {
     const next = [...list];
     const target = index + delta;
@@ -510,9 +568,11 @@ function GroupsSection() {
             count={(tags.data ?? []).filter((tag) => tag.group_id === group.id).length}
             onRename={rename}
             onRecolor={recolor}
+            onContext={saveContext}
             onMove={(delta) => move(index, delta)}
             onDelete={drop}
           />
+
         ))}
         {list.length === 0 && <li className="text-sm text-muted-foreground">No groups yet.</li>}
       </ul>
@@ -525,6 +585,7 @@ function GroupRow({
   count,
   onRename,
   onRecolor,
+  onContext,
   onMove,
   onDelete,
 }: {
@@ -532,13 +593,18 @@ function GroupRow({
   count: number;
   onRename: (group: FlowTagGroup, name: string) => Promise<void>;
   onRecolor: (group: FlowTagGroup, color: string) => Promise<void>;
+  onContext: (group: FlowTagGroup, context: string) => Promise<void>;
   onMove: (delta: number) => Promise<void>;
   onDelete: (group: FlowTagGroup) => Promise<void>;
 }) {
   const [name, setName] = useState(group.name);
 
+
+  const [context, setContext] = useState(group.context);
+
   return (
-    <li className="flex flex-wrap items-center gap-3 rounded-lg border border-border/70 bg-card px-4 py-3">
+    <li className="rounded-lg border border-border/70 bg-card px-4 py-3">
+      <div className="flex flex-wrap items-center gap-3">
       <span
         aria-hidden
         className="h-2 w-2 shrink-0 rounded-sm"
@@ -554,6 +620,7 @@ function GroupRow({
       <span className="shrink-0 text-[12px] text-muted-foreground/70">
         {count} {count === 1 ? "tag" : "tags"}
       </span>
+
       <div className="flex shrink-0 items-center gap-1.5">
         {TAG_COLOR_KEYS.map((key) => (
           <button
@@ -585,6 +652,19 @@ function GroupRow({
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
+      </div>
+
+      {/* A group can carry its own broad context; Flow weighs it with child tags. */}
+      <textarea
+        value={context}
+        onChange={(e) => setContext(e.target.value)}
+        onBlur={() => void onContext(group, context)}
+        rows={2}
+        aria-label={`Context for ${group.name}`}
+        placeholder="Broad context for this group — Flow reads it alongside each child tag."
+        className="mt-2 w-full resize-none bg-transparent text-sm leading-relaxed text-muted-foreground outline-none"
+      />
     </li>
   );
 }
+

@@ -9,12 +9,14 @@ import {
   loadTags,
   MESSAGE_SELECT,
   mapMessage,
-  normalizeTag,
-  organizeMessage,
   runRetention,
 } from "./flow.server";
+import { loadSuggestions, organizeMessage } from "./organize.server";
+import { applySuggestion, ignoreSuggestion } from "./suggestions.server";
+import { normalizeTag } from "./tag-normalize";
 import { htmlToText, isEmptyDocument, sanitizeHtml, textToHtml } from "./rich-text";
 import { DEFAULT_TAG_COLOR, pickDefaultTagColor, TAG_COLOR_KEYS } from "./tag-colors";
+
 
 export const getStreamPage = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -352,6 +354,8 @@ export const saveTag = createServerFn({ method: "POST" })
       groupId?: string | null;
       isPinned?: boolean;
       sortOrder?: number;
+      matchKeywords?: string[];
+      autoApply?: boolean;
     }) => {
       const name = (input?.name ?? "").trim().slice(0, 60);
       if (!input?.id && !name) throw new Error("A tag needs a name");
@@ -364,6 +368,13 @@ export const saveTag = createServerFn({ method: "POST" })
         groupId: input?.groupId,
         isPinned: input?.isPinned,
         sortOrder: typeof input?.sortOrder === "number" ? input.sortOrder : undefined,
+        matchKeywords: Array.isArray(input?.matchKeywords)
+          ? input!
+              .matchKeywords!.map((keyword) => String(keyword).trim().slice(0, 60))
+              .filter((keyword) => keyword.length >= 2)
+              .slice(0, 20)
+          : undefined,
+        autoApply: input?.autoApply,
       };
     },
   )
@@ -380,6 +391,8 @@ export const saveTag = createServerFn({ method: "POST" })
         group_id?: string | null;
         is_pinned?: boolean;
         sort_order?: number;
+        match_keywords?: string[];
+        auto_apply?: boolean;
       } = {};
       if (data.name) {
         patch.name = data.name;
@@ -391,6 +404,8 @@ export const saveTag = createServerFn({ method: "POST" })
       if (data.groupId !== undefined) patch.group_id = data.groupId;
       if (data.isPinned !== undefined) patch.is_pinned = data.isPinned;
       if (data.sortOrder !== undefined) patch.sort_order = data.sortOrder;
+      if (data.matchKeywords !== undefined) patch.match_keywords = data.matchKeywords;
+      if (data.autoApply !== undefined) patch.auto_apply = data.autoApply;
 
       const { error } = await supabase
         .from("tags")
@@ -423,10 +438,13 @@ export const saveTag = createServerFn({ method: "POST" })
       is_enabled: data.isEnabled ?? true,
       group_id: data.groupId ?? null,
       is_pinned: data.isPinned ?? false,
+      match_keywords: data.matchKeywords ?? [],
+      auto_apply: data.autoApply ?? true,
     });
     if (error) throw error;
     return loadTags(supabase, userId);
   });
+
 
 /**
  * Manual ordering and group membership in one call so a drag lands atomically:
@@ -473,6 +491,7 @@ export const saveTagGroup = createServerFn({ method: "POST" })
       color?: string;
       isCollapsed?: boolean;
       sortOrder?: number;
+      context?: string;
     }) => {
       const name = (input?.name ?? "").trim().slice(0, 60);
       if (!input?.id && !name) throw new Error("A group needs a name");
@@ -482,6 +501,7 @@ export const saveTagGroup = createServerFn({ method: "POST" })
         color: TAG_COLOR_KEYS.includes(input?.color as never) ? input!.color! : undefined,
         isCollapsed: input?.isCollapsed,
         sortOrder: typeof input?.sortOrder === "number" ? input.sortOrder : undefined,
+        context: input?.context === undefined ? undefined : input.context.trim().slice(0, 2000),
       };
     },
   )
@@ -494,11 +514,13 @@ export const saveTagGroup = createServerFn({ method: "POST" })
         color?: string;
         is_collapsed?: boolean;
         sort_order?: number;
+        context?: string;
       } = {};
       if (data.name) patch.name = data.name;
       if (data.color) patch.color = data.color;
       if (data.isCollapsed !== undefined) patch.is_collapsed = data.isCollapsed;
       if (data.sortOrder !== undefined) patch.sort_order = data.sortOrder;
+      if (data.context !== undefined) patch.context = data.context;
 
       const { error } = await supabase
         .from("tag_groups")
@@ -515,7 +537,9 @@ export const saveTagGroup = createServerFn({ method: "POST" })
       name: data.name,
       color: data.color ?? DEFAULT_TAG_COLOR,
       sort_order: existing.length,
+      context: data.context ?? "",
     });
+
     if (error) throw error;
     return loadTagGroups(supabase, userId);
   });
@@ -645,7 +669,9 @@ export const retagAllMessages = createServerFn({ method: "POST" })
         const id = queue.shift();
         if (!id) return;
         try {
-          await organizeMessage(supabase, userId, id);
+          // Rules changed, so this pass ignores fingerprints on purpose.
+          await organizeMessage(supabase, userId, id, { force: true });
+
           organized += 1;
         } catch {
           failed += 1;
@@ -655,4 +681,64 @@ export const retagAllMessages = createServerFn({ method: "POST" })
 
     await Promise.all([worker(), worker(), worker(), worker()]);
     return { total: ids.length, organized, failed };
+  });
+
+/* ---------------------------------------------------------------------------
+ * Suggested tags: Flow never creates a tag on its own. Anything it is unsure
+ * about lands here, with evidence, until the user says yes or no.
+ * ------------------------------------------------------------------------- */
+
+export const listTagSuggestions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => loadSuggestions(context.supabase, context.userId));
+
+export const applyTagSuggestion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string; learnMode?: "auto" | "suggest" | "once" }) => {
+    if (!input?.id) throw new Error("Missing suggestion");
+    const mode = input.learnMode;
+    return {
+      id: input.id,
+      learnMode: mode === "suggest" || mode === "once" ? mode : ("auto" as const),
+    };
+  })
+  .handler(async ({ data, context }) => {
+    const applied = await applySuggestion(context.supabase, context.userId, data.id, data.learnMode);
+    return { applied, tags: await loadTags(context.supabase, context.userId) };
+  });
+
+export const ignoreTagSuggestion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("Missing suggestion");
+    return { id: input.id };
+  })
+  .handler(async ({ data, context }) =>
+    ignoreSuggestion(context.supabase, context.userId, data.id),
+  );
+
+/** Bulk apply or dismiss: the user should never approve the same tag repeatedly. */
+export const resolveAllTagSuggestions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { action: "apply" | "ignore"; learnMode?: "auto" | "suggest" | "once" }) => ({
+    action: input?.action === "ignore" ? ("ignore" as const) : ("apply" as const),
+    learnMode:
+      input?.learnMode === "suggest" || input?.learnMode === "once"
+        ? input.learnMode
+        : ("auto" as const),
+  }))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const pending = await loadSuggestions(supabase, userId);
+    let resolved = 0;
+    for (const suggestion of pending) {
+      try {
+        if (data.action === "ignore") await ignoreSuggestion(supabase, userId, suggestion.id);
+        else await applySuggestion(supabase, userId, suggestion.id, data.learnMode);
+        resolved += 1;
+      } catch {
+        /* keep going: one bad suggestion should not block the rest */
+      }
+    }
+    return { resolved, tags: await loadTags(supabase, userId) };
   });
