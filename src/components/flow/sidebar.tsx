@@ -100,6 +100,15 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="space-y-0.5 border-t border-sidebar-border px-2 py-2">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className={cn(itemClass, "w-full text-left")}
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          {theme === "dark" ? "Light mode" : "Dark mode"}
+        </button>
         <Link to="/settings" onClick={onNavigate} className={itemClass}>
           <Settings className="h-3.5 w-3.5" />
           Settings
