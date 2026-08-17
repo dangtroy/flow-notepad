@@ -21,6 +21,7 @@ function MessageRowBase({
   isReplyTarget,
   showTags = true,
   showTimestamps = true,
+  showReplyTimestamps = true,
   tagStyle = "pill",
   tagPosition = "right",
   onStartEdit,
@@ -36,6 +37,7 @@ function MessageRowBase({
   isReplyTarget?: boolean;
   showTags?: boolean;
   showTimestamps?: boolean;
+  showReplyTimestamps?: boolean;
   tagStyle?: TagStyle;
   tagPosition?: TagPosition;
   onStartEdit: () => void;
@@ -50,25 +52,6 @@ function MessageRowBase({
     [message.content_html, message.content],
   );
 
-  // A single click marks done; a second click within the moment deletes for good.
-  const doneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => {
-    if (doneTimer.current) clearTimeout(doneTimer.current);
-  }, []);
-
-  function handleDoneClick() {
-    if (doneTimer.current) {
-      clearTimeout(doneTimer.current);
-      doneTimer.current = null;
-      onDeleteNow();
-      return;
-    }
-    doneTimer.current = setTimeout(() => {
-      doneTimer.current = null;
-      onToggleComplete();
-    }, 260);
-  }
-
   /** The note itself is the editor: clicking the text opens it in place. */
   function handleSurfaceClick(event: React.MouseEvent<HTMLElement>) {
     if (isEditing) return;
@@ -80,9 +63,12 @@ function MessageRowBase({
 
   const isReply = depth > 0;
   const tags = showTags && message.tags.length > 0 ? message.tags : [];
+  const withTime = showTimestamps && (!isReply || showReplyTimestamps);
+  const keepGutter = showTimestamps;
 
   return (
     <article
+      data-reply={isReply ? "true" : undefined}
       onClick={handleSurfaceClick}
       className={cn(
         "group relative -mx-3 rounded-md px-3 transition-colors duration-200 flow-row-pad",
@@ -93,18 +79,21 @@ function MessageRowBase({
     >
       <div className="flex gap-3 sm:gap-4">
         {/* Time lives in a quiet left gutter, aligned across every depth. */}
-        {showTimestamps && (
+        {keepGutter && (
           <div className="hidden w-12 shrink-0 pt-[0.15rem] text-right text-[11px] leading-5 tracking-wide text-muted-foreground/55 sm:block">
-            <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
-            {message.edited_at && <div className="text-muted-foreground/40">edited</div>}
-            {message.is_completed && <div className="text-muted-foreground/40">done</div>}
+            {withTime && (
+              <>
+                <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
+                {message.edited_at && <div className="text-muted-foreground/40">edited</div>}
+              </>
+            )}
           </div>
         )}
 
         <div
           className={cn(
             "min-w-0 flex-1",
-            isReply && "border-l border-border/70 pl-3.5 sm:pl-4",
+            isReply && "flow-reply-rail pl-3.5 sm:pl-4",
           )}
           style={depth > 1 ? { marginLeft: `${(depth - 1) * 1.1}rem` } : undefined}
         >
@@ -116,11 +105,11 @@ function MessageRowBase({
                 <div
                   className={cn(
                     "flow-prose min-w-0 flex-1 transition-opacity duration-200",
-                    isReply && "text-muted-foreground/95",
                     message.is_completed && "text-muted-foreground line-through decoration-1",
                   )}
                   dangerouslySetInnerHTML={{ __html: html }}
                 />
+
                 {/* Tags sit beside the text and step aside for the hover actions. */}
                 {tagPosition === "right" && tags.length > 0 && (
                   <span className="hidden max-w-[34%] shrink-0 flex-wrap items-center justify-end gap-1.5 pt-[0.2rem] transition-opacity duration-150 group-hover:opacity-0 sm:flex">
