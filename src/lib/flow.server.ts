@@ -60,36 +60,96 @@ export async function ensurePreferences(supabase: Client, userId: string) {
   return created.data;
 }
 
-export async function loadStream(supabase: Client, userId: string): Promise<FlowMessage[]> {
-  const { data, error } = await supabase
+export const MESSAGE_SELECT =
+  "id, content, content_html, is_completed, completed_at, ai_status, created_at, updated_at, edited_at, message_tags(tag_id, tags(id, name, color))";
+
+type MessageRow = {
+  id: string;
+  content: string;
+  content_html: string | null;
+  is_completed: boolean;
+  completed_at: string | null;
+  ai_status: string;
+  created_at: string;
+  updated_at: string;
+  edited_at: string | null;
+  message_tags?: Array<{ tags: FlowTag | null }> | null;
+};
+
+export function mapMessage(row: MessageRow): FlowMessage {
+  const links = (row.message_tags ?? []) as Array<{ tags: FlowTag | null }>;
+  return {
+    id: row.id,
+    content: row.content,
+    content_html: row.content_html,
+    is_completed: row.is_completed,
+    completed_at: row.completed_at,
+    ai_status: row.ai_status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    edited_at: row.edited_at,
+    tags: links
+      .map((link) => link.tags)
+      .filter((tag): tag is FlowTag => Boolean(tag))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  };
+}
+
+export type StreamPage = {
+  /** Ascending (oldest first) so the page can be appended above what's shown. */
+  messages: FlowMessage[];
+  /** Cursor for the next, older page. Null when the beginning is reached. */
+  nextCursor: string | null;
+};
+
+/**
+ * Keyset pagination over the stream: newest first from the database, returned
+ * oldest-first for rendering. The conversation can grow to tens of thousands of
+ * messages without the browser ever holding all of it.
+ */
+export async function loadStreamPage(
+  supabase: Client,
+  userId: string,
+  options: { limit: number; before?: string | null },
+): Promise<StreamPage> {
+  let query = supabase
     .from("messages")
-    .select(
-      "id, content, is_completed, completed_at, ai_status, created_at, updated_at, edited_at, message_tags(tag_id, tags(id, name, color))",
-    )
+    .select(MESSAGE_SELECT)
     .eq("user_id", userId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(options.limit + 1);
+  if (options.before) query = query.lt("created_at", options.before);
+
+  const { data, error } = await query;
   if (error) throw error;
 
-  return (data ?? []).map((row) => {
-    const links = (row.message_tags ?? []) as Array<{
-      tags: { id: string; name: string; color: string | null } | null;
-    }>;
-    return {
-      id: row.id,
-      content: row.content,
-      is_completed: row.is_completed,
-      completed_at: row.completed_at,
-      ai_status: row.ai_status,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      edited_at: row.edited_at,
-      tags: links
-        .map((link) => link.tags)
-        .filter((tag): tag is FlowTag => Boolean(tag))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    };
-  });
+  const rows = (data ?? []) as unknown as MessageRow[];
+  const hasMore = rows.length > options.limit;
+  const page = hasMore ? rows.slice(0, options.limit) : rows;
+  const oldest = page[page.length - 1];
+
+  return {
+    messages: page.map(mapMessage).reverse(),
+    nextCursor: hasMore && oldest ? oldest.created_at : null,
+  };
 }
+
+export async function loadMessage(
+  supabase: Client,
+  userId: string,
+  id: string,
+): Promise<FlowMessage | null> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select(MESSAGE_SELECT)
+    .eq("user_id", userId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapMessage(data as unknown as MessageRow) : null;
+}
+
 
 type AiResult = { tags: string[]; summary: string; topics: string[] };
 
