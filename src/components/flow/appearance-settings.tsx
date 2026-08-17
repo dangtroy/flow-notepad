@@ -1,4 +1,4 @@
-import { ACCENTS, type AccentKey, type Appearance } from "@/lib/appearance";
+import { ACCENTS, type AccentKey } from "@/lib/appearance";
 import { useAppearance } from "@/lib/use-appearance";
 import { cn } from "@/lib/utils";
 
@@ -151,14 +151,14 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function Choices<K extends keyof Appearance>({
+function Choices<T extends string>({
   value,
   options,
   onSelect,
 }: {
-  value: Appearance[K];
-  options: Array<Option<Appearance[K]>>;
-  onSelect: (value: Appearance[K]) => void;
+  value: T;
+  options: Array<Option<T>>;
+  onSelect: (value: T) => void;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
