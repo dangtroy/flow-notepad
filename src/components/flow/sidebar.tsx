@@ -1,19 +1,36 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Inbox, LogOut, Settings } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { tagAccent } from "@/lib/tag-colors";
+import { tagIdsFrom, tagsParam, toggleTagId } from "@/lib/tag-filter";
+import { useTags } from "@/lib/use-tags";
 import { cn } from "@/lib/utils";
 
-/** Navigation, not a dashboard: one destination now, room for tags later. */
+/** Navigation, not a dashboard: All plus the user's own tags as filters. */
 export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const search = useSearch({ strict: false }) as { tags?: string; mode?: "or" | "and" };
+  const tags = useTags();
+
+  const selected = tagIdsFrom(search.tags);
+  const mode = search.mode === "and" ? "and" : "or";
 
   async function signOut() {
     await supabase.auth.signOut();
     queryClient.clear();
     navigate({ to: "/auth" });
+  }
+
+  function applyTag(id: string) {
+    const next = toggleTagId(selected, id);
+    onNavigate?.();
+    void navigate({
+      to: "/",
+      search: { tags: tagsParam(next), mode: next.length > 1 ? mode : undefined },
+    });
   }
 
   const itemClass =
@@ -25,13 +42,13 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         <span className="font-display text-[1.35rem] tracking-tight text-foreground">Flow</span>
       </div>
 
-      <nav className="flex-1 space-y-0.5 px-2">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2">
         <Link
           to="/"
+          search={{}}
           onClick={onNavigate}
-          activeOptions={{ exact: true }}
-          activeProps={{ className: "bg-sidebar-accent text-sidebar-accent-foreground" }}
-          className={itemClass}
+          activeOptions={{ exact: true, includeSearch: false }}
+          className={cn(itemClass, selected.length === 0 && "bg-sidebar-accent text-sidebar-accent-foreground")}
         >
           <Inbox className="h-3.5 w-3.5" />
           All
@@ -41,9 +58,42 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           <p className="px-2.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground/50">
             Tags
           </p>
-          <p className="mt-1.5 px-2.5 text-[12px] leading-relaxed text-muted-foreground/45">
-            Tags will appear here as your stream grows.
-          </p>
+
+          <div className="mt-1.5 space-y-0.5">
+            {(tags.data ?? []).map((tag) => {
+              const isActive = selected.includes(tag.id);
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => applyTag(tag.id)}
+                  aria-pressed={isActive}
+                  className={cn(
+                    itemClass,
+                    "w-full text-left",
+                    isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+                    !tag.is_enabled && "opacity-55",
+                  )}
+                >
+                  <span
+                    aria-hidden
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: tagAccent(tag.color) }}
+                  />
+                  <span className="min-w-0 flex-1 truncate">{tag.name}</span>
+                  <span className="shrink-0 text-[11px] text-muted-foreground/55">
+                    {tag.message_count}
+                  </span>
+                </button>
+              );
+            })}
+
+            {tags.data?.length === 0 && (
+              <p className="px-2.5 text-[12px] leading-relaxed text-muted-foreground/45">
+                Tags will appear here as your stream grows.
+              </p>
+            )}
+          </div>
         </div>
       </nav>
 

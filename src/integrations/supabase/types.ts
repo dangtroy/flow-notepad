@@ -254,8 +254,10 @@ export type Database = {
       tags: {
         Row: {
           color: string | null
+          context: string
           created_at: string
           id: string
+          is_enabled: boolean
           name: string
           normalized_name: string
           updated_at: string
@@ -263,8 +265,10 @@ export type Database = {
         }
         Insert: {
           color?: string | null
+          context?: string
           created_at?: string
           id?: string
+          is_enabled?: boolean
           name: string
           normalized_name: string
           updated_at?: string
@@ -272,8 +276,10 @@ export type Database = {
         }
         Update: {
           color?: string | null
+          context?: string
           created_at?: string
           id?: string
+          is_enabled?: boolean
           name?: string
           normalized_name?: string
           updated_at?: string
@@ -310,7 +316,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      tag_message_counts: {
+        Args: never
+        Returns: {
+          message_count: number
+          tag_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

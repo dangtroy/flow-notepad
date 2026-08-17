@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -14,10 +14,20 @@ import {
 } from "@/lib/flow.functions";
 import type { FlowMessage } from "@/lib/flow.server";
 import { htmlToText } from "@/lib/rich-text";
+import { tagIdsFrom, tagsParam, toggleTagId, type FilterMode } from "@/lib/tag-filter";
+import { TAGS_KEY, useTags } from "@/lib/use-tags";
 import { Composer } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
+import { TagFilterBar } from "@/components/flow/tag-filter-bar";
 
 export const Route = createFileRoute("/_authenticated/")({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { tags?: string | undefined; mode?: FilterMode | undefined } => ({
+    tags:
+      typeof search["tags"] === "string" && search["tags"] ? (search["tags"] as string) : undefined,
+    mode: search["mode"] === "and" ? "and" : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Flow — one continuous stream of your thoughts" },
@@ -42,7 +52,6 @@ type Page = { conversationId: string; messages: FlowMessage[]; nextCursor: strin
 type Stream = InfiniteData<Page, string | null>;
 
 const PAGE_SIZE = 40;
-const STREAM_KEY = ["stream"] as const;
 
 function dayLabel(iso: string) {
   const date = new Date(iso);
@@ -61,12 +70,15 @@ function dayLabel(iso: string) {
 
 function FlowPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate({ from: "/" });
+  const search = Route.useSearch();
   const fetchPage = useServerFn(getStreamPage);
   const send = useServerFn(sendMessage);
   const edit = useServerFn(updateMessage);
   const complete = useServerFn(setMessageCompletion);
   const organize = useServerFn(organizeMessageFn);
   const cleanup = useServerFn(cleanupCompleted);
+  const tags = useTags();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; preview: string } | null>(null);
@@ -75,18 +87,39 @@ function FlowPage() {
   const anchorRef = useRef<number | null>(null);
   const settledRef = useRef(false);
 
+  // The filter is part of the query identity: the same conversation, narrowed.
+  const selectedTagIds = useMemo(() => tagIdsFrom(search.tags), [search.tags]);
+  const mode: FilterMode = search.mode === "and" ? "and" : "or";
+  const isFiltered = selectedTagIds.length > 0;
+  const streamKey = useMemo(
+    () => ["stream", selectedTagIds.join(","), selectedTagIds.length > 1 ? mode : "or"] as const,
+    [selectedTagIds, mode],
+  );
+
   const { data, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery<
     Page,
     Error,
     Stream,
-    typeof STREAM_KEY,
+    typeof streamKey,
     string | null
   >({
-    queryKey: STREAM_KEY,
+    queryKey: streamKey,
     initialPageParam: null,
-    queryFn: ({ pageParam }) => fetchPage({ data: { before: pageParam, limit: PAGE_SIZE } }),
+    queryFn: ({ pageParam }) =>
+      fetchPage({
+        data: { before: pageParam, limit: PAGE_SIZE, tagIds: selectedTagIds, mode },
+      }),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
+
+  function applyFilter(nextIds: string[], nextMode: FilterMode = mode) {
+    void navigate({
+      search: {
+        tags: tagsParam(nextIds),
+        mode: nextIds.length > 1 && nextMode === "and" ? "and" : undefined,
+      },
+    });
+  }
 
   // Pages arrive newest-first; render them oldest-first.
   const messages = useMemo(() => {
@@ -140,7 +173,7 @@ function FlowPage() {
     // Retention pass on open: expired completed thoughts are removed for good.
     cleanup()
       .then((result) => {
-        if (result.deleted > 0) queryClient.invalidateQueries({ queryKey: STREAM_KEY });
+        if (result.deleted > 0) queryClient.invalidateQueries({ queryKey: ["stream"] });
       })
       .catch(() => {});
   }, [cleanup, queryClient]);
@@ -178,7 +211,7 @@ function FlowPage() {
 
   const patchStream = useCallback(
     (updater: (messages: FlowMessage[]) => FlowMessage[]) => {
-      queryClient.setQueryData<Stream>(STREAM_KEY, (current) => {
+      queryClient.setQueryData<Stream>(streamKey, (current) => {
         if (!current) return current;
         return {
           ...current,
@@ -188,12 +221,12 @@ function FlowPage() {
         };
       });
     },
-    [queryClient],
+    [queryClient, streamKey],
   );
 
   const patchMessage = useCallback(
     (id: string, patch: Partial<FlowMessage>) => {
-      queryClient.setQueryData<Stream>(STREAM_KEY, (current) => {
+      queryClient.setQueryData<Stream>(streamKey, (current) => {
         if (!current) return current;
         return {
           ...current,
@@ -204,13 +237,15 @@ function FlowPage() {
         };
       });
     },
-    [queryClient],
+    [queryClient, streamKey],
   );
 
   async function organizeInBackground(id: string) {
     try {
       const { message } = await organize({ data: { id } });
       if (message) patchMessage(id, message);
+      // New links may have changed tag counts (and may have created a tag).
+      void queryClient.invalidateQueries({ queryKey: TAGS_KEY });
     } catch {
       // Organizing is optional: the thought is already saved and fully usable.
       patchMessage(id, { ai_status: "failed" });

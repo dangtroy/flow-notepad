@@ -5,6 +5,7 @@ import {
   ensurePreferences,
   loadMessage,
   loadStreamPage,
+  loadTags,
   MESSAGE_SELECT,
   mapMessage,
   normalizeTag,
@@ -16,15 +17,29 @@ import { DEFAULT_TAG_COLOR, pickDefaultTagColor, TAG_COLOR_KEYS } from "./tag-co
 
 export const getStreamPage = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input?: { before?: string | null; limit?: number }) => ({
-    before: input?.before ?? null,
-    limit: Math.min(Math.max(input?.limit ?? 40, 5), 100),
-  }))
+  .inputValidator(
+    (input?: {
+      before?: string | null;
+      limit?: number;
+      tagIds?: string[];
+      mode?: "or" | "and";
+    }) => ({
+      before: input?.before ?? null,
+      limit: Math.min(Math.max(input?.limit ?? 40, 5), 100),
+      tagIds: Array.isArray(input?.tagIds) ? input!.tagIds.filter(Boolean).slice(0, 20) : [],
+      mode: input?.mode === "and" ? ("and" as const) : ("or" as const),
+    }),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const conversationId = await ensureConversation(supabase, userId);
     await ensurePreferences(supabase, userId);
-    const page = await loadStreamPage(supabase, userId, { limit: data.limit, before: data.before });
+    const page = await loadStreamPage(supabase, userId, {
+      limit: data.limit,
+      before: data.before,
+      tagIds: data.tagIds,
+      mode: data.mode,
+    });
     return { conversationId, ...page };
   });
 
@@ -279,34 +294,101 @@ export const cleanupCompleted = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => runRetention(context.supabase, context.userId));
 
-/** Tags are reusable entities; the AI layer and the user both link to the same rows. */
+/**
+ * Tags are reusable entities: name, colour, plain-English context, enabled state,
+ * plus a derived count. Default tags are ordinary rows, so they behave identically.
+ */
 export const listTags = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+  .handler(async ({ context }) => loadTags(context.supabase, context.userId));
+
+export const saveTag = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: {
+      id?: string;
+      name?: string;
+      color?: string;
+      context?: string;
+      isEnabled?: boolean;
+    }) => {
+      const name = (input?.name ?? "").trim().slice(0, 60);
+      if (!input?.id && !name) throw new Error("A tag needs a name");
+      return {
+        id: input?.id,
+        name,
+        color: TAG_COLOR_KEYS.includes(input?.color as never) ? input!.color! : undefined,
+        context: input?.context === undefined ? undefined : input.context.trim().slice(0, 2000),
+        isEnabled: input?.isEnabled,
+      };
+    },
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    if (data.id) {
+      const patch: {
+        name?: string;
+        normalized_name?: string;
+        color?: string;
+        context?: string;
+        is_enabled?: boolean;
+      } = {};
+      if (data.name) {
+        patch.name = data.name;
+        patch.normalized_name = normalizeTag(data.name);
+      }
+      if (data.color) patch.color = data.color;
+      if (data.context !== undefined) patch.context = data.context;
+      if (data.isEnabled !== undefined) patch.is_enabled = data.isEnabled;
+
+      const { error } = await supabase
+        .from("tags")
+        .update(patch)
+        .eq("id", data.id)
+        .eq("user_id", userId);
+      if (error) {
+        throw new Error(
+          error.code === "23505" ? "You already have a tag with that name" : error.message,
+        );
+      }
+      return loadTags(supabase, userId);
+    }
+
+    const normalized = normalizeTag(data.name);
+    const existing = await supabase
       .from("tags")
-      .select("id, name, color, created_at")
-      .eq("user_id", context.userId)
-      .order("name", { ascending: true });
+      .select("id")
+      .eq("user_id", userId)
+      .eq("normalized_name", normalized)
+      .maybeSingle();
+    if (existing.data) throw new Error("You already have a tag with that name");
+
+    const { error } = await supabase.from("tags").insert({
+      user_id: userId,
+      name: data.name,
+      normalized_name: normalized,
+      color: data.color ?? pickDefaultTagColor(normalized),
+      context: data.context ?? "",
+      is_enabled: data.isEnabled ?? true,
+    });
     if (error) throw error;
-    return data ?? [];
+    return loadTags(supabase, userId);
   });
 
-export const updateTagColor = createServerFn({ method: "POST" })
+export const deleteTag = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { id: string; color: string }) => {
+  .inputValidator((input: { id: string }) => {
     if (!input?.id) throw new Error("Missing tag");
-    const color = TAG_COLOR_KEYS.includes(input?.color as never) ? input.color : DEFAULT_TAG_COLOR;
-    return { id: input.id, color };
+    return { id: input.id };
   })
   .handler(async ({ data, context }) => {
-    const { data: row, error } = await context.supabase
+    // Links disappear with the tag; the messages themselves are never touched.
+    const { error } = await context.supabase
       .from("tags")
-      .update({ color: data.color })
+      .delete()
       .eq("id", data.id)
-      .eq("user_id", context.userId)
-      .select("id, name, color")
-      .single();
+      .eq("user_id", context.userId);
     if (error) throw error;
-    return row;
+    return loadTags(context.supabase, context.userId);
   });
