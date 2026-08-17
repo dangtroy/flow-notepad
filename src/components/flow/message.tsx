@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Pencil, Reply } from "lucide-react";
+import { Check, Pencil, Reply, X } from "lucide-react";
 
 import type { TagPosition, TagStyle } from "@/lib/appearance";
 import type { FlowMessage } from "@/lib/flow.server";
@@ -7,6 +7,7 @@ import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
 import { FlowEditorSurface, FlowToolbar, useFlowEditor } from "./rich-editor";
 import { TagChip } from "./tag-chip";
+
 
 function timeLabel(iso: string) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
