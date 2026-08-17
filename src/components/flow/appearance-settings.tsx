@@ -139,6 +139,19 @@ export function AppearanceSettings() {
           />
         </Row>
 
+        <Row label="Tag order">
+          <Choices
+            value={appearance.tagSort}
+            options={[
+              { label: "Alphabetical", value: "alphabetical" },
+              { label: "Most used", value: "most-used" },
+              { label: "Manual", value: "manual" },
+            ]}
+            onSelect={(tagSort) => update({ tagSort })}
+          />
+        </Row>
+
+
         <Row label="Tag style">
           <Choices
             value={appearance.tagStyle}

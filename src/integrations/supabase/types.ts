@@ -251,15 +251,51 @@ export type Database = {
         }
         Relationships: []
       }
+      tag_groups: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          is_collapsed: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_collapsed?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_collapsed?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tags: {
         Row: {
           color: string | null
           context: string
           created_at: string
+          group_id: string | null
           id: string
           is_enabled: boolean
+          is_pinned: boolean
           name: string
           normalized_name: string
+          sort_order: number
           updated_at: string
           user_id: string
         }
@@ -267,10 +303,13 @@ export type Database = {
           color?: string | null
           context?: string
           created_at?: string
+          group_id?: string | null
           id?: string
           is_enabled?: boolean
+          is_pinned?: boolean
           name: string
           normalized_name: string
+          sort_order?: number
           updated_at?: string
           user_id: string
         }
@@ -278,14 +317,25 @@ export type Database = {
           color?: string | null
           context?: string
           created_at?: string
+          group_id?: string | null
           id?: string
           is_enabled?: boolean
+          is_pinned?: boolean
           name?: string
           normalized_name?: string
+          sort_order?: number
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tags_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "tag_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_preferences: {
         Row: {
