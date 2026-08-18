@@ -75,21 +75,23 @@ export function Composer({
   }
 
   /** Runs cleanup on what's in the composer and swaps the text in place. */
-  async function runCleanup(): Promise<boolean> {
-    if (!editor || editor.isEmpty || cleaning) return false;
+  async function runCleanup(): Promise<CleanupMeta> {
+    if (!editor || editor.isEmpty || cleaning) return null;
     const before = editor.getHTML();
     setCleaning(true);
     try {
       const result = await clean({ data: { html: before } });
       editor.commands.setContent(result.cleanedHtml);
       setIsEmpty(editor.isEmpty);
-      setCleanup({ originalHtml: before, cleanedHtml: result.cleanedHtml });
+      const meta = { originalHtml: before, cleanedHtml: result.cleanedHtml };
+      setCleanup(meta);
+      cleanupRef.current = meta;
       editor.commands.focus("end");
-      return true;
+      return meta;
     } catch {
       // Cleanup is optional: the original text stays exactly as typed.
       toast.error("Couldn’t clean that up — your text is unchanged");
-      return false;
+      return null;
     } finally {
       setCleaning(false);
     }
@@ -104,20 +106,30 @@ export function Composer({
     editor.commands.focus("end");
   }
 
-  /**
-   * Send. With Always on and no cleanup done yet, the first press cleans and
-   * hands the text back for review; the second press actually saves.
-   */
+  /** Saves whatever is currently in the composer. */
+  function save(state: CleanupMeta) {
+    if (!editor || editor.isEmpty) return;
+    const html = editor.getHTML();
+    onSend(html, state ? { originalHtml: state.originalHtml, cleanedHtml: state.cleanedHtml } : null);
+    reset();
+  }
+
+  /** Send. With Always on, cleanup runs first and the note sends automatically. */
   async function submit() {
     if (!editor || editor.isEmpty || cleaning) return;
     if (always && !cleanupRef.current) {
-      await runCleanup();
+      const meta = await runCleanup();
+      save(meta);
       return;
     }
-    const html = editor.getHTML();
-    const state = cleanupRef.current;
-    onSend(html, state ? { originalHtml: state.originalHtml, cleanedHtml: state.cleanedHtml } : null);
-    reset();
+    save(cleanupRef.current);
+  }
+
+  /** Clean and send in one action, regardless of the Always preference. */
+  async function cleanAndSend() {
+    if (!editor || editor.isEmpty || cleaning) return;
+    const meta = cleanupRef.current ?? (await runCleanup());
+    save(meta);
   }
 
   return (
@@ -257,20 +269,39 @@ export function Composer({
               </span>
             </div>
 
-            <button
-              type="button"
-              aria-label="Send"
-              disabled={isEmpty || cleaning}
-              onClick={() => void submit()}
-              className={cn(
-                "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all duration-150",
-                isEmpty || cleaning
-                  ? "bg-elevated text-muted-foreground/50"
-                  : "bg-primary text-primary-foreground hover:brightness-110",
-              )}
-            >
-              <ArrowUp className="h-3.5 w-3.5" />
-            </button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                aria-label="Clean up and send"
+                title="Clean up and send"
+                disabled={isEmpty || cleaning}
+                onClick={() => void cleanAndSend()}
+                className={cn(
+                  "inline-flex h-7 items-center gap-1 rounded-full px-2 text-[11px] transition-colors duration-150",
+                  isEmpty || cleaning
+                    ? "bg-elevated text-muted-foreground/50"
+                    : "bg-elevated text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Sparkles className={cn("h-3 w-3", cleaning && "animate-pulse")} />
+                <ArrowUp className="h-3 w-3" />
+              </button>
+
+              <button
+                type="button"
+                aria-label="Send"
+                disabled={isEmpty || cleaning}
+                onClick={() => void submit()}
+                className={cn(
+                  "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all duration-150",
+                  isEmpty || cleaning
+                    ? "bg-elevated text-muted-foreground/50"
+                    : "bg-primary text-primary-foreground hover:brightness-110",
+                )}
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
