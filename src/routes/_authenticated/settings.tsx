@@ -54,6 +54,21 @@ const RETENTION_OPTIONS: Array<{ label: string; value: number | null }> = [
   { label: "Never", value: null },
 ];
 
+/** Accepts one name typed normally, or a pasted comma/newline separated list. */
+function splitNames(value: string): string[] {
+  const seen = new Set<string>();
+  return value
+    .split(/[\n,]/)
+    .map((part) => part.trim())
+    .filter((part) => {
+      if (!part) return false;
+      const key = part.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
 function SettingsPage() {
   const queryClient = useQueryClient();
   const notepadId = useActiveNotepadId();
