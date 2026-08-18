@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { ArrowLeft, Check, ChevronDown, ChevronUp, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronUp, Pipette, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppearanceSettings } from "@/components/flow/appearance-settings";
@@ -19,7 +19,14 @@ import {
   updatePreferences,
 } from "@/lib/flow.functions";
 import type { FlowTagDetail, FlowTagGroup } from "@/lib/flow.server";
-import { TAG_COLOR_KEYS, TAG_COLORS, tagColorKey } from "@/lib/tag-colors";
+import {
+  TAG_COLOR_KEYS,
+  TAG_COLORS,
+  isCustomColor,
+  tagAccent,
+  tagColorHex,
+  tagColorKey,
+} from "@/lib/tag-colors";
 import { findSimilarTag } from "@/lib/tag-filter";
 import { tagsKey, tagGroupsKey, useTagGroups, useTags } from "@/lib/use-tags";
 import { useActiveNotepadId } from "@/lib/use-notepad";
