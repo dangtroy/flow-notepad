@@ -2,7 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   ensurePreferences,
+  loadDueReminders,
   loadMessage,
+  loadPinnedMessages,
   loadStreamPage,
   loadTagGroups,
   loadTags,
@@ -1040,4 +1042,94 @@ export const reorderNotepadList = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await reorderNotepads(context.supabase, context.userId, data.ids);
     return { notepads: await listNotepads(context.supabase, context.userId) };
+  });
+
+/* ---------- Pins & reminders ---------- */
+
+export const setMessagePin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string; pinned: boolean }) => {
+    if (!input?.id) throw new Error("Missing message");
+    return { id: input.id, pinned: Boolean(input.pinned) };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: message, error } = await supabase
+      .from("messages")
+      .update({
+        is_pinned: data.pinned,
+        pinned_at: data.pinned ? new Date().toISOString() : null,
+      } as never)
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .select(MESSAGE_SELECT)
+      .single();
+    if (error) throw error;
+    return mapMessage(message as never);
+  });
+
+/** Sets, moves, or clears a note's in-app reminder. */
+export const setMessageReminder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string; remindAt: string | null }) => {
+    if (!input?.id) throw new Error("Missing message");
+    let remindAt: string | null = null;
+    if (input.remindAt) {
+      const when = new Date(input.remindAt);
+      if (Number.isNaN(when.getTime())) throw new Error("That date and time isn't valid");
+      remindAt = when.toISOString();
+    }
+    return { id: input.id, remindAt };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: message, error } = await supabase
+      .from("messages")
+      .update({ remind_at: data.remindAt, reminder_dismissed_at: null } as never)
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .select(MESSAGE_SELECT)
+      .single();
+    if (error) throw error;
+    return mapMessage(message as never);
+  });
+
+/** Dismisses a due alert without deleting the note or its reminder history. */
+export const dismissReminder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("Missing message");
+    return { id: input.id };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: message, error } = await supabase
+      .from("messages")
+      .update({ reminder_dismissed_at: new Date().toISOString() } as never)
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .select(MESSAGE_SELECT)
+      .single();
+    if (error) throw error;
+    return mapMessage(message as never);
+  });
+
+export const getPinnedMessages = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { notepadId?: string | null }) => ({
+    notepadId: input?.notepadId ?? null,
+  }))
+  .handler(async ({ data, context }) => {
+    const notepadId = await resolveNotepad(context.supabase, context.userId, data.notepadId);
+    return { notepadId, messages: await loadPinnedMessages(context.supabase, context.userId, notepadId) };
+  });
+
+export const getDueReminders = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { notepadId?: string | null }) => ({
+    notepadId: input?.notepadId ?? null,
+  }))
+  .handler(async ({ data, context }) => {
+    const notepadId = await resolveNotepad(context.supabase, context.userId, data.notepadId);
+    return { notepadId, messages: await loadDueReminders(context.supabase, context.userId, notepadId) };
   });
