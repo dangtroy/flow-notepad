@@ -60,16 +60,29 @@ export const getStreamPage = createServerFn({ method: "GET" })
 
 export const sendMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { html: string; parentMessageId?: string | null; notepadId?: string | null }) => {
-    const html = sanitizeHtml(input?.html ?? "");
-    if (!html || isEmptyDocument(html)) throw new Error("A thought cannot be empty");
-    return {
-      html: html.slice(0, 200000),
-      text: htmlToText(html).slice(0, 20000),
-      parentMessageId: input?.parentMessageId ?? null,
-      notepadId: input?.notepadId ?? null,
-    };
-  })
+  .inputValidator(
+    (input: {
+      html: string;
+      parentMessageId?: string | null;
+      notepadId?: string | null;
+      /** Set only when AI writing cleanup produced the text being sent. */
+      originalHtml?: string | null;
+      cleanedHtml?: string | null;
+    }) => {
+      const html = sanitizeHtml(input?.html ?? "");
+      if (!html || isEmptyDocument(html)) throw new Error("A thought cannot be empty");
+      const originalHtml = input?.originalHtml ? sanitizeHtml(input.originalHtml) : null;
+      const cleanedHtml = input?.cleanedHtml ? sanitizeHtml(input.cleanedHtml) : null;
+      return {
+        html: html.slice(0, 200000),
+        text: htmlToText(html).slice(0, 20000),
+        parentMessageId: input?.parentMessageId ?? null,
+        notepadId: input?.notepadId ?? null,
+        originalHtml: originalHtml ? originalHtml.slice(0, 200000) : null,
+        cleanedHtml: cleanedHtml ? cleanedHtml.slice(0, 200000) : null,
+      };
+    },
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const conversationId = await resolveNotepad(supabase, userId, data.notepadId);
@@ -87,6 +100,8 @@ export const sendMessage = createServerFn({ method: "POST" })
       parentId = parent.data?.id ?? null;
     }
 
+    const cleaned = Boolean(data.originalHtml && data.cleanedHtml);
+
     const { data: message, error } = await supabase
       .from("messages")
       .insert({
@@ -95,12 +110,115 @@ export const sendMessage = createServerFn({ method: "POST" })
         content: data.text,
         content_html: data.html,
         parent_message_id: parentId,
-      })
+        // Cleanup keeps all three versions: typed, suggested, saved.
+        ...(cleaned
+          ? {
+              ai_cleaned: true,
+              original_content: htmlToText(data.originalHtml!).slice(0, 20000),
+              original_content_html: data.originalHtml,
+              cleaned_content: htmlToText(data.cleanedHtml!).slice(0, 20000),
+              cleaned_content_html: data.cleanedHtml,
+            }
+          : {}),
+      } as never)
       .select(MESSAGE_SELECT)
       .single();
     if (error) throw error;
     return mapMessage(message as never);
   });
+
+/**
+ * Cleans up the note the user is composing. Text only, never saved here: the
+ * user reviews it in the composer and still presses Send themselves.
+ */
+export const cleanUpNote = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { html: string }) => {
+    const html = sanitizeHtml(input?.html ?? "");
+    if (!html || isEmptyDocument(html)) throw new Error("Nothing to clean up");
+    return { html: html.slice(0, 200000), text: htmlToText(html).slice(0, 20000) };
+  })
+  .handler(async ({ data }) => {
+    const cleanedText = await cleanUpText(data.text);
+    return {
+      originalHtml: data.html,
+      cleanedHtml: sanitizeHtml(textToHtml(cleanedText)),
+      cleanedText,
+    };
+  });
+
+/** Puts a saved note back to exactly what the user typed. Tags are untouched. */
+export const restoreOriginalMessage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("Missing message");
+    return { id: input.id };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const existing = await supabase
+      .from("messages")
+      .select("id, original_content, original_content_html")
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    const row = existing.data as
+      | { original_content: string | null; original_content_html: string | null }
+      | null
+      | undefined;
+    if (!row?.original_content_html && !row?.original_content) {
+      throw new Error("No original text stored for this note");
+    }
+    const html = row.original_content_html ?? textToHtml(row.original_content ?? "");
+    const { data: message, error } = await supabase
+      .from("messages")
+      .update({
+        content: htmlToText(html),
+        content_html: html,
+        ai_cleaned: false,
+      } as never)
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .select(MESSAGE_SELECT)
+      .single();
+    if (error) throw error;
+    return mapMessage(message as never);
+  });
+
+/** The composer's own "Always clean up" mode, remembered per account. */
+export const getCleanupPreference = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await ensurePreferences(context.supabase, context.userId);
+    const { data } = await context.supabase
+      .from("user_preferences")
+      .select("settings")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    const settings = (data?.settings as Record<string, unknown> | null) ?? {};
+    return { always: settings["alwaysCleanup"] === true };
+  });
+
+export const setCleanupPreference = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { always: boolean }) => ({ always: Boolean(input?.always) }))
+  .handler(async ({ data, context }) => {
+    await ensurePreferences(context.supabase, context.userId);
+    const existing = await context.supabase
+      .from("user_preferences")
+      .select("settings")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    const settings = { ...((existing.data?.settings as Record<string, unknown>) ?? {}) };
+    settings["alwaysCleanup"] = data.always;
+    const { error } = await context.supabase
+      .from("user_preferences")
+      .update({ settings: settings as never })
+      .eq("user_id", context.userId);
+    if (error) throw error;
+    return { always: data.always };
+  });
+
 
 
 export const updateMessage = createServerFn({ method: "POST" })
