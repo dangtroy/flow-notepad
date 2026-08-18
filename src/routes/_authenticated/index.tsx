@@ -9,6 +9,7 @@ import {
   deleteMessageNow,
   getStreamPage,
   organizeMessageFn,
+  restoreOriginalMessage,
   sendMessage,
   setMessageCompletion,
   updateMessage,
@@ -19,7 +20,7 @@ import { tagIdsFrom, type FilterMode } from "@/lib/tag-filter";
 import { useAppearance } from "@/lib/use-appearance";
 import { tagsKey } from "@/lib/use-tags";
 import { useActiveNotepadId } from "@/lib/use-notepad";
-import { Composer } from "@/components/flow/composer";
+import { Composer, type CleanupMeta } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
 
 
@@ -81,6 +82,7 @@ function FlowPage() {
   const organize = useServerFn(organizeMessageFn);
   const cleanup = useServerFn(cleanupCompleted);
   const destroy = useServerFn(deleteMessageNow);
+  const restoreOriginal = useServerFn(restoreOriginalMessage);
   const { appearance } = useAppearance();
   const notepadId = useActiveNotepadId();
 
@@ -279,7 +281,7 @@ function FlowPage() {
     }
   }
 
-  async function handleSend(html: string) {
+  async function handleSend(html: string, cleanup: CleanupMeta) {
     const tempId = `temp-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
     const parentMessageId = replyTo?.id ?? null;
@@ -297,13 +299,24 @@ function FlowPage() {
         updated_at: now,
         edited_at: null,
         parent_message_id: parentMessageId,
+        ai_cleaned: Boolean(cleanup),
+        original_content: cleanup ? htmlToText(cleanup.originalHtml) : null,
+        original_content_html: cleanup?.originalHtml ?? null,
         tags: [],
       },
     ]);
     requestAnimationFrame(scrollToBottom);
 
     try {
-      const saved = await send({ data: { html, parentMessageId, notepadId } });
+      const saved = await send({
+        data: {
+          html,
+          parentMessageId,
+          notepadId,
+          originalHtml: cleanup?.originalHtml ?? null,
+          cleanedHtml: cleanup?.cleanedHtml ?? null,
+        },
+      });
       patchMessage(tempId, saved as FlowMessage);
       void organizeInBackground(saved.id);
     } catch (error) {
@@ -311,6 +324,17 @@ function FlowPage() {
       toast.error(error instanceof Error ? error.message : "Could not save that thought");
     }
   }
+
+  /** Puts a cleaned note back to exactly what was typed. Tags stay as they are. */
+  async function handleRestoreOriginal(message: FlowMessage) {
+    try {
+      const saved = await restoreOriginal({ data: { id: message.id } });
+      patchMessage(message.id, saved as FlowMessage);
+    } catch {
+      toast.error("Could not restore the original text");
+    }
+  }
+
 
 
   async function handleToggleComplete(message: FlowMessage) {
@@ -445,6 +469,7 @@ function FlowPage() {
 
                           onToggleComplete={() => void handleToggleComplete(message)}
                           onDeleteNow={() => void handleDeleteNow(message)}
+                          onRestoreOriginal={() => void handleRestoreOriginal(message)}
                           onReply={() =>
                             setReplyTo({
                               id: message.id,
@@ -463,7 +488,7 @@ function FlowPage() {
       </div>
 
       <Composer
-        onSend={(html) => void handleSend(html)}
+        onSend={(html, cleanup) => void handleSend(html, cleanup)}
         replyingTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
       />

@@ -5,13 +5,86 @@ import type { TagPosition, TagStyle } from "@/lib/appearance";
 import type { FlowMessage } from "@/lib/flow.server";
 import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { FlowEditorSurface, FlowToolbar, useFlowEditor } from "./rich-editor";
 import { TagChip } from "./tag-chip";
+
 
 
 function timeLabel(iso: string) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
+
+/**
+ * The ✦ that quietly marks an AI-cleaned note. Hover on desktop, tap on mobile:
+ * both open the same compact popover with exactly what the user typed.
+ */
+function CleanedMark({
+  message,
+  onRestoreOriginal,
+}: {
+  message: FlowMessage;
+  onRestoreOriginal?: (() => void) | undefined;
+}) {
+
+  const [open, setOpen] = useState(false);
+  const original = message.original_content ?? "";
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label="Cleaned up by AI — show original"
+          onClick={(event) => {
+            event.stopPropagation();
+            setOpen((value) => !value);
+          }}
+          onMouseEnter={() => setOpen(true)}
+          className="ml-1 align-baseline text-[0.7em] leading-none text-muted-foreground/50 transition-colors duration-150 hover:text-muted-foreground"
+        >
+          ✦
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        side="top"
+        onMouseLeave={() => setOpen(false)}
+        onClick={(event) => event.stopPropagation()}
+        className="w-[min(20rem,80vw)] p-3 text-[12px]"
+      >
+        <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">AI cleaned</p>
+        <p className="mt-1.5 whitespace-pre-wrap text-muted-foreground">
+          {original || "Original text unavailable"}
+        </p>
+        <div className="mt-2.5 flex items-center gap-3 text-[11px]">
+          {onRestoreOriginal && original && (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onRestoreOriginal();
+              }}
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Restore original
+            </button>
+          )}
+          {original && (
+            <button
+              type="button"
+              onClick={() => void navigator.clipboard?.writeText(original)}
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Copy original
+            </button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 
 /** One thought in the stream: quiet text on the page, never a card. */
 function MessageRowBase({
@@ -30,6 +103,7 @@ function MessageRowBase({
   onToggleComplete,
   onDeleteNow,
   onReply,
+  onRestoreOriginal,
 }: {
   message: FlowMessage;
   isEditing: boolean;
@@ -46,6 +120,8 @@ function MessageRowBase({
   onToggleComplete: () => void;
   onDeleteNow: () => void;
   onReply: () => void;
+  onRestoreOriginal?: () => void;
+
 }) {
   const html = useMemo(
     () => sanitizeHtml(message.content_html ?? textToHtml(message.content)),
@@ -102,13 +178,18 @@ function MessageRowBase({
           ) : (
             <>
               <div className="flex items-start gap-4">
-                <div
-                  className={cn(
-                    "flow-prose min-w-0 flex-1 transition-opacity duration-200",
-                    message.is_completed && "text-muted-foreground line-through decoration-1",
+                <div className="flow-prose min-w-0 flex-1">
+                  <div
+                    className={cn(
+                      "inline transition-opacity duration-200 [&>*:first-child]:inline",
+                      message.is_completed && "text-muted-foreground line-through decoration-1",
+                    )}
+                    dangerouslySetInnerHTML={{ __html: html }}
+                  />
+                  {message.ai_cleaned && (
+                    <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
                   )}
-                  dangerouslySetInnerHTML={{ __html: html }}
-                />
+                </div>
 
                 {/* Tags sit beside the text and step aside for the hover actions. */}
                 {tagPosition === "right" && tags.length > 0 && (
@@ -119,6 +200,7 @@ function MessageRowBase({
                   </span>
                 )}
               </div>
+
 
               {tagPosition === "below" && tags.length > 0 && (
                 <div className="mt-1.5 hidden flex-wrap items-center gap-1.5 sm:flex">
