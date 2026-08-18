@@ -195,10 +195,14 @@ export type Database = {
           edited_at: string | null
           id: string
           is_completed: boolean
+          is_pinned: boolean
           metadata: Json
           original_content: string | null
           original_content_html: string | null
           parent_message_id: string | null
+          pinned_at: string | null
+          remind_at: string | null
+          reminder_dismissed_at: string | null
           updated_at: string
           user_id: string
         }
@@ -221,10 +225,14 @@ export type Database = {
           edited_at?: string | null
           id?: string
           is_completed?: boolean
+          is_pinned?: boolean
           metadata?: Json
           original_content?: string | null
           original_content_html?: string | null
           parent_message_id?: string | null
+          pinned_at?: string | null
+          remind_at?: string | null
+          reminder_dismissed_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -247,10 +255,14 @@ export type Database = {
           edited_at?: string | null
           id?: string
           is_completed?: boolean
+          is_pinned?: boolean
           metadata?: Json
           original_content?: string | null
           original_content_html?: string | null
           parent_message_id?: string | null
+          pinned_at?: string | null
+          remind_at?: string | null
+          reminder_dismissed_at?: string | null
           updated_at?: string
           user_id?: string
         }

@@ -21,6 +21,12 @@ export type FlowMessage = {
   /** Exactly what the user typed before cleanup, kept forever. */
   original_content: string | null;
   original_content_html: string | null;
+  /** Pinned notes stay reachable from a slim strip above the stream. */
+  is_pinned: boolean;
+  pinned_at: string | null;
+  /** When set, Flow raises a quiet in-app alert at this time. */
+  remind_at: string | null;
+  reminder_dismissed_at: string | null;
   tags: FlowTag[];
 };
 
@@ -48,7 +54,7 @@ export async function ensurePreferences(supabase: Client, userId: string) {
 }
 
 export const MESSAGE_SELECT =
-  "id, content, content_html, is_completed, completed_at, ai_status, created_at, updated_at, edited_at, parent_message_id, ai_cleaned, original_content, original_content_html, message_tags(tag_id, tags(id, name, color))";
+  "id, content, content_html, is_completed, completed_at, ai_status, created_at, updated_at, edited_at, parent_message_id, ai_cleaned, original_content, original_content_html, is_pinned, pinned_at, remind_at, reminder_dismissed_at, message_tags(tag_id, tags(id, name, color))";
 
 type MessageRow = {
   id: string;
@@ -64,6 +70,10 @@ type MessageRow = {
   ai_cleaned?: boolean | null;
   original_content?: string | null;
   original_content_html?: string | null;
+  is_pinned?: boolean | null;
+  pinned_at?: string | null;
+  remind_at?: string | null;
+  reminder_dismissed_at?: string | null;
   message_tags?: Array<{ tags: FlowTag | null }> | null;
 };
 
@@ -83,6 +93,10 @@ export function mapMessage(row: MessageRow): FlowMessage {
     ai_cleaned: row.ai_cleaned ?? false,
     original_content: row.original_content ?? null,
     original_content_html: row.original_content_html ?? null,
+    is_pinned: row.is_pinned ?? false,
+    pinned_at: row.pinned_at ?? null,
+    remind_at: row.remind_at ?? null,
+    reminder_dismissed_at: row.reminder_dismissed_at ?? null,
     tags: links
       .map((link) => link.tags)
       .filter((tag): tag is FlowTag => Boolean(tag))
@@ -359,4 +373,45 @@ export async function runRetention(supabase: Client, userId: string, notepadId: 
   if (removed.error) throw removed.error;
 
   return { deleted: rows.length };
+}
+
+/** Pinned notes for the slim strip above the stream — newest pin first. */
+export async function loadPinnedMessages(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+): Promise<FlowMessage[]> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select(MESSAGE_SELECT)
+    .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
+    .eq("is_pinned", true)
+    .order("pinned_at", { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return ((data ?? []) as unknown as MessageRow[]).map(mapMessage);
+}
+
+/**
+ * Reminders that have come due and haven't been dismissed. Shown one at a time
+ * in a quiet banner the user can page through.
+ */
+export async function loadDueReminders(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+): Promise<FlowMessage[]> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select(MESSAGE_SELECT)
+    .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
+    .not("remind_at", "is", null)
+    .lte("remind_at", new Date().toISOString())
+    .is("reminder_dismissed_at", null)
+    .order("remind_at", { ascending: true })
+    .limit(50);
+  if (error) throw error;
+  return ((data ?? []) as unknown as MessageRow[]).map(mapMessage);
 }
