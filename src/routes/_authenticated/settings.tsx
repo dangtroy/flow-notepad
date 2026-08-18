@@ -656,20 +656,13 @@ function GroupRow({
         {count} {count === 1 ? "tag" : "tags"}
       </span>
 
-      <div className="flex shrink-0 items-center gap-1.5">
-        {TAG_COLOR_KEYS.map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => void onRecolor(group, key)}
-            aria-label={`${TAG_COLORS[key].label} for ${group.name}`}
-            className={cn(
-              "h-3.5 w-3.5 rounded-sm ring-offset-2 ring-offset-card transition-shadow",
-              tagColorKey(group.color) === key && "ring-1 ring-border-strong",
-            )}
-            style={{ backgroundColor: TAG_COLORS[key].accent }}
-          />
-        ))}
+      <div className="shrink-0">
+        <ColorChoices
+          label={group.name}
+          color={group.color}
+          shape="square"
+          onPick={(color) => void onRecolor(group, color)}
+        />
       </div>
       <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
         <button type="button" onClick={() => void onMove(-1)} aria-label={`Move ${group.name} up`} className="hover:text-foreground">
