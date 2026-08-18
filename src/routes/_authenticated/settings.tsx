@@ -182,7 +182,8 @@ function TagsSection() {
   const [newName, setNewName] = useState("");
   const [newContext, setNewContext] = useState("");
   const list = tags.data ?? [];
-  const similar = findSimilarTag(newName, list);
+  const names = splitNames(newName);
+  const similar = names.length === 1 ? findSimilarTag(newName, list) : null;
 
   function refresh(next?: FlowTagDetail[]) {
     if (next) queryClient.setQueryData(tagsKey(notepadId), next);
@@ -190,16 +191,43 @@ function TagsSection() {
     queryClient.invalidateQueries({ queryKey: ["stream"] });
   }
 
+  /** One name, or a pasted list — the same flow either way, one tag per name. */
   async function create(event: React.FormEvent) {
     event.preventDefault();
-    if (!newName.trim()) return;
-    try {
-      refresh(await persist({ data: { name: newName, context: newContext } }));
-      setNewName("");
-      setNewContext("");
+    if (names.length === 0) return;
+
+    if (names.length === 1) {
+      try {
+        refresh(await persist({ data: { name: names[0]!, context: newContext } }));
+        setNewName("");
+        setNewContext("");
+        void retagEverything();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not create that tag");
+      }
+      return;
+    }
+
+    let created = 0;
+    const skipped: string[] = [];
+    for (const name of names) {
+      try {
+        refresh(await persist({ data: { name, context: newContext } }));
+        created += 1;
+      } catch {
+        skipped.push(name);
+      }
+    }
+    setNewName("");
+    setNewContext("");
+    if (created > 0) {
+      toast.success(
+        `Added ${created} ${created === 1 ? "tag" : "tags"}` +
+          (skipped.length ? ` · skipped ${skipped.join(", ")}` : ""),
+      );
       void retagEverything();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not create that tag");
+    } else {
+      toast.error(`Could not add ${skipped.join(", ")}`);
     }
   }
 
