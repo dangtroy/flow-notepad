@@ -24,8 +24,9 @@ function CleanedMark({
   onRestoreOriginal,
 }: {
   message: FlowMessage;
-  onRestoreOriginal?: () => void;
+  onRestoreOriginal?: (() => void) | undefined;
 }) {
+
   const [open, setOpen] = useState(false);
   const original = message.original_content ?? "";
 
