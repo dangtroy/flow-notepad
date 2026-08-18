@@ -476,7 +476,7 @@ function TagRow({
               onClick={() => {
                 setName(tag.name);
                 setContext(tag.context);
-                setKeywords(tag.match_keywords.join(", "));
+                setKeywords(tag.match_keywords);
               }}
               className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
             >
