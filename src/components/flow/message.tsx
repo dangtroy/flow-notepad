@@ -368,7 +368,7 @@ function MessageRowBase({
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onSelect={() => onDeleteNow()}>
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDeleteNow()}>
                 <Trash2 className="h-3.5 w-3.5" />
                 Delete thread
               </DropdownMenuItem>
