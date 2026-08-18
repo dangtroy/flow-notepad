@@ -16,17 +16,18 @@ function timeLabel(iso: string) {
 }
 
 /**
- * The ✦ that quietly marks an AI-cleaned note. Hover on desktop, tap on mobile:
- * both open the same compact popover with exactly what the user typed.
+ * The ✦ that quietly marks an AI-cleaned note. Lives in the gutter so the note
+ * text stays perfectly left-aligned; click to see the original and restore it.
  */
 function CleanedMark({
   message,
   onRestoreOriginal,
+  className,
 }: {
   message: FlowMessage;
   onRestoreOriginal?: (() => void) | undefined;
+  className?: string;
 }) {
-
   const [open, setOpen] = useState(false);
   const original = message.original_content ?? "";
 
@@ -41,8 +42,9 @@ function CleanedMark({
             setOpen((value) => !value);
           }}
           className={cn(
-            "mr-1 align-baseline text-[0.7em] leading-none text-muted-foreground/50 opacity-0 transition-all duration-150 hover:text-ai focus-visible:opacity-100 group-hover:opacity-100",
+            "inline-flex h-5 w-5 items-center justify-center rounded text-[0.75em] leading-none text-muted-foreground/50 opacity-0 transition-all duration-150 hover:text-ai focus-visible:opacity-100 group-hover:opacity-100",
             open && "text-ai opacity-100",
+            className,
           )}
         >
           ✦
@@ -157,7 +159,10 @@ function MessageRowBase({
       <div className="flex gap-3 sm:gap-4">
         {/* Time lives in a quiet left gutter, aligned across every depth. */}
         {keepGutter && (
-          <div className="hidden w-12 shrink-0 pt-[0.15rem] text-right text-[11px] leading-5 tracking-wide text-muted-foreground/55 sm:block">
+          <div className="relative hidden w-12 shrink-0 pt-[0.15rem] text-right text-[11px] leading-5 tracking-wide text-muted-foreground/55 sm:block">
+            {message.ai_cleaned && (
+              <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
+            )}
             {withTime && (
               <>
                 <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
@@ -179,18 +184,13 @@ function MessageRowBase({
           ) : (
             <>
               <div className="flex items-start gap-4">
-                <div className="flow-prose min-w-0 flex-1">
-                  {message.ai_cleaned && (
-                    <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
+                <div
+                  className={cn(
+                    "flow-prose min-w-0 flex-1",
+                    message.is_completed && "text-muted-foreground line-through decoration-1",
                   )}
-                  <div
-                    className={cn(
-                      "inline transition-opacity duration-200 [&>*:first-child]:inline",
-                      message.is_completed && "text-muted-foreground line-through decoration-1",
-                    )}
-                    dangerouslySetInnerHTML={{ __html: html }}
-                  />
-                </div>
+                  dangerouslySetInnerHTML={{ __html: html }}
+                />
 
                 {/* Tags sit beside the text and step aside for the hover actions. */}
                 {tagPosition === "right" && tags.length > 0 && (
@@ -213,6 +213,9 @@ function MessageRowBase({
 
               {/* Narrow screens have no gutter: the meta line carries it. */}
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] tracking-wide text-muted-foreground/55 sm:hidden">
+                {message.ai_cleaned && (
+                  <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
+                )}
                 {withTime && (
                   <>
                     <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
