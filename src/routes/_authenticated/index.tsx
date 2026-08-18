@@ -1,5 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+} from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -7,11 +12,16 @@ import { toast } from "sonner";
 import {
   cleanupCompleted,
   deleteMessageNow,
+  dismissReminder,
+  getDueReminders,
+  getPinnedMessages,
   getStreamPage,
   organizeMessageFn,
   restoreOriginalMessage,
   sendMessage,
   setMessageCompletion,
+  setMessagePin,
+  setMessageReminder,
   updateMessage,
 } from "@/lib/flow.functions";
 import type { FlowMessage } from "@/lib/flow.server";
@@ -22,6 +32,8 @@ import { tagsKey } from "@/lib/use-tags";
 import { useActiveNotepadId } from "@/lib/use-notepad";
 import { Composer, type CleanupMeta } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
+import { PinnedStrip } from "@/components/flow/pinned-strip";
+import { ReminderBanner } from "@/components/flow/reminder-banner";
 
 
 export const Route = createFileRoute("/_authenticated/")({
@@ -83,6 +95,11 @@ function FlowPage() {
   const cleanup = useServerFn(cleanupCompleted);
   const destroy = useServerFn(deleteMessageNow);
   const restoreOriginal = useServerFn(restoreOriginalMessage);
+  const pin = useServerFn(setMessagePin);
+  const remind = useServerFn(setMessageReminder);
+  const dismiss = useServerFn(dismissReminder);
+  const fetchPinned = useServerFn(getPinnedMessages);
+  const fetchDue = useServerFn(getDueReminders);
   const { appearance } = useAppearance();
   const notepadId = useActiveNotepadId();
 
@@ -302,6 +319,10 @@ function FlowPage() {
         ai_cleaned: Boolean(cleanup),
         original_content: cleanup ? htmlToText(cleanup.originalHtml) : null,
         original_content_html: cleanup?.originalHtml ?? null,
+        is_pinned: false,
+        pinned_at: null,
+        remind_at: null,
+        reminder_dismissed_at: null,
         tags: [],
       },
     ]);
@@ -401,9 +422,100 @@ function FlowPage() {
     }
   }
 
+  const pinnedKey = useMemo(() => ["pinned", notepadId ?? "none"] as const, [notepadId]);
+  const remindersKey = useMemo(() => ["reminders", notepadId ?? "none"] as const, [notepadId]);
+
+  const { data: pinnedData } = useQuery({
+    queryKey: pinnedKey,
+    queryFn: () => fetchPinned({ data: { notepadId } }),
+    enabled: Boolean(notepadId),
+  });
+
+  // Reminders are in-app only: a light poll is enough to raise them on time.
+  const { data: dueData } = useQuery({
+    queryKey: remindersKey,
+    queryFn: () => fetchDue({ data: { notepadId } }),
+    enabled: Boolean(notepadId),
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true,
+  });
+
+  const pinned = pinnedData?.messages ?? [];
+  const dueReminders = dueData?.messages ?? [];
+
+  const refreshPinsAndReminders = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: pinnedKey });
+    void queryClient.invalidateQueries({ queryKey: remindersKey });
+  }, [queryClient, pinnedKey, remindersKey]);
+
+  /** Jumps to where a pinned or reminded thought actually lives in the stream. */
+  const jumpToMessage = useCallback((id: string) => {
+    const element = document.querySelector(`[data-message-id="${id}"]`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      element.classList.add("flow-flash");
+      window.setTimeout(() => element.classList.remove("flow-flash"), 1200);
+    } else {
+      toast("That thought is further back — scroll up to load it.");
+    }
+  }, []);
+
+  async function handleTogglePin(message: FlowMessage) {
+    const next = !message.is_pinned;
+    patchMessage(message.id, { is_pinned: next, pinned_at: next ? new Date().toISOString() : null });
+    try {
+      await pin({ data: { id: message.id, pinned: next } });
+      refreshPinsAndReminders();
+    } catch {
+      patchMessage(message.id, { is_pinned: message.is_pinned, pinned_at: message.pinned_at });
+      toast.error("Could not pin that thought");
+    }
+  }
+
+  async function handleSetReminder(message: FlowMessage, iso: string | null) {
+    patchMessage(message.id, { remind_at: iso, reminder_dismissed_at: null });
+    try {
+      await remind({ data: { id: message.id, remindAt: iso } });
+      refreshPinsAndReminders();
+      toast.success(iso ? "Reminder set" : "Reminder removed");
+    } catch {
+      patchMessage(message.id, {
+        remind_at: message.remind_at,
+        reminder_dismissed_at: message.reminder_dismissed_at,
+      });
+      toast.error("Could not set that reminder");
+    }
+  }
+
+  async function handleDismissReminder(message: FlowMessage) {
+    patchMessage(message.id, { reminder_dismissed_at: new Date().toISOString() });
+    try {
+      await dismiss({ data: { id: message.id } });
+    } catch {
+      toast.error("Could not dismiss that reminder");
+    }
+    refreshPinsAndReminders();
+  }
+
+  async function handleCompleteFromReminder(message: FlowMessage) {
+    await handleToggleComplete(message);
+    await handleDismissReminder(message);
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-
+      <ReminderBanner
+        reminders={dueReminders}
+        onSnooze={(message, iso) => void handleSetReminder(message, iso)}
+        onComplete={(message) => void handleCompleteFromReminder(message)}
+        onDismiss={(message) => void handleDismissReminder(message)}
+        onJump={jumpToMessage}
+      />
+      <PinnedStrip
+        messages={pinned}
+        onJump={jumpToMessage}
+        onUnpin={(message) => void handleTogglePin(message)}
+      />
 
       <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain">
         <div className="flow-shell flex min-h-full flex-col justify-end px-5 pb-8 pt-8 sm:px-8">
@@ -467,6 +579,8 @@ function FlowPage() {
                           tagStyle={appearance.tagStyle}
                           tagPosition={appearance.tagPosition}
 
+                          onTogglePin={() => void handleTogglePin(message)}
+                          onSetReminder={(iso) => void handleSetReminder(message, iso)}
                           onToggleComplete={() => void handleToggleComplete(message)}
                           onDeleteNow={() => void handleDeleteNow(message)}
                           onRestoreOriginal={() => void handleRestoreOriginal(message)}
