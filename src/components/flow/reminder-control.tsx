@@ -37,14 +37,23 @@ export function ReminderPopover({
   children,
   align = "start",
   side = "top",
+  open: openProp,
+  onOpenChange,
 }: {
   value: string | null;
   onChange: (iso: string | null) => void;
   children: React.ReactNode;
   align?: "start" | "center" | "end";
   side?: "top" | "bottom";
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolled, setUncontrolled] = useState(false);
+  const open = openProp ?? uncontrolled;
+  const setOpen = (next: boolean) => {
+    setUncontrolled(next);
+    onOpenChange?.(next);
+  };
   const [draft, setDraft] = useState(() => toLocalInput(value ? new Date(value) : atHour(0, 18)));
 
   function commit(date: Date | null) {

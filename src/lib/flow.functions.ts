@@ -805,7 +805,11 @@ export const deleteTag = createServerFn({ method: "POST" })
     return loadTags(context.supabase, context.userId, notepadId);
   });
 
-/** Permanent, immediate delete — skips the retention timer entirely. */
+/**
+ * Permanent, immediate delete — skips the retention timer entirely. Deleting a
+ * thought takes its whole reply thread with it: a reply has no meaning without
+ * the note it answers.
+ */
 export const deleteMessageNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string }) => {
@@ -816,30 +820,65 @@ export const deleteMessageNow = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: row, error } = await supabase
       .from("messages")
-      .select("id, content, completed_at, created_at")
+      .select("id, content, completed_at, created_at, conversation_id")
       .eq("id", data.id)
       .eq("user_id", userId)
       .maybeSingle();
     if (error) throw error;
-    if (!row) return { id: data.id };
+    if (!row) return { id: data.id, deletedIds: [data.id] };
 
-    await supabase.from("deletion_log").insert({
-      user_id: userId,
-      message_id: row.id,
-      content_snapshot: row.content,
-      completed_at: row.completed_at,
-      message_created_at: row.created_at,
-      reason: "manual",
-    });
+    // Walk down the thread so nested replies go with their parent.
+    const { data: links, error: linkError } = await supabase
+      .from("messages")
+      .select("id, parent_message_id, content, completed_at, created_at")
+      .eq("user_id", userId)
+      .eq("conversation_id", row.conversation_id)
+      .not("parent_message_id", "is", null);
+    if (linkError) throw linkError;
 
+    type Link = { id: string; parent_message_id: string | null; content: string; completed_at: string | null; created_at: string };
+    const children = new Map<string, Link[]>();
+    for (const link of links ?? []) {
+      const parentId = link.parent_message_id;
+      if (!parentId) continue;
+      const list = children.get(parentId) ?? [];
+      list.push(link);
+      children.set(parentId, list);
+    }
+
+    const doomed = [
+      { id: row.id, content: row.content, completed_at: row.completed_at, created_at: row.created_at },
+    ];
+    const queue = [row.id];
+    while (queue.length > 0) {
+      const next = queue.shift()!;
+      for (const child of children.get(next) ?? []) {
+        doomed.push(child);
+        queue.push(child.id);
+      }
+    }
+
+    await supabase.from("deletion_log").insert(
+      doomed.map((item) => ({
+        user_id: userId,
+        message_id: item.id,
+        content_snapshot: item.content,
+        completed_at: item.completed_at,
+        message_created_at: item.created_at,
+        reason: "manual",
+      })),
+    );
+
+    const ids = doomed.map((item) => item.id);
     const removed = await supabase
       .from("messages")
       .delete()
-      .eq("id", row.id)
+      .in("id", ids)
       .eq("user_id", userId);
     if (removed.error) throw removed.error;
-    return { id: row.id };
+    return { id: row.id, deletedIds: ids };
   });
+
 
 /**
  * Re-reads every thought against the current tags and their context rules.

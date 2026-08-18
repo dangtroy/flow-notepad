@@ -1,11 +1,18 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Check, Pencil, Pin, Reply, X } from "lucide-react";
+import { Bell, BellOff, Check, MoreHorizontal, Pin, Reply, Trash2 } from "lucide-react";
 
 import type { TagPosition, TagStyle } from "@/lib/appearance";
 import type { FlowMessage } from "@/lib/flow.server";
 import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ReminderPopover, reminderLabel } from "./reminder-control";
 import { FlowEditorSurface, FlowToolbar, useFlowEditor } from "./rich-editor";
 import { TagChip } from "./tag-chip";
@@ -145,6 +152,7 @@ function MessageRowBase({
     onStartEdit();
   }
 
+  const [reminderOpen, setReminderOpen] = useState(false);
   const isReply = depth > 0;
   const tags = showTags && message.tags.length > 0 ? message.tags : [];
   const withTime = showTimestamps && (!isReply || showReplyTimestamps);
@@ -160,39 +168,42 @@ function MessageRowBase({
         !isEditing && "cursor-text hover:bg-surface/55",
         isEditing && "bg-surface",
         isReplyTarget && "bg-surface/55",
+        message.is_pinned && "border-l-2 border-primary/45 pl-[calc(0.75rem-2px)]",
       )}
     >
       <div className="flex gap-3 sm:gap-4">
         {/* Time lives in a quiet left gutter, aligned across every depth. */}
         {keepGutter && (
-          <div className="relative hidden w-12 shrink-0 pt-[0.15rem] text-right text-[11px] leading-5 tracking-wide whitespace-nowrap text-muted-foreground/55 sm:block">
-            {/* Quiet marks float outside the gutter so time stays flush. */}
-            <span className="absolute -left-4 top-[0.15rem] flex flex-col items-center">
-              {message.ai_cleaned && (
-                <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
-              )}
-              {message.is_pinned && (
-                <Pin className="mt-0.5 h-3 w-3 text-muted-foreground/60" aria-label="Pinned" />
-              )}
-              {message.remind_at && (
-                <ReminderPopover value={message.remind_at} onChange={onSetReminder}>
-                  <button
-                    type="button"
-                    onClick={(event) => event.stopPropagation()}
-                    aria-label={`Reminder ${reminderLabel(message.remind_at)}`}
-                    title={`Reminder · ${reminderLabel(message.remind_at)}`}
-                    className="mt-0.5 text-muted-foreground/60 transition-colors hover:text-primary"
-                  >
-                    <Bell className="h-3 w-3" />
-                  </button>
-                </ReminderPopover>
-              )}
-            </span>
+          <div className="hidden w-12 shrink-0 pt-[0.15rem] text-right text-[11px] leading-5 tracking-wide whitespace-nowrap text-muted-foreground/55 sm:block">
             {withTime && (
               <>
                 <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
                 {message.edited_at && <div className="text-muted-foreground/40">edited</div>}
               </>
+            )}
+            {/* A fixed marks row: same order, same place, never wraps the time. */}
+            {(message.ai_cleaned || message.is_pinned || message.remind_at) && (
+              <span className="mt-0.5 flex items-center justify-end gap-1 leading-none">
+                {message.ai_cleaned && (
+                  <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
+                )}
+                {message.is_pinned && (
+                  <Pin className="h-3 w-3 text-primary/70" aria-label="Pinned" />
+                )}
+                {message.remind_at && (
+                  <ReminderPopover value={message.remind_at} onChange={onSetReminder}>
+                    <button
+                      type="button"
+                      onClick={(event) => event.stopPropagation()}
+                      aria-label={`Reminder ${reminderLabel(message.remind_at)}`}
+                      title={`Reminder · ${reminderLabel(message.remind_at)}`}
+                      className="text-muted-foreground/60 transition-colors hover:text-primary"
+                    >
+                      <Bell className="h-3 w-3" />
+                    </button>
+                  </ReminderPopover>
+                )}
+              </span>
             )}
           </div>
         )}
@@ -209,6 +220,26 @@ function MessageRowBase({
             <MessageEditor initialHtml={html} onCancel={onCancelEdit} onSave={onSaveEdit} />
           ) : (
             <>
+              {/* Narrow screens have no gutter: a quiet meta line leads instead. */}
+              <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] tracking-wide text-muted-foreground/55 sm:hidden">
+                {message.ai_cleaned && (
+                  <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
+                )}
+                {message.is_pinned && <Pin className="h-3 w-3 text-primary/70" />}
+                {message.remind_at && (
+                  <span className="inline-flex items-center gap-1">
+                    <Bell className="h-3 w-3 text-muted-foreground/60" />
+                    {reminderLabel(message.remind_at)}
+                  </span>
+                )}
+                {withTime && (
+                  <>
+                    <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
+                    {message.edited_at && <span>edited</span>}
+                  </>
+                )}
+              </div>
+
               <div className="flex items-start gap-4">
                 <div
                   className={cn(
@@ -237,86 +268,21 @@ function MessageRowBase({
                 </div>
               )}
 
-              {/* Narrow screens have no gutter: the meta line carries it. */}
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] tracking-wide text-muted-foreground/55 sm:hidden">
-                {message.ai_cleaned && (
-                  <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
-                )}
-                {message.is_pinned && <Pin className="h-3 w-3 text-muted-foreground/60" />}
-                {message.remind_at && (
-                  <span className="inline-flex items-center gap-1">
-                    <Bell className="h-3 w-3 text-muted-foreground/60" />
-                    {reminderLabel(message.remind_at)}
-                  </span>
-                )}
-                {withTime && (
-                  <>
-                    <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
-                    {message.edited_at && <span>edited</span>}
-                  </>
-                )}
-                {tags.map((tag) => (
-                  <TagChip key={tag.id} tag={tag} style={tagStyle} />
-                ))}
-              </div>
+              {tags.length > 0 && (
+                <div className="mt-1 flex flex-wrap items-center gap-1.5 sm:hidden">
+                  {tags.map((tag) => (
+                    <TagChip key={tag.id} tag={tag} style={tagStyle} />
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
       </div>
 
+      {/* A fixed three-icon toolbar; everything else lives behind the menu. */}
       {!isEditing && (
         <div className="absolute right-2 top-1.5 flex items-center gap-0.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onReply();
-            }}
-            aria-label="Reply"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-foreground"
-          >
-            <Reply className="h-3.5 w-3.5" />
-          </button>
-          <ReminderPopover value={message.remind_at} onChange={onSetReminder} align="end">
-            <button
-              type="button"
-              onClick={(event) => event.stopPropagation()}
-              aria-label="Remind me"
-              title={message.remind_at ? `Reminder · ${reminderLabel(message.remind_at)}` : "Remind me"}
-              className={cn(
-                "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 hover:bg-elevated hover:text-foreground",
-                message.remind_at ? "text-primary" : "text-muted-foreground",
-              )}
-            >
-              <Bell className="h-3.5 w-3.5" />
-            </button>
-          </ReminderPopover>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onTogglePin();
-            }}
-            aria-label={message.is_pinned ? "Unpin" : "Pin"}
-            title={message.is_pinned ? "Unpin" : "Pin"}
-            className={cn(
-              "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 hover:bg-elevated hover:text-foreground",
-              message.is_pinned ? "text-primary" : "text-muted-foreground",
-            )}
-          >
-            <Pin className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onStartEdit();
-            }}
-            aria-label="Edit"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-foreground"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
           <button
             type="button"
             onClick={(event) => {
@@ -336,20 +302,79 @@ function MessageRowBase({
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              onDeleteNow();
+              onReply();
             }}
-            aria-label="Delete"
-            title="Delete now"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-destructive"
+            aria-label="Reply"
+            title="Reply"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-foreground"
           >
-            <X className="h-3.5 w-3.5" />
+            <Reply className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onTogglePin();
+            }}
+            aria-label={message.is_pinned ? "Unpin" : "Pin"}
+            title={message.is_pinned ? "Unpin" : "Pin"}
+            className={cn(
+              "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 hover:bg-elevated hover:text-foreground",
+              message.is_pinned ? "text-primary" : "text-muted-foreground",
+            )}
+          >
+            <Pin className="h-3.5 w-3.5" />
           </button>
 
+          <ReminderPopover
+            value={message.remind_at}
+            onChange={onSetReminder}
+            align="end"
+            open={reminderOpen}
+            onOpenChange={setReminderOpen}
+          >
+            <span />
+          </ReminderPopover>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(event) => event.stopPropagation()}
+                aria-label="More actions"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-foreground"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              onClick={(event) => event.stopPropagation()}
+              className="w-44 text-[12.5px]"
+            >
+              <DropdownMenuItem onSelect={() => setReminderOpen(true)}>
+                <Bell className="h-3.5 w-3.5" />
+                {message.remind_at ? `Reminder · ${reminderLabel(message.remind_at)}` : "Remind me"}
+              </DropdownMenuItem>
+              {message.remind_at && (
+                <DropdownMenuItem onSelect={() => onSetReminder(null)}>
+                  <BellOff className="h-3.5 w-3.5" />
+                  Clear reminder
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDeleteNow()}>
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete thread
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
     </article>
   );
 }
+
 
 function MessageEditor({
   initialHtml,
