@@ -70,6 +70,10 @@ type MessageRow = {
   ai_cleaned?: boolean | null;
   original_content?: string | null;
   original_content_html?: string | null;
+  is_pinned?: boolean | null;
+  pinned_at?: string | null;
+  remind_at?: string | null;
+  reminder_dismissed_at?: string | null;
   message_tags?: Array<{ tags: FlowTag | null }> | null;
 };
 
