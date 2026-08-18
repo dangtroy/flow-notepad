@@ -447,3 +447,18 @@
     animation: flow-in 180ms ease-out both;
   }
 }
+
+/* Brief, gentle highlight when jumping to a pinned or reminded thought. */
+.flow-flash {
+  animation: flow-flash 1.2s ease-out;
+}
+
+@keyframes flow-flash {
+  0%,
+  40% {
+    background-color: color-mix(in oklab, var(--primary) 12%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}

@@ -152,6 +152,7 @@ function MessageRowBase({
 
   return (
     <article
+      data-message-id={message.id}
       data-reply={isReply ? "true" : undefined}
       onClick={handleSurfaceClick}
       className={cn(
