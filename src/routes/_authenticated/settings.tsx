@@ -693,3 +693,142 @@ function GroupRow({
   );
 }
 
+
+/**
+ * Match words as chips: type or paste, Enter or comma commits, each chip removable.
+ * The 2-character minimum lives here so nothing shorter ever reaches the server.
+ */
+function KeywordChips({
+  label,
+  keywords,
+  onChange,
+}: {
+  label: string;
+  keywords: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+
+  function add(raw: string) {
+    const parts = raw
+      .split(/[\n,]/)
+      .map((part) => part.trim())
+      .filter((part) => part.length >= 2);
+    if (parts.length === 0) return;
+    const next = [...keywords];
+    for (const part of parts) {
+      if (!next.some((existing) => existing.toLowerCase() === part.toLowerCase())) next.push(part);
+    }
+    onChange(next);
+  }
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {keywords.map((keyword) => (
+        <span
+          key={keyword}
+          className="inline-flex items-center gap-1 rounded-full border border-border/70 px-2 py-[2px] text-[12px] text-muted-foreground"
+        >
+          {keyword}
+          <button
+            type="button"
+            onClick={() => onChange(keywords.filter((item) => item !== keyword))}
+            aria-label={`Remove ${keyword}`}
+            className="text-muted-foreground/60 transition-colors hover:text-destructive"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </span>
+      ))}
+      <input
+        value={draft}
+        aria-label={label}
+        placeholder={keywords.length ? "Add word…" : "Instant match words (Enter or comma)"}
+        onChange={(event) => {
+          const value = event.target.value;
+          if (/[\n,]/.test(value)) {
+            add(value);
+            setDraft("");
+          } else {
+            setDraft(value);
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            add(draft);
+            setDraft("");
+          }
+          if (event.key === "Backspace" && !draft && keywords.length) {
+            onChange(keywords.slice(0, -1));
+          }
+        }}
+        onBlur={() => {
+          add(draft);
+          setDraft("");
+        }}
+        onPaste={(event) => {
+          const text = event.clipboardData.getData("text");
+          if (!/[\n,]/.test(text)) return;
+          event.preventDefault();
+          add(text);
+          setDraft("");
+        }}
+        className="min-w-[9rem] flex-1 bg-transparent text-[13px] text-muted-foreground/85 outline-none"
+      />
+    </div>
+  );
+}
+
+/** The eight presets stay as quick picks; the swatch at the end is any colour at all. */
+function ColorChoices({
+  label,
+  color,
+  shape,
+  onPick,
+}: {
+  label: string;
+  color: string | null;
+  shape: "round" | "square";
+  onPick: (color: string) => void;
+}) {
+  const round = shape === "round";
+  const custom = isCustomColor(color);
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {TAG_COLOR_KEYS.map((key) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onPick(key)}
+          aria-label={`${TAG_COLORS[key].label} for ${label}`}
+          className={cn(
+            "h-4 w-4 ring-offset-2 ring-offset-card transition-shadow",
+            round ? "rounded-full" : "rounded-sm",
+            !custom && tagColorKey(color) === key && "ring-1 ring-border-strong",
+          )}
+          style={{ backgroundColor: TAG_COLORS[key].accent }}
+        />
+      ))}
+      <label
+        className={cn(
+          "relative h-4 w-4 cursor-pointer overflow-hidden border border-border ring-offset-2 ring-offset-card",
+          round ? "rounded-full" : "rounded-sm",
+          custom && "ring-1 ring-border-strong",
+        )}
+        style={{ backgroundColor: custom ? tagAccent(color) : "transparent" }}
+        title={`Custom colour for ${label}`}
+      >
+        {!custom && <Pipette aria-hidden className="absolute inset-0 m-auto h-2.5 w-2.5 text-muted-foreground" />}
+        <input
+          type="color"
+          value={tagColorHex(color)}
+          aria-label={`Custom colour for ${label}`}
+          onChange={(event) => onPick(event.target.value)}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        />
+      </label>
+    </div>
+  );
+}
