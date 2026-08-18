@@ -205,11 +205,6 @@ function MessageRowBase({
                 )}
               </span>
             )}
-            {message.remind_at && (
-              <div className="text-[10px] text-muted-foreground/45">
-                {reminderLabel(message.remind_at)}
-              </div>
-            )}
           </div>
         )}
 
