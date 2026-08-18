@@ -40,8 +40,10 @@ function CleanedMark({
             event.stopPropagation();
             setOpen((value) => !value);
           }}
-          onMouseEnter={() => setOpen(true)}
-          className="mr-1 align-baseline text-[0.7em] leading-none text-muted-foreground/50 transition-colors duration-150 hover:text-ai"
+          className={cn(
+            "mr-1 align-baseline text-[0.7em] leading-none text-muted-foreground/50 opacity-0 transition-all duration-150 hover:text-ai focus-visible:opacity-100 group-hover:opacity-100",
+            open && "text-ai opacity-100",
+          )}
         >
           ✦
         </button>
