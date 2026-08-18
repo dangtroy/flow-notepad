@@ -51,7 +51,6 @@ function CleanedMark({
       <PopoverContent
         align="start"
         side="top"
-        onMouseLeave={() => setOpen(false)}
         onClick={(event) => event.stopPropagation()}
         className="w-[min(20rem,80vw)] p-3 text-[12px]"
       >
