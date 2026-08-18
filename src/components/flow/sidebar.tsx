@@ -1,6 +1,7 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  Check,
   CheckCheck,
   ChevronDown,
   ChevronRight,
@@ -15,6 +16,7 @@ import {
   Sun,
   ArrowDownUp,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState } from "react";
 
 import { useServerFn } from "@tanstack/react-start";
@@ -152,7 +154,11 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       ...(tagId === id ? { groupId: targetGroupId } : {}),
     }));
 
-    if (sort !== "manual") update({ tagSort: "manual" });
+    // Dragging is a manual statement of order, so say so out loud when it switches.
+    if (sort !== "manual") {
+      update({ tagSort: "manual" });
+      toast("Switched to manual sort order");
+    }
     try {
       queryClient.setQueryData(tagsKey(notepadId), await persistOrder({ data: { items, notepadId } }));
     } catch {
