@@ -41,7 +41,7 @@ function CleanedMark({
             setOpen((value) => !value);
           }}
           onMouseEnter={() => setOpen(true)}
-          className="ml-1 align-baseline text-[0.7em] leading-none text-muted-foreground/50 transition-colors duration-150 hover:text-ai"
+          className="mr-1 align-baseline text-[0.7em] leading-none text-muted-foreground/50 transition-colors duration-150 hover:text-ai"
         >
           ✦
         </button>
