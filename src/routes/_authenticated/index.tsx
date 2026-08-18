@@ -9,6 +9,7 @@ import {
   deleteMessageNow,
   getStreamPage,
   organizeMessageFn,
+  restoreOriginalMessage,
   sendMessage,
   setMessageCompletion,
   updateMessage,
@@ -19,7 +20,7 @@ import { tagIdsFrom, type FilterMode } from "@/lib/tag-filter";
 import { useAppearance } from "@/lib/use-appearance";
 import { tagsKey } from "@/lib/use-tags";
 import { useActiveNotepadId } from "@/lib/use-notepad";
-import { Composer } from "@/components/flow/composer";
+import { Composer, type CleanupMeta } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
 
 
@@ -81,6 +82,7 @@ function FlowPage() {
   const organize = useServerFn(organizeMessageFn);
   const cleanup = useServerFn(cleanupCompleted);
   const destroy = useServerFn(deleteMessageNow);
+  const restoreOriginal = useServerFn(restoreOriginalMessage);
   const { appearance } = useAppearance();
   const notepadId = useActiveNotepadId();
 
@@ -467,6 +469,7 @@ function FlowPage() {
 
                           onToggleComplete={() => void handleToggleComplete(message)}
                           onDeleteNow={() => void handleDeleteNow(message)}
+                          onRestoreOriginal={() => void handleRestoreOriginal(message)}
                           onReply={() =>
                             setReplyTo({
                               id: message.id,
@@ -485,7 +488,7 @@ function FlowPage() {
       </div>
 
       <Composer
-        onSend={(html) => void handleSend(html)}
+        onSend={(html, cleanup) => void handleSend(html, cleanup)}
         replyingTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
       />
