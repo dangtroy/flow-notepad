@@ -48,9 +48,7 @@ export function Composer({
 
   /** Cleanup state for the note currently being composed. */
   const [cleaning, setCleaning] = useState(false);
-  const [cleanup, setCleanup] = useState<CleanupMeta>(null);
   const cleanupRef = useRef<CleanupMeta>(null);
-  cleanupRef.current = cleanup;
 
   const editor = useFlowEditor({
     autoFocus: true,
@@ -70,7 +68,7 @@ export function Composer({
     if (!editor) return;
     editor.commands.clearContent(true);
     setIsEmpty(true);
-    setCleanup(null);
+    cleanupRef.current = null;
     editor.commands.focus("end");
   }
 
@@ -84,26 +82,15 @@ export function Composer({
       editor.commands.setContent(result.cleanedHtml);
       setIsEmpty(editor.isEmpty);
       const meta = { originalHtml: before, cleanedHtml: result.cleanedHtml };
-      setCleanup(meta);
       cleanupRef.current = meta;
-      editor.commands.focus("end");
       return meta;
     } catch {
       // Cleanup is optional: the original text stays exactly as typed.
-      toast.error("Couldn’t clean that up — your text is unchanged");
+      toast.error("Couldn’t clean that up — sending your text unchanged");
       return null;
     } finally {
       setCleaning(false);
     }
-  }
-
-  function undoCleanup() {
-    const state = cleanupRef.current;
-    if (!editor || !state) return;
-    editor.commands.setContent(state.originalHtml);
-    setIsEmpty(editor.isEmpty);
-    setCleanup(null);
-    editor.commands.focus("end");
   }
 
   /** Saves whatever is currently in the composer. */
