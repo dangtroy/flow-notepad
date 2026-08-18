@@ -1,11 +1,18 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Check, Pencil, Pin, Reply, X } from "lucide-react";
+import { Bell, BellOff, Check, MoreHorizontal, Pin, Reply, Trash2 } from "lucide-react";
 
 import type { TagPosition, TagStyle } from "@/lib/appearance";
 import type { FlowMessage } from "@/lib/flow.server";
 import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ReminderPopover, reminderLabel } from "./reminder-control";
 import { FlowEditorSurface, FlowToolbar, useFlowEditor } from "./rich-editor";
 import { TagChip } from "./tag-chip";
@@ -145,6 +152,7 @@ function MessageRowBase({
     onStartEdit();
   }
 
+  const [reminderOpen, setReminderOpen] = useState(false);
   const isReply = depth > 0;
   const tags = showTags && message.tags.length > 0 ? message.tags : [];
   const withTime = showTimestamps && (!isReply || showReplyTimestamps);
