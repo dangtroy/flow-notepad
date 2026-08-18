@@ -21,6 +21,12 @@ export type FlowMessage = {
   /** Exactly what the user typed before cleanup, kept forever. */
   original_content: string | null;
   original_content_html: string | null;
+  /** Pinned notes stay reachable from a slim strip above the stream. */
+  is_pinned: boolean;
+  pinned_at: string | null;
+  /** When set, Flow raises a quiet in-app alert at this time. */
+  remind_at: string | null;
+  reminder_dismissed_at: string | null;
   tags: FlowTag[];
 };
 
