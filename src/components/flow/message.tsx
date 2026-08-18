@@ -159,9 +159,13 @@ function MessageRowBase({
       <div className="flex gap-3 sm:gap-4">
         {/* Time lives in a quiet left gutter, aligned across every depth. */}
         {keepGutter && (
-          <div className="relative hidden w-12 shrink-0 pt-[0.15rem] text-right text-[11px] leading-5 tracking-wide text-muted-foreground/55 sm:block">
+          <div className="relative hidden w-12 shrink-0 pt-[0.15rem] text-right text-[11px] leading-5 tracking-wide whitespace-nowrap text-muted-foreground/55 sm:block">
             {message.ai_cleaned && (
-              <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
+              <CleanedMark
+                message={message}
+                onRestoreOriginal={onRestoreOriginal}
+                className="absolute -left-4 top-[0.15rem]"
+              />
             )}
             {withTime && (
               <>
@@ -171,6 +175,7 @@ function MessageRowBase({
             )}
           </div>
         )}
+
 
         <div
           className={cn(
