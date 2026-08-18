@@ -170,7 +170,7 @@ function MessageRowBase({
         <div
           className={cn(
             "min-w-0 flex-1",
-            isReply && "relative before:absolute before:left-0 before:top-[0.15rem] before:bottom-[0.15rem] before:w-px before:bg-border",
+            isReply && "flow-reply-rail pl-3.5 sm:pl-4",
           )}
           style={depth > 1 ? { marginLeft: `${(depth - 1) * 1.1}rem` } : undefined}
         >

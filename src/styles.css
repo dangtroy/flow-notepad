@@ -403,6 +403,9 @@
     margin-top: var(--flow-reply-gap, 0.9rem);
   }
 
+  .flow-reply-rail {
+    border-left: var(--flow-border-width, 1px) solid var(--flow-border-color, var(--border));
+  }
 
   .flow-thread-divider {
     border-top: var(--flow-border-width, 1px) solid var(--flow-border-color, var(--border));
