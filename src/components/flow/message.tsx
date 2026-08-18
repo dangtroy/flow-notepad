@@ -179,6 +179,9 @@ function MessageRowBase({
             <>
               <div className="flex items-start gap-4">
                 <div className="flow-prose min-w-0 flex-1">
+                  {message.ai_cleaned && (
+                    <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
+                  )}
                   <div
                     className={cn(
                       "inline transition-opacity duration-200 [&>*:first-child]:inline",
@@ -186,9 +189,6 @@ function MessageRowBase({
                     )}
                     dangerouslySetInnerHTML={{ __html: html }}
                   />
-                  {message.ai_cleaned && (
-                    <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
-                  )}
                 </div>
 
                 {/* Tags sit beside the text and step aside for the hover actions. */}
