@@ -48,7 +48,7 @@ export async function ensurePreferences(supabase: Client, userId: string) {
 }
 
 export const MESSAGE_SELECT =
-  "id, content, content_html, is_completed, completed_at, ai_status, created_at, updated_at, edited_at, parent_message_id, message_tags(tag_id, tags(id, name, color))";
+  "id, content, content_html, is_completed, completed_at, ai_status, created_at, updated_at, edited_at, parent_message_id, ai_cleaned, original_content, original_content_html, message_tags(tag_id, tags(id, name, color))";
 
 type MessageRow = {
   id: string;
@@ -61,6 +61,9 @@ type MessageRow = {
   updated_at: string;
   edited_at: string | null;
   parent_message_id: string | null;
+  ai_cleaned?: boolean | null;
+  original_content?: string | null;
+  original_content_html?: string | null;
   message_tags?: Array<{ tags: FlowTag | null }> | null;
 };
 
@@ -77,12 +80,16 @@ export function mapMessage(row: MessageRow): FlowMessage {
     updated_at: row.updated_at,
     edited_at: row.edited_at,
     parent_message_id: row.parent_message_id ?? null,
+    ai_cleaned: row.ai_cleaned ?? false,
+    original_content: row.original_content ?? null,
+    original_content_html: row.original_content_html ?? null,
     tags: links
       .map((link) => link.tags)
       .filter((tag): tag is FlowTag => Boolean(tag))
       .sort((a, b) => a.name.localeCompare(b.name)),
   };
 }
+
 
 
 export type StreamPage = {
