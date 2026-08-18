@@ -836,7 +836,8 @@ export const deleteMessageNow = createServerFn({ method: "POST" })
       .not("parent_message_id", "is", null);
     if (linkError) throw linkError;
 
-    const children = new Map<string, typeof links>();
+    type Link = { id: string; parent_message_id: string | null; content: string; completed_at: string | null; created_at: string };
+    const children = new Map<string, Link[]>();
     for (const link of links ?? []) {
       const parentId = link.parent_message_id;
       if (!parentId) continue;
@@ -869,11 +870,10 @@ export const deleteMessageNow = createServerFn({ method: "POST" })
     );
 
     const ids = doomed.map((item) => item.id);
-    // Replies first so no row is left pointing at a deleted parent.
     const removed = await supabase
       .from("messages")
       .delete()
-      .in("id", ids.slice(1).concat(ids[0]!))
+      .in("id", ids)
       .eq("user_id", userId);
     if (removed.error) throw removed.error;
     return { id: row.id, deletedIds: ids };
