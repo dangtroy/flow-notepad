@@ -93,6 +93,10 @@ export function mapMessage(row: MessageRow): FlowMessage {
     ai_cleaned: row.ai_cleaned ?? false,
     original_content: row.original_content ?? null,
     original_content_html: row.original_content_html ?? null,
+    is_pinned: row.is_pinned ?? false,
+    pinned_at: row.pinned_at ?? null,
+    remind_at: row.remind_at ?? null,
+    reminder_dismissed_at: row.reminder_dismissed_at ?? null,
     tags: links
       .map((link) => link.tags)
       .filter((tag): tag is FlowTag => Boolean(tag))
