@@ -1,6 +1,7 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  Check,
   CheckCheck,
   ChevronDown,
   ChevronRight,
@@ -15,6 +16,7 @@ import {
   Sun,
   ArrowDownUp,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState } from "react";
 
 import { useServerFn } from "@tanstack/react-start";
@@ -152,7 +154,11 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       ...(tagId === id ? { groupId: targetGroupId } : {}),
     }));
 
-    if (sort !== "manual") update({ tagSort: "manual" });
+    // Dragging is a manual statement of order, so say so out loud when it switches.
+    if (sort !== "manual") {
+      update({ tagSort: "manual" });
+      toast("Switched to manual sort order");
+    }
     try {
       queryClient.setQueryData(tagsKey(notepadId), await persistOrder({ data: { items, notepadId } }));
     } catch {
@@ -227,38 +233,41 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           <NotepadSwitcher onNavigate={onNavigate} />
         </div>
         <div className="flex items-center gap-1">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setSortOpen((open) => !open)}
-              aria-label="Sort sidebar"
-              aria-expanded={sortOpen}
-              className="rounded p-1.5 text-muted-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            >
-              <ArrowDownUp className="h-3.5 w-3.5" />
-            </button>
-            {sortOpen && (
-              <div className="absolute right-0 z-30 mt-1 w-44 overflow-hidden rounded-md border border-border bg-popover py-1 shadow-lg">
-                {TAG_SORTS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => {
-                      update({ tagSort: option.value });
-                      setSortOpen(false);
-                    }}
-                    aria-pressed={sort === option.value}
-                    className={cn(
-                      "flex w-full items-center px-3 py-1.5 text-left text-[13px] text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                      sort === option.value && "text-foreground",
-                    )}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <Popover open={sortOpen} onOpenChange={setSortOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label="Sort sidebar"
+                aria-expanded={sortOpen}
+                className="rounded p-1.5 text-muted-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              >
+                <ArrowDownUp className="h-3.5 w-3.5" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" side="bottom" className="w-44 p-1">
+              {TAG_SORTS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    update({ tagSort: option.value });
+                    setSortOpen(false);
+                  }}
+                  aria-pressed={sort === option.value}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-[13px] text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                    sort === option.value && "text-foreground",
+                  )}
+                >
+                  <Check
+                    className={cn("h-3 w-3 shrink-0", sort !== option.value && "opacity-0")}
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
           <SuggestionsBell />
         </div>
       </div>

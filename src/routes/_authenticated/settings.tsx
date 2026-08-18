@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { ArrowLeft, Check, ChevronDown, ChevronUp, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronUp, Pipette, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppearanceSettings } from "@/components/flow/appearance-settings";
@@ -19,7 +19,14 @@ import {
   updatePreferences,
 } from "@/lib/flow.functions";
 import type { FlowTagDetail, FlowTagGroup } from "@/lib/flow.server";
-import { TAG_COLOR_KEYS, TAG_COLORS, tagColorKey } from "@/lib/tag-colors";
+import {
+  TAG_COLOR_KEYS,
+  TAG_COLORS,
+  isCustomColor,
+  tagAccent,
+  tagColorHex,
+  tagColorKey,
+} from "@/lib/tag-colors";
 import { findSimilarTag } from "@/lib/tag-filter";
 import { tagsKey, tagGroupsKey, useTagGroups, useTags } from "@/lib/use-tags";
 import { useActiveNotepadId } from "@/lib/use-notepad";
@@ -53,6 +60,21 @@ const RETENTION_OPTIONS: Array<{ label: string; value: number | null }> = [
   { label: "30 days", value: 30 },
   { label: "Never", value: null },
 ];
+
+/** Accepts one name typed normally, or a pasted comma/newline separated list. */
+function splitNames(value: string): string[] {
+  const seen = new Set<string>();
+  return value
+    .split(/[\n,]/)
+    .map((part) => part.trim())
+    .filter((part) => {
+      if (!part) return false;
+      const key = part.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
 
 function SettingsPage() {
   const queryClient = useQueryClient();
@@ -93,11 +115,13 @@ function SettingsPage() {
 
         <NotepadsSettings />
 
-        <AppearanceSettings />
-
         <TagsSection />
 
         <GroupsSection />
+
+        <AppearanceSettings />
+
+
 
 
 
@@ -180,7 +204,8 @@ function TagsSection() {
   const [newName, setNewName] = useState("");
   const [newContext, setNewContext] = useState("");
   const list = tags.data ?? [];
-  const similar = findSimilarTag(newName, list);
+  const names = splitNames(newName);
+  const similar = names.length === 1 ? findSimilarTag(newName, list) : null;
 
   function refresh(next?: FlowTagDetail[]) {
     if (next) queryClient.setQueryData(tagsKey(notepadId), next);
@@ -188,16 +213,43 @@ function TagsSection() {
     queryClient.invalidateQueries({ queryKey: ["stream"] });
   }
 
+  /** One name, or a pasted list — the same flow either way, one tag per name. */
   async function create(event: React.FormEvent) {
     event.preventDefault();
-    if (!newName.trim()) return;
-    try {
-      refresh(await persist({ data: { name: newName, context: newContext } }));
-      setNewName("");
-      setNewContext("");
+    if (names.length === 0) return;
+
+    if (names.length === 1) {
+      try {
+        refresh(await persist({ data: { name: names[0]!, context: newContext } }));
+        setNewName("");
+        setNewContext("");
+        void retagEverything();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not create that tag");
+      }
+      return;
+    }
+
+    let created = 0;
+    const skipped: string[] = [];
+    for (const name of names) {
+      try {
+        refresh(await persist({ data: { name, context: newContext } }));
+        created += 1;
+      } catch {
+        skipped.push(name);
+      }
+    }
+    setNewName("");
+    setNewContext("");
+    if (created > 0) {
+      toast.success(
+        `Added ${created} ${created === 1 ? "tag" : "tags"}` +
+          (skipped.length ? ` · skipped ${skipped.join(", ")}` : ""),
+      );
       void retagEverything();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not create that tag");
+    } else {
+      toast.error(`Could not add ${skipped.join(", ")}`);
     }
   }
 
@@ -247,11 +299,12 @@ function TagsSection() {
       </p>
 
       <form onSubmit={create} className="mt-5 space-y-3">
-        <input
+        <textarea
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          placeholder="New tag, e.g. ShipHero"
-          className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-[15px] outline-none focus:border-ring"
+          rows={names.length > 1 ? 3 : 1}
+          placeholder="New tag, e.g. ShipHero — or paste a list, comma or line separated"
+          className="w-full resize-none rounded-lg border border-border bg-card px-4 py-2.5 text-[15px] leading-relaxed outline-none focus:border-ring"
         />
         <textarea
           value={newContext}
@@ -266,12 +319,17 @@ function TagsSection() {
             consider editing that one instead.
           </p>
         )}
+        {names.length > 1 && (
+          <p className="text-[13px] text-muted-foreground">
+            {names.length} tags will be created: {names.join(", ")}
+          </p>
+        )}
         <button
           type="submit"
-          disabled={!newName.trim()}
+          disabled={names.length === 0}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
         >
-          Add tag
+          {names.length > 1 ? `Add ${names.length} tags` : "Add tag"}
         </button>
       </form>
 
@@ -317,11 +375,7 @@ function TagRow({
 }) {
   const [name, setName] = useState(tag.name);
   const [context, setContext] = useState(tag.context);
-  const [keywords, setKeywords] = useState(tag.match_keywords.join(", "));
-  const parsedKeywords = keywords
-    .split(",")
-    .map((keyword) => keyword.trim())
-    .filter((keyword) => keyword.length >= 2);
+  const [parsedKeywords, setKeywords] = useState<string[]>(tag.match_keywords);
   const dirty =
     name.trim() !== tag.name ||
     context.trim() !== tag.context ||
@@ -339,7 +393,7 @@ function TagRow({
         <span
           aria-hidden
           className="h-2 w-2 shrink-0 rounded-full"
-          style={{ backgroundColor: TAG_COLORS[tagColorKey(tag.color)].accent }}
+          style={{ backgroundColor: tagAccent(tag.color) }}
         />
         <input
           value={name}
@@ -392,31 +446,20 @@ function TagRow({
       />
 
       {/* Literal words: a match here is handled instantly, with no AI call. */}
-      <input
-        value={keywords}
-        onChange={(e) => setKeywords(e.target.value)}
-        aria-label={`Match words for ${tag.name}`}
-        placeholder="Instant match words, comma separated (e.g. ShipHero, inventory sync)"
-        className="mt-1.5 w-full bg-transparent text-[13px] text-muted-foreground/85 outline-none"
+      <KeywordChips
+        label={`Match words for ${tag.name}`}
+        keywords={parsedKeywords}
+        onChange={setKeywords}
       />
 
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5">
-          {TAG_COLOR_KEYS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => void onUpdate(tag.id, { color: key })}
-              aria-label={`${TAG_COLORS[key].label} for ${tag.name}`}
-              className={cn(
-                "h-4 w-4 rounded-full ring-offset-2 ring-offset-card transition-shadow",
-                tagColorKey(tag.color) === key && "ring-1 ring-border-strong",
-              )}
-              style={{ backgroundColor: TAG_COLORS[key].accent }}
-            />
-          ))}
-        </div>
+        <ColorChoices
+          label={tag.name}
+          color={tag.color}
+          shape="round"
+          onPick={(color) => void onUpdate(tag.id, { color })}
+        />
 
         <select
           value={tag.group_id ?? ""}
@@ -440,7 +483,7 @@ function TagRow({
               onClick={() => {
                 setName(tag.name);
                 setContext(tag.context);
-                setKeywords(tag.match_keywords.join(", "));
+                setKeywords(tag.match_keywords);
               }}
               className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
             >
@@ -607,7 +650,7 @@ function GroupRow({
       <span
         aria-hidden
         className="h-2 w-2 shrink-0 rounded-sm"
-        style={{ backgroundColor: TAG_COLORS[tagColorKey(group.color)].accent }}
+        style={{ backgroundColor: tagAccent(group.color) }}
       />
       <input
         value={name}
@@ -620,20 +663,13 @@ function GroupRow({
         {count} {count === 1 ? "tag" : "tags"}
       </span>
 
-      <div className="flex shrink-0 items-center gap-1.5">
-        {TAG_COLOR_KEYS.map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => void onRecolor(group, key)}
-            aria-label={`${TAG_COLORS[key].label} for ${group.name}`}
-            className={cn(
-              "h-3.5 w-3.5 rounded-sm ring-offset-2 ring-offset-card transition-shadow",
-              tagColorKey(group.color) === key && "ring-1 ring-border-strong",
-            )}
-            style={{ backgroundColor: TAG_COLORS[key].accent }}
-          />
-        ))}
+      <div className="shrink-0">
+        <ColorChoices
+          label={group.name}
+          color={group.color}
+          shape="square"
+          onPick={(color) => void onRecolor(group, color)}
+        />
       </div>
       <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
         <button type="button" onClick={() => void onMove(-1)} aria-label={`Move ${group.name} up`} className="hover:text-foreground">
@@ -657,3 +693,142 @@ function GroupRow({
   );
 }
 
+
+/**
+ * Match words as chips: type or paste, Enter or comma commits, each chip removable.
+ * The 2-character minimum lives here so nothing shorter ever reaches the server.
+ */
+function KeywordChips({
+  label,
+  keywords,
+  onChange,
+}: {
+  label: string;
+  keywords: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+
+  function add(raw: string) {
+    const parts = raw
+      .split(/[\n,]/)
+      .map((part) => part.trim())
+      .filter((part) => part.length >= 2);
+    if (parts.length === 0) return;
+    const next = [...keywords];
+    for (const part of parts) {
+      if (!next.some((existing) => existing.toLowerCase() === part.toLowerCase())) next.push(part);
+    }
+    onChange(next);
+  }
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {keywords.map((keyword) => (
+        <span
+          key={keyword}
+          className="inline-flex items-center gap-1 rounded-full border border-border/70 px-2 py-[2px] text-[12px] text-muted-foreground"
+        >
+          {keyword}
+          <button
+            type="button"
+            onClick={() => onChange(keywords.filter((item) => item !== keyword))}
+            aria-label={`Remove ${keyword}`}
+            className="text-muted-foreground/60 transition-colors hover:text-destructive"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </span>
+      ))}
+      <input
+        value={draft}
+        aria-label={label}
+        placeholder={keywords.length ? "Add word…" : "Instant match words (Enter or comma)"}
+        onChange={(event) => {
+          const value = event.target.value;
+          if (/[\n,]/.test(value)) {
+            add(value);
+            setDraft("");
+          } else {
+            setDraft(value);
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            add(draft);
+            setDraft("");
+          }
+          if (event.key === "Backspace" && !draft && keywords.length) {
+            onChange(keywords.slice(0, -1));
+          }
+        }}
+        onBlur={() => {
+          add(draft);
+          setDraft("");
+        }}
+        onPaste={(event) => {
+          const text = event.clipboardData.getData("text");
+          if (!/[\n,]/.test(text)) return;
+          event.preventDefault();
+          add(text);
+          setDraft("");
+        }}
+        className="min-w-[9rem] flex-1 bg-transparent text-[13px] text-muted-foreground/85 outline-none"
+      />
+    </div>
+  );
+}
+
+/** The eight presets stay as quick picks; the swatch at the end is any colour at all. */
+function ColorChoices({
+  label,
+  color,
+  shape,
+  onPick,
+}: {
+  label: string;
+  color: string | null;
+  shape: "round" | "square";
+  onPick: (color: string) => void;
+}) {
+  const round = shape === "round";
+  const custom = isCustomColor(color);
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {TAG_COLOR_KEYS.map((key) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onPick(key)}
+          aria-label={`${TAG_COLORS[key].label} for ${label}`}
+          className={cn(
+            "h-4 w-4 ring-offset-2 ring-offset-card transition-shadow",
+            round ? "rounded-full" : "rounded-sm",
+            !custom && tagColorKey(color) === key && "ring-1 ring-border-strong",
+          )}
+          style={{ backgroundColor: TAG_COLORS[key].accent }}
+        />
+      ))}
+      <label
+        className={cn(
+          "relative h-4 w-4 cursor-pointer overflow-hidden border border-border ring-offset-2 ring-offset-card",
+          round ? "rounded-full" : "rounded-sm",
+          custom && "ring-1 ring-border-strong",
+        )}
+        style={{ backgroundColor: custom ? tagAccent(color) : "transparent" }}
+        title={`Custom colour for ${label}`}
+      >
+        {!custom && <Pipette aria-hidden className="absolute inset-0 m-auto h-2.5 w-2.5 text-muted-foreground" />}
+        <input
+          type="color"
+          value={tagColorHex(color)}
+          aria-label={`Custom colour for ${label}`}
+          onChange={(event) => onPick(event.target.value)}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        />
+      </label>
+    </div>
+  );
+}

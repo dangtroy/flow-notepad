@@ -1,6 +1,12 @@
 import { ACCENTS, type AccentKey } from "@/lib/appearance";
 import { useAppearance } from "@/lib/use-appearance";
 import { cn } from "@/lib/utils";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 type Option<T> = { label: string; value: T };
 
@@ -51,151 +57,161 @@ export function AppearanceSettings() {
             ))}
           </div>
         </Row>
-
-        <Row label="Text size">
-          <Choices
-            value={appearance.textSize}
-            options={[
-              { label: "Small", value: "small" },
-              { label: "Default", value: "default" },
-              { label: "Large", value: "large" },
-            ]}
-            onSelect={(textSize) => update({ textSize })}
-          />
-        </Row>
-
-        <Row label="Density">
-          <Choices
-            value={appearance.density}
-            options={[
-              { label: "Compact", value: "compact" },
-              { label: "Comfortable", value: "comfortable" },
-              { label: "Spacious", value: "spacious" },
-            ]}
-            onSelect={(density) => update({ density })}
-          />
-        </Row>
-
-        <Row label="Content width">
-          <Choices
-            value={appearance.contentWidth}
-            options={[
-              { label: "Narrow", value: "narrow" },
-              { label: "Default", value: "default" },
-              { label: "Wide", value: "wide" },
-              { label: "Full", value: "full" },
-            ]}
-            onSelect={(contentWidth) => update({ contentWidth })}
-          />
-        </Row>
-
-        <Row label="Reply spacing">
-          <Choices
-            value={appearance.replySpacing}
-            options={[
-              { label: "Compact", value: "compact" },
-              { label: "Comfortable", value: "comfortable" },
-              { label: "Spacious", value: "spacious" },
-            ]}
-            onSelect={(replySpacing) => update({ replySpacing })}
-          />
-        </Row>
-
-        <Row label="Border colour">
-          <Choices
-            value={appearance.borderTone}
-            options={[
-              { label: "Subtle", value: "subtle" },
-              { label: "Medium", value: "medium" },
-              { label: "Strong", value: "strong" },
-              { label: "Accent", value: "accent" },
-            ]}
-            onSelect={(borderTone) => update({ borderTone })}
-          />
-        </Row>
-
-        <Row label="Border thickness">
-          <Choices
-            value={appearance.borderThickness}
-            options={[
-              { label: "Hairline", value: "hairline" },
-              { label: "Thin", value: "thin" },
-              { label: "Medium", value: "medium" },
-              { label: "Thick", value: "thick" },
-            ]}
-            onSelect={(borderThickness) => update({ borderThickness })}
-          />
-        </Row>
-
-        <Row label="Sidebar width">
-          <Choices
-            value={appearance.sidebarWidth}
-            options={[
-              { label: "Narrow", value: "narrow" },
-              { label: "Default", value: "default" },
-              { label: "Wide", value: "wide" },
-            ]}
-            onSelect={(sidebarWidth) => update({ sidebarWidth })}
-          />
-        </Row>
-
-        <Row label="Sidebar order">
-          <Choices
-            value={appearance.tagSort}
-            options={[
-              { label: "Name", value: "alphabetical" },
-              { label: "Number of tags", value: "most-used" },
-              { label: "Manual", value: "manual" },
-            ]}
-            onSelect={(tagSort) => update({ tagSort })}
-          />
-        </Row>
-
-
-        <Row label="Tag style">
-          <Choices
-            value={appearance.tagStyle}
-            options={[
-              { label: "Pill", value: "pill" },
-              { label: "Dot", value: "dot" },
-              { label: "Text", value: "text" },
-            ]}
-            onSelect={(tagStyle) => update({ tagStyle })}
-          />
-        </Row>
-
-        <Row label="Tag position">
-          <Choices
-            value={appearance.tagPosition}
-            options={[
-              { label: "Right of note", value: "right" },
-              { label: "Below note", value: "below" },
-            ]}
-            onSelect={(tagPosition) => update({ tagPosition })}
-          />
-        </Row>
-
-        <Row label="Show">
-          <div className="flex flex-wrap gap-2">
-            <Toggle
-              label="Timestamps"
-              active={appearance.showTimestamps}
-              onClick={() => update({ showTimestamps: !appearance.showTimestamps })}
-            />
-            <Toggle
-              label="Reply timestamps"
-              active={appearance.showReplyTimestamps}
-              onClick={() => update({ showReplyTimestamps: !appearance.showReplyTimestamps })}
-            />
-            <Toggle
-              label="Tags"
-              active={appearance.showTags}
-              onClick={() => update({ showTags: !appearance.showTags })}
-            />
-          </div>
-        </Row>
-
       </div>
+
+      {/* Everything beyond theme and accent is tucked away until wanted. */}
+      <Accordion type="single" collapsible className="mt-5">
+        <AccordionItem value="more" className="border-border/70">
+          <AccordionTrigger className="text-[13px] text-muted-foreground hover:no-underline">
+            More appearance options
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-7 pt-2">
+              <Row label="Text size">
+                <Choices
+                  value={appearance.textSize}
+                  options={[
+                    { label: "Small", value: "small" },
+                    { label: "Default", value: "default" },
+                    { label: "Large", value: "large" },
+                  ]}
+                  onSelect={(textSize) => update({ textSize })}
+                />
+              </Row>
+
+              <Row label="Density">
+                <Choices
+                  value={appearance.density}
+                  options={[
+                    { label: "Compact", value: "compact" },
+                    { label: "Comfortable", value: "comfortable" },
+                    { label: "Spacious", value: "spacious" },
+                  ]}
+                  onSelect={(density) => update({ density })}
+                />
+              </Row>
+
+              <Row label="Content width">
+                <Choices
+                  value={appearance.contentWidth}
+                  options={[
+                    { label: "Narrow", value: "narrow" },
+                    { label: "Default", value: "default" },
+                    { label: "Wide", value: "wide" },
+                    { label: "Full", value: "full" },
+                  ]}
+                  onSelect={(contentWidth) => update({ contentWidth })}
+                />
+              </Row>
+
+              <Row label="Reply spacing">
+                <Choices
+                  value={appearance.replySpacing}
+                  options={[
+                    { label: "Compact", value: "compact" },
+                    { label: "Comfortable", value: "comfortable" },
+                    { label: "Spacious", value: "spacious" },
+                  ]}
+                  onSelect={(replySpacing) => update({ replySpacing })}
+                />
+              </Row>
+
+              <Row label="Border colour">
+                <Choices
+                  value={appearance.borderTone}
+                  options={[
+                    { label: "Subtle", value: "subtle" },
+                    { label: "Medium", value: "medium" },
+                    { label: "Strong", value: "strong" },
+                    { label: "Accent", value: "accent" },
+                  ]}
+                  onSelect={(borderTone) => update({ borderTone })}
+                />
+              </Row>
+
+              <Row label="Border thickness">
+                <Choices
+                  value={appearance.borderThickness}
+                  options={[
+                    { label: "Hairline", value: "hairline" },
+                    { label: "Thin", value: "thin" },
+                    { label: "Medium", value: "medium" },
+                    { label: "Thick", value: "thick" },
+                  ]}
+                  onSelect={(borderThickness) => update({ borderThickness })}
+                />
+              </Row>
+
+              <Row label="Sidebar width">
+                <Choices
+                  value={appearance.sidebarWidth}
+                  options={[
+                    { label: "Narrow", value: "narrow" },
+                    { label: "Default", value: "default" },
+                    { label: "Wide", value: "wide" },
+                  ]}
+                  onSelect={(sidebarWidth) => update({ sidebarWidth })}
+                />
+              </Row>
+
+              <Row label="Sidebar order">
+                <Choices
+                  value={appearance.tagSort}
+                  options={[
+                    { label: "Name", value: "alphabetical" },
+                    { label: "Number of tags", value: "most-used" },
+                    { label: "Manual", value: "manual" },
+                  ]}
+                  onSelect={(tagSort) => update({ tagSort })}
+                />
+              </Row>
+
+              <Row label="Tag style">
+                <Choices
+                  value={appearance.tagStyle}
+                  options={[
+                    { label: "Pill", value: "pill" },
+                    { label: "Dot", value: "dot" },
+                    { label: "Text", value: "text" },
+                  ]}
+                  onSelect={(tagStyle) => update({ tagStyle })}
+                />
+              </Row>
+
+              <Row label="Tag position">
+                <Choices
+                  value={appearance.tagPosition}
+                  options={[
+                    { label: "Right of note", value: "right" },
+                    { label: "Below note", value: "below" },
+                  ]}
+                  onSelect={(tagPosition) => update({ tagPosition })}
+                />
+              </Row>
+
+              <Row label="Show">
+                <div className="flex flex-wrap gap-2">
+                  <Toggle
+                    label="Timestamps"
+                    active={appearance.showTimestamps}
+                    onClick={() => update({ showTimestamps: !appearance.showTimestamps })}
+                  />
+                  <Toggle
+                    label="Reply timestamps"
+                    active={appearance.showReplyTimestamps}
+                    onClick={() => update({ showReplyTimestamps: !appearance.showReplyTimestamps })}
+                  />
+                  <Toggle
+                    label="Tags"
+                    active={appearance.showTags}
+                    onClick={() => update({ showTags: !appearance.showTags })}
+                  />
+                </div>
+              </Row>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </section>
   );
 }
