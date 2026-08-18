@@ -269,20 +269,39 @@ export function Composer({
               </span>
             </div>
 
-            <button
-              type="button"
-              aria-label="Send"
-              disabled={isEmpty || cleaning}
-              onClick={() => void submit()}
-              className={cn(
-                "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all duration-150",
-                isEmpty || cleaning
-                  ? "bg-elevated text-muted-foreground/50"
-                  : "bg-primary text-primary-foreground hover:brightness-110",
-              )}
-            >
-              <ArrowUp className="h-3.5 w-3.5" />
-            </button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                aria-label="Clean up and send"
+                title="Clean up and send"
+                disabled={isEmpty || cleaning}
+                onClick={() => void cleanAndSend()}
+                className={cn(
+                  "inline-flex h-7 items-center gap-1 rounded-full px-2 text-[11px] transition-colors duration-150",
+                  isEmpty || cleaning
+                    ? "bg-elevated text-muted-foreground/50"
+                    : "bg-elevated text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Sparkles className={cn("h-3 w-3", cleaning && "animate-pulse")} />
+                <ArrowUp className="h-3 w-3" />
+              </button>
+
+              <button
+                type="button"
+                aria-label="Send"
+                disabled={isEmpty || cleaning}
+                onClick={() => void submit()}
+                className={cn(
+                  "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all duration-150",
+                  isEmpty || cleaning
+                    ? "bg-elevated text-muted-foreground/50"
+                    : "bg-primary text-primary-foreground hover:brightness-110",
+                )}
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
