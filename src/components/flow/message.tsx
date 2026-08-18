@@ -184,18 +184,13 @@ function MessageRowBase({
           ) : (
             <>
               <div className="flex items-start gap-4">
-                <div className="flow-prose min-w-0 flex-1">
-                  {message.ai_cleaned && (
-                    <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
+                <div
+                  className={cn(
+                    "flow-prose min-w-0 flex-1",
+                    message.is_completed && "text-muted-foreground line-through decoration-1",
                   )}
-                  <div
-                    className={cn(
-                      "inline transition-opacity duration-200 [&>*:first-child]:inline",
-                      message.is_completed && "text-muted-foreground line-through decoration-1",
-                    )}
-                    dangerouslySetInnerHTML={{ __html: html }}
-                  />
-                </div>
+                  dangerouslySetInnerHTML={{ __html: html }}
+                />
 
                 {/* Tags sit beside the text and step aside for the hover actions. */}
                 {tagPosition === "right" && tags.length > 0 && (
@@ -218,6 +213,9 @@ function MessageRowBase({
 
               {/* Narrow screens have no gutter: the meta line carries it. */}
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] tracking-wide text-muted-foreground/55 sm:hidden">
+                {message.ai_cleaned && (
+                  <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
+                )}
                 {withTime && (
                   <>
                     <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
