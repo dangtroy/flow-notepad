@@ -1,8 +1,14 @@
-import { useEffect, useState } from "react";
-import { ArrowUp, Paperclip, Type, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { ArrowUp, Paperclip, Sparkles, Type, X } from "lucide-react";
+import { toast } from "sonner";
 
+import { cleanUpNote, getCleanupPreference, setCleanupPreference } from "@/lib/flow.functions";
 import { cn } from "@/lib/utils";
 import { FlowEditorSurface, FlowToolbar, useFlowEditor } from "./rich-editor";
+
+export type CleanupMeta = { originalHtml: string; cleanedHtml: string } | null;
 
 /**
  * The persistent writing surface. Minimal at rest, grows with the thought, and
@@ -13,7 +19,7 @@ export function Composer({
   replyingTo,
   onCancelReply,
 }: {
-  onSend: (html: string) => void;
+  onSend: (html: string, cleanup: CleanupMeta) => void;
   replyingTo?: { id: string; preview: string } | null;
   onCancelReply?: () => void;
 }) {
@@ -21,15 +27,35 @@ export function Composer({
   const [focused, setFocused] = useState(false);
   const [pinnedToolbar, setPinnedToolbar] = useState(false);
 
+  const queryClient = useQueryClient();
+  const clean = useServerFn(cleanUpNote);
+  const readAlways = useServerFn(getCleanupPreference);
+  const writeAlways = useServerFn(setCleanupPreference);
+
+  // The "Always" mode is a composer preference, remembered across sessions.
+  const alwaysQuery = useQuery({
+    queryKey: ["cleanup-preference"],
+    queryFn: () => readAlways({}),
+    staleTime: 5 * 60 * 1000,
+  });
+  const always = alwaysQuery.data?.always ?? false;
+  const alwaysMutation = useMutation({
+    mutationFn: (next: boolean) => writeAlways({ data: { always: next } }),
+    onMutate: (next) => {
+      queryClient.setQueryData(["cleanup-preference"], { always: next });
+    },
+  });
+
+  /** Cleanup state for the note currently being composed. */
+  const [cleaning, setCleaning] = useState(false);
+  const [cleanup, setCleanup] = useState<CleanupMeta>(null);
+  const cleanupRef = useRef<CleanupMeta>(null);
+  cleanupRef.current = cleanup;
+
   const editor = useFlowEditor({
     autoFocus: true,
     onEmptyChange: setIsEmpty,
-    onSubmit: (html) => {
-      onSend(html);
-      editor?.commands.clearContent(true);
-      setIsEmpty(true);
-      editor?.commands.focus("end");
-    },
+    onSubmit: () => void submit(),
   });
 
   // Choosing Reply hands the cursor straight to the composer.
@@ -40,6 +66,59 @@ export function Composer({
 
   const showToolbar = pinnedToolbar || focused || !isEmpty;
 
+  function reset() {
+    if (!editor) return;
+    editor.commands.clearContent(true);
+    setIsEmpty(true);
+    setCleanup(null);
+    editor.commands.focus("end");
+  }
+
+  /** Runs cleanup on what's in the composer and swaps the text in place. */
+  async function runCleanup(): Promise<boolean> {
+    if (!editor || editor.isEmpty || cleaning) return false;
+    const before = editor.getHTML();
+    setCleaning(true);
+    try {
+      const result = await clean({ data: { html: before } });
+      editor.commands.setContent(result.cleanedHtml);
+      setIsEmpty(editor.isEmpty);
+      setCleanup({ originalHtml: before, cleanedHtml: result.cleanedHtml });
+      editor.commands.focus("end");
+      return true;
+    } catch {
+      // Cleanup is optional: the original text stays exactly as typed.
+      toast.error("Couldn’t clean that up — your text is unchanged");
+      return false;
+    } finally {
+      setCleaning(false);
+    }
+  }
+
+  function undoCleanup() {
+    const state = cleanupRef.current;
+    if (!editor || !state) return;
+    editor.commands.setContent(state.originalHtml);
+    setIsEmpty(editor.isEmpty);
+    setCleanup(null);
+    editor.commands.focus("end");
+  }
+
+  /**
+   * Send. With Always on and no cleanup done yet, the first press cleans and
+   * hands the text back for review; the second press actually saves.
+   */
+  async function submit() {
+    if (!editor || editor.isEmpty || cleaning) return;
+    if (always && !cleanupRef.current) {
+      await runCleanup();
+      return;
+    }
+    const html = editor.getHTML();
+    const state = cleanupRef.current;
+    onSend(html, state ? { originalHtml: state.originalHtml, cleanedHtml: state.cleanedHtml } : null);
+    reset();
+  }
 
   return (
     <div className="border-t border-border bg-surface/80 backdrop-blur-sm">
@@ -95,7 +174,7 @@ export function Composer({
           </div>
 
           <div className="flex items-center justify-between gap-2 px-2.5 pb-2 pt-0.5">
-            <div className="flex items-center gap-0.5">
+            <div className="flex min-w-0 items-center gap-0.5">
               <button
                 type="button"
                 aria-label="Formatting"
@@ -117,7 +196,63 @@ export function Composer({
               >
                 <Paperclip className="h-3.5 w-3.5" />
               </button>
-              <span className="ml-1.5 hidden text-[11px] text-muted-foreground/60 sm:inline">
+
+              {/* AI cleanup: a quiet composer mode, never a big AI button. */}
+              <span className="ml-0.5 flex min-w-0 items-center gap-1.5">
+                {cleanup && !cleaning ? (
+                  <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <Sparkles className="h-3 w-3" />
+                    <span>Cleaned</span>
+                    <span aria-hidden className="text-muted-foreground/40">
+                      ·
+                    </span>
+                    <button
+                      type="button"
+                      onClick={undoCleanup}
+                      className="transition-colors hover:text-foreground"
+                    >
+                      Undo
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void runCleanup()}
+                    disabled={isEmpty || cleaning}
+                    title="Clean up this note with AI"
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
+                    )}
+                  >
+                    <Sparkles className={cn("h-3 w-3", cleaning && "animate-pulse")} />
+                    <span>{cleaning ? "Cleaning up…" : "Clean up"}</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={always}
+                  aria-label="Always clean up before sending"
+                  title="Always clean up before sending"
+                  onClick={() => alwaysMutation.mutate(!always)}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] transition-colors duration-150 hover:bg-elevated",
+                    always ? "text-foreground" : "text-muted-foreground/70 hover:text-foreground",
+                  )}
+                >
+                  <span>Always</span>
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "h-2 w-2 rounded-full border transition-colors duration-150",
+                      always ? "border-primary bg-primary" : "border-border-strong bg-transparent",
+                    )}
+                  />
+                </button>
+              </span>
+
+              <span className="ml-1.5 hidden text-[11px] text-muted-foreground/60 lg:inline">
                 Enter to send · Shift+Enter for a new line
               </span>
             </div>
@@ -125,17 +260,11 @@ export function Composer({
             <button
               type="button"
               aria-label="Send"
-              disabled={isEmpty}
-              onClick={() => {
-                if (!editor || editor.isEmpty) return;
-                onSend(editor.getHTML());
-                editor.commands.clearContent(true);
-                setIsEmpty(true);
-                editor.commands.focus("end");
-              }}
+              disabled={isEmpty || cleaning}
+              onClick={() => void submit()}
               className={cn(
-                "inline-flex h-7 w-7 items-center justify-center rounded-full transition-all duration-150",
-                isEmpty
+                "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all duration-150",
+                isEmpty || cleaning
                   ? "bg-elevated text-muted-foreground/50"
                   : "bg-primary text-primary-foreground hover:brightness-110",
               )}
