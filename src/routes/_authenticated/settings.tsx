@@ -368,11 +368,7 @@ function TagRow({
 }) {
   const [name, setName] = useState(tag.name);
   const [context, setContext] = useState(tag.context);
-  const [keywords, setKeywords] = useState(tag.match_keywords.join(", "));
-  const parsedKeywords = keywords
-    .split(",")
-    .map((keyword) => keyword.trim())
-    .filter((keyword) => keyword.length >= 2);
+  const [parsedKeywords, setKeywords] = useState<string[]>(tag.match_keywords);
   const dirty =
     name.trim() !== tag.name ||
     context.trim() !== tag.context ||
