@@ -177,12 +177,15 @@ export type Database = {
       }
       messages: {
         Row: {
+          ai_cleaned: boolean
           ai_context: Json
           ai_error: string | null
           ai_fingerprint: string | null
           ai_processed_at: string | null
           ai_status: string
           attachments: Json
+          cleaned_content: string | null
+          cleaned_content_html: string | null
           completed_at: string | null
           content: string
           content_html: string | null
@@ -193,17 +196,22 @@ export type Database = {
           id: string
           is_completed: boolean
           metadata: Json
+          original_content: string | null
+          original_content_html: string | null
           parent_message_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          ai_cleaned?: boolean
           ai_context?: Json
           ai_error?: string | null
           ai_fingerprint?: string | null
           ai_processed_at?: string | null
           ai_status?: string
           attachments?: Json
+          cleaned_content?: string | null
+          cleaned_content_html?: string | null
           completed_at?: string | null
           content: string
           content_html?: string | null
@@ -214,17 +222,22 @@ export type Database = {
           id?: string
           is_completed?: boolean
           metadata?: Json
+          original_content?: string | null
+          original_content_html?: string | null
           parent_message_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          ai_cleaned?: boolean
           ai_context?: Json
           ai_error?: string | null
           ai_fingerprint?: string | null
           ai_processed_at?: string | null
           ai_status?: string
           attachments?: Json
+          cleaned_content?: string | null
+          cleaned_content_html?: string | null
           completed_at?: string | null
           content?: string
           content_html?: string | null
@@ -235,6 +248,8 @@ export type Database = {
           id?: string
           is_completed?: boolean
           metadata?: Json
+          original_content?: string | null
+          original_content_html?: string | null
           parent_message_id?: string | null
           updated_at?: string
           user_id?: string
