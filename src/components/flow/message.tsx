@@ -102,13 +102,18 @@ function MessageRowBase({
           ) : (
             <>
               <div className="flex items-start gap-4">
-                <div
-                  className={cn(
-                    "flow-prose min-w-0 flex-1 transition-opacity duration-200",
-                    message.is_completed && "text-muted-foreground line-through decoration-1",
+                <div className="flow-prose min-w-0 flex-1">
+                  <div
+                    className={cn(
+                      "inline transition-opacity duration-200 [&>*:first-child]:inline",
+                      message.is_completed && "text-muted-foreground line-through decoration-1",
+                    )}
+                    dangerouslySetInnerHTML={{ __html: html }}
+                  />
+                  {message.ai_cleaned && (
+                    <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
                   )}
-                  dangerouslySetInnerHTML={{ __html: html }}
-                />
+                </div>
 
                 {/* Tags sit beside the text and step aside for the hover actions. */}
                 {tagPosition === "right" && tags.length > 0 && (
@@ -119,6 +124,7 @@ function MessageRowBase({
                   </span>
                 )}
               </div>
+
 
               {tagPosition === "below" && tags.length > 0 && (
                 <div className="mt-1.5 hidden flex-wrap items-center gap-1.5 sm:flex">
