@@ -393,7 +393,7 @@ function TagRow({
         <span
           aria-hidden
           className="h-2 w-2 shrink-0 rounded-full"
-          style={{ backgroundColor: TAG_COLORS[tagColorKey(tag.color)].accent }}
+          style={{ backgroundColor: tagAccent(tag.color) }}
         />
         <input
           value={name}
@@ -650,7 +650,7 @@ function GroupRow({
       <span
         aria-hidden
         className="h-2 w-2 shrink-0 rounded-sm"
-        style={{ backgroundColor: TAG_COLORS[tagColorKey(group.color)].accent }}
+        style={{ backgroundColor: tagAccent(group.color) }}
       />
       <input
         value={name}
