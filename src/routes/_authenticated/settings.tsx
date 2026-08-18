@@ -439,31 +439,20 @@ function TagRow({
       />
 
       {/* Literal words: a match here is handled instantly, with no AI call. */}
-      <input
-        value={keywords}
-        onChange={(e) => setKeywords(e.target.value)}
-        aria-label={`Match words for ${tag.name}`}
-        placeholder="Instant match words, comma separated (e.g. ShipHero, inventory sync)"
-        className="mt-1.5 w-full bg-transparent text-[13px] text-muted-foreground/85 outline-none"
+      <KeywordChips
+        label={`Match words for ${tag.name}`}
+        keywords={parsedKeywords}
+        onChange={setKeywords}
       />
 
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5">
-          {TAG_COLOR_KEYS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => void onUpdate(tag.id, { color: key })}
-              aria-label={`${TAG_COLORS[key].label} for ${tag.name}`}
-              className={cn(
-                "h-4 w-4 rounded-full ring-offset-2 ring-offset-card transition-shadow",
-                tagColorKey(tag.color) === key && "ring-1 ring-border-strong",
-              )}
-              style={{ backgroundColor: TAG_COLORS[key].accent }}
-            />
-          ))}
-        </div>
+        <ColorChoices
+          label={tag.name}
+          color={tag.color}
+          shape="round"
+          onPick={(color) => void onUpdate(tag.id, { color })}
+        />
 
         <select
           value={tag.group_id ?? ""}
