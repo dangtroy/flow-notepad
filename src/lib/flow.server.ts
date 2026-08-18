@@ -16,8 +16,14 @@ export type FlowMessage = {
   updated_at: string;
   edited_at: string | null;
   parent_message_id: string | null;
+  /** true once AI writing cleanup was applied to this note (shows the ✦ mark). */
+  ai_cleaned: boolean;
+  /** Exactly what the user typed before cleanup, kept forever. */
+  original_content: string | null;
+  original_content_html: string | null;
   tags: FlowTag[];
 };
+
 
 
 export { normalizeTag } from "./tag-normalize";
