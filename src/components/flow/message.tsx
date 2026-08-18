@@ -16,17 +16,18 @@ function timeLabel(iso: string) {
 }
 
 /**
- * The ✦ that quietly marks an AI-cleaned note. Hover on desktop, tap on mobile:
- * both open the same compact popover with exactly what the user typed.
+ * The ✦ that quietly marks an AI-cleaned note. Lives in the gutter so the note
+ * text stays perfectly left-aligned; click to see the original and restore it.
  */
 function CleanedMark({
   message,
   onRestoreOriginal,
+  className,
 }: {
   message: FlowMessage;
   onRestoreOriginal?: (() => void) | undefined;
+  className?: string;
 }) {
-
   const [open, setOpen] = useState(false);
   const original = message.original_content ?? "";
 
@@ -41,8 +42,9 @@ function CleanedMark({
             setOpen((value) => !value);
           }}
           className={cn(
-            "mr-1 align-baseline text-[0.7em] leading-none text-muted-foreground/50 opacity-0 transition-all duration-150 hover:text-ai focus-visible:opacity-100 group-hover:opacity-100",
+            "inline-flex h-5 w-5 items-center justify-center rounded text-[0.75em] leading-none text-muted-foreground/50 opacity-0 transition-all duration-150 hover:text-ai focus-visible:opacity-100 group-hover:opacity-100",
             open && "text-ai opacity-100",
+            className,
           )}
         >
           ✦
