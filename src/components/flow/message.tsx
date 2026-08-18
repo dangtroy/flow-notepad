@@ -30,6 +30,7 @@ function MessageRowBase({
   onToggleComplete,
   onDeleteNow,
   onReply,
+  onRestoreOriginal,
 }: {
   message: FlowMessage;
   isEditing: boolean;
@@ -46,6 +47,8 @@ function MessageRowBase({
   onToggleComplete: () => void;
   onDeleteNow: () => void;
   onReply: () => void;
+  onRestoreOriginal?: () => void;
+
 }) {
   const html = useMemo(
     () => sanitizeHtml(message.content_html ?? textToHtml(message.content)),
