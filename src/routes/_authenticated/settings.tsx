@@ -93,11 +93,13 @@ function SettingsPage() {
 
         <NotepadsSettings />
 
-        <AppearanceSettings />
-
         <TagsSection />
 
         <GroupsSection />
+
+        <AppearanceSettings />
+
+
 
 
 
