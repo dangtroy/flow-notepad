@@ -48,9 +48,7 @@ export function Composer({
 
   /** Cleanup state for the note currently being composed. */
   const [cleaning, setCleaning] = useState(false);
-  const [cleanup, setCleanup] = useState<CleanupMeta>(null);
   const cleanupRef = useRef<CleanupMeta>(null);
-  cleanupRef.current = cleanup;
 
   const editor = useFlowEditor({
     autoFocus: true,
@@ -70,7 +68,7 @@ export function Composer({
     if (!editor) return;
     editor.commands.clearContent(true);
     setIsEmpty(true);
-    setCleanup(null);
+    cleanupRef.current = null;
     editor.commands.focus("end");
   }
 
@@ -84,26 +82,15 @@ export function Composer({
       editor.commands.setContent(result.cleanedHtml);
       setIsEmpty(editor.isEmpty);
       const meta = { originalHtml: before, cleanedHtml: result.cleanedHtml };
-      setCleanup(meta);
       cleanupRef.current = meta;
-      editor.commands.focus("end");
       return meta;
     } catch {
       // Cleanup is optional: the original text stays exactly as typed.
-      toast.error("Couldn’t clean that up — your text is unchanged");
+      toast.error("Couldn’t clean that up — sending your text unchanged");
       return null;
     } finally {
       setCleaning(false);
     }
-  }
-
-  function undoCleanup() {
-    const state = cleanupRef.current;
-    if (!editor || !state) return;
-    editor.commands.setContent(state.originalHtml);
-    setIsEmpty(editor.isEmpty);
-    setCleanup(null);
-    editor.commands.focus("end");
   }
 
   /** Saves whatever is currently in the composer. */
@@ -185,7 +172,7 @@ export function Composer({
             )}
           </div>
 
-          <div className="flex items-center justify-between gap-2 px-2.5 pb-2 pt-0.5">
+          <div className="flex items-center justify-between gap-3 px-3 pb-2.5 pt-1">
             <div className="flex min-w-0 items-center gap-0.5">
               <button
                 type="button"
@@ -208,98 +195,81 @@ export function Composer({
               >
                 <Paperclip className="h-3.5 w-3.5" />
               </button>
-
-              {/* AI cleanup: a quiet composer mode, never a big AI button. */}
-              <span className="ml-0.5 flex min-w-0 items-center gap-1.5">
-                {cleanup && !cleaning ? (
-                  <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <Sparkles className="h-3 w-3" />
-                    <span>Cleaned</span>
-                    <span aria-hidden className="text-muted-foreground/40">
-                      ·
-                    </span>
-                    <button
-                      type="button"
-                      onClick={undoCleanup}
-                      className="transition-colors hover:text-foreground"
-                    >
-                      Undo
-                    </button>
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => void runCleanup()}
-                    disabled={isEmpty || cleaning}
-                    title="Clean up this note with AI"
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
-                    )}
-                  >
-                    <Sparkles className={cn("h-3 w-3", cleaning && "animate-pulse")} />
-                    <span>{cleaning ? "Cleaning up…" : "Clean up"}</span>
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={always}
-                  aria-label="Always clean up before sending"
-                  title="Always clean up before sending"
-                  onClick={() => alwaysMutation.mutate(!always)}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] transition-colors duration-150 hover:bg-elevated",
-                    always ? "text-foreground" : "text-muted-foreground/70 hover:text-foreground",
-                  )}
-                >
-                  <span>Always</span>
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "h-2 w-2 rounded-full border transition-colors duration-150",
-                      always ? "border-primary bg-primary" : "border-border-strong bg-transparent",
-                    )}
-                  />
-                </button>
-              </span>
-
-              <span className="ml-1.5 hidden text-[11px] text-muted-foreground/60 lg:inline">
-                Enter to send · Shift+Enter for a new line
-              </span>
             </div>
 
-            <div className="flex shrink-0 items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-2.5">
+              {/* One toggle owns the whole model: make cleanup the default send. */}
               <button
                 type="button"
-                aria-label="Clean up and send"
-                title="Clean up and send"
-                disabled={isEmpty || cleaning}
-                onClick={() => void cleanAndSend()}
-                className={cn(
-                  "inline-flex h-7 items-center gap-1 rounded-full px-2 text-[11px] transition-colors duration-150",
-                  isEmpty || cleaning
-                    ? "bg-elevated text-muted-foreground/50"
-                    : "bg-elevated text-muted-foreground hover:text-foreground",
-                )}
+                role="switch"
+                aria-checked={always}
+                aria-label="Clean before sending"
+                title="Clean every note with AI before sending"
+                onClick={() => alwaysMutation.mutate(!always)}
+                className="group inline-flex items-center gap-2 rounded-md text-[11px] text-muted-foreground transition-colors duration-150 hover:text-foreground"
               >
-                <Sparkles className={cn("h-3 w-3", cleaning && "animate-pulse")} />
-                <ArrowUp className="h-3 w-3" />
+                <span className="hidden sm:inline">Clean before sending</span>
+                <span className="sm:hidden">Clean</span>
+                <span
+                  aria-hidden
+                  className={cn(
+                    "relative h-3.5 w-6 rounded-full transition-colors duration-150",
+                    always ? "bg-ai" : "bg-elevated",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "absolute top-0.5 h-2.5 w-2.5 rounded-full bg-foreground/70 transition-all duration-150",
+                      always ? "left-3 bg-background/90" : "left-0.5",
+                    )}
+                  />
+                </span>
               </button>
+
+              <span aria-hidden className="h-4 w-px bg-border" />
+
+              {!always && (
+                <button
+                  type="button"
+                  aria-label="Clean & send"
+                  title="Clean & send — clean this note with AI and send it"
+                  disabled={isEmpty || cleaning}
+                  onClick={() => void cleanAndSend()}
+                  className={cn(
+                    "inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors duration-150",
+                    isEmpty || cleaning
+                      ? "text-muted-foreground/40"
+                      : "text-muted-foreground hover:bg-elevated hover:text-ai",
+                  )}
+                >
+                  <Sparkles className={cn("h-3.5 w-3.5", cleaning && "animate-pulse text-ai")} />
+                </button>
+              )}
 
               <button
                 type="button"
-                aria-label="Send"
+                aria-label={always ? "Clean & send" : "Send"}
                 disabled={isEmpty || cleaning}
                 onClick={() => void submit()}
                 className={cn(
-                  "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all duration-150",
-                  isEmpty || cleaning
-                    ? "bg-elevated text-muted-foreground/50"
-                    : "bg-primary text-primary-foreground hover:brightness-110",
+                  "inline-flex h-8 items-center justify-center gap-1.5 rounded-full transition-all duration-150",
+                  cleaning ? "px-3 bg-ai text-ai-foreground" : "w-8",
+                  !cleaning &&
+                    (isEmpty
+                      ? "bg-elevated text-muted-foreground/50"
+                      : always
+                        ? "bg-ai text-ai-foreground hover:brightness-110"
+                        : "bg-primary text-primary-foreground hover:brightness-110"),
                 )}
               >
-                <ArrowUp className="h-3.5 w-3.5" />
+                {cleaning ? (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                    <span className="text-[11px]">Cleaning &amp; sending…</span>
+                  </>
+                ) : (
+                  <ArrowUp className="h-3.5 w-3.5" />
+                )}
               </button>
             </div>
           </div>
