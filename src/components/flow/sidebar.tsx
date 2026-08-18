@@ -227,12 +227,14 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between gap-2 px-4 pb-5 pt-5">
+      <div className="relative z-50 flex items-center justify-between gap-2 px-4 pb-5 pt-5">
         <div className="flex min-w-0 items-center gap-2">
-          <FlowLogo className="h-5 shrink-0" />
+          <Link to="/" search={{}} onClick={onNavigate} aria-label="All notes">
+            <FlowLogo className="h-5 shrink-0" />
+          </Link>
           <NotepadSwitcher onNavigate={onNavigate} />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="relative z-0 flex items-center gap-1">
           <Popover open={sortOpen} onOpenChange={setSortOpen}>
             <PopoverTrigger asChild>
               <button
