@@ -292,11 +292,12 @@ function TagsSection() {
       </p>
 
       <form onSubmit={create} className="mt-5 space-y-3">
-        <input
+        <textarea
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          placeholder="New tag, e.g. ShipHero"
-          className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-[15px] outline-none focus:border-ring"
+          rows={names.length > 1 ? 3 : 1}
+          placeholder="New tag, e.g. ShipHero — or paste a list, comma or line separated"
+          className="w-full resize-none rounded-lg border border-border bg-card px-4 py-2.5 text-[15px] leading-relaxed outline-none focus:border-ring"
         />
         <textarea
           value={newContext}
@@ -311,12 +312,17 @@ function TagsSection() {
             consider editing that one instead.
           </p>
         )}
+        {names.length > 1 && (
+          <p className="text-[13px] text-muted-foreground">
+            {names.length} tags will be created: {names.join(", ")}
+          </p>
+        )}
         <button
           type="submit"
-          disabled={!newName.trim()}
+          disabled={names.length === 0}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
         >
-          Add tag
+          {names.length > 1 ? `Add ${names.length} tags` : "Add tag"}
         </button>
       </form>
 
