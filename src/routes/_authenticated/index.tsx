@@ -32,8 +32,7 @@ import { tagsKey } from "@/lib/use-tags";
 import { useActiveNotepadId } from "@/lib/use-notepad";
 import { Composer, type CleanupMeta } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
-import { PinnedStrip } from "@/components/flow/pinned-strip";
-import { ReminderBanner } from "@/components/flow/reminder-banner";
+import { ContextBar } from "@/components/flow/context-bar";
 
 
 export const Route = createFileRoute("/_authenticated/")({
@@ -375,23 +374,37 @@ function FlowPage() {
     }
   }
 
+  /** Deleting a thought takes its replies with it — a reply can't outlive its parent. */
   async function handleDeleteNow(message: FlowMessage) {
-    patchStream((current) => current.filter((m) => m.id !== message.id));
+    const doomed = new Set([message.id]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const candidate of messages) {
+        const parentId = candidate.parent_message_id;
+        if (parentId && doomed.has(parentId) && !doomed.has(candidate.id)) {
+          doomed.add(candidate.id);
+          grew = true;
+        }
+      }
+    }
+
     queryClient.setQueryData<Stream>(streamKey, (current) =>
       current
         ? {
             ...current,
             pages: current.pages.map((page) => ({
               ...page,
-              messages: page.messages.filter((m) => m.id !== message.id),
+              messages: page.messages.filter((m) => !doomed.has(m.id)),
             })),
           }
         : current,
     );
     try {
       await destroy({ data: { id: message.id } });
+      refreshPinsAndReminders();
       void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
-      toast.success("Deleted");
+      toast.success(doomed.size > 1 ? `Deleted ${doomed.size} thoughts` : "Deleted");
     } catch {
       void queryClient.invalidateQueries({ queryKey: ["stream"] });
       toast.error("Could not delete that thought");
@@ -504,17 +517,14 @@ function FlowPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ReminderBanner
+      <ContextBar
+        pinned={pinned}
         reminders={dueReminders}
         onSnooze={(message, iso) => void handleSetReminder(message, iso)}
         onComplete={(message) => void handleCompleteFromReminder(message)}
         onDismiss={(message) => void handleDismissReminder(message)}
-        onJump={jumpToMessage}
-      />
-      <PinnedStrip
-        messages={pinned}
-        onJump={jumpToMessage}
         onUnpin={(message) => void handleTogglePin(message)}
+        onJump={jumpToMessage}
       />
 
       <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain">
