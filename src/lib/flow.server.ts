@@ -374,3 +374,44 @@ export async function runRetention(supabase: Client, userId: string, notepadId: 
 
   return { deleted: rows.length };
 }
+
+/** Pinned notes for the slim strip above the stream — newest pin first. */
+export async function loadPinnedMessages(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+): Promise<FlowMessage[]> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select(MESSAGE_SELECT)
+    .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
+    .eq("is_pinned", true)
+    .order("pinned_at", { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return ((data ?? []) as unknown as MessageRow[]).map(mapMessage);
+}
+
+/**
+ * Reminders that have come due and haven't been dismissed. Shown one at a time
+ * in a quiet banner the user can page through.
+ */
+export async function loadDueReminders(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+): Promise<FlowMessage[]> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select(MESSAGE_SELECT)
+    .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
+    .not("remind_at", "is", null)
+    .lte("remind_at", new Date().toISOString())
+    .is("reminder_dismissed_at", null)
+    .order("remind_at", { ascending: true })
+    .limit(50);
+  if (error) throw error;
+  return ((data ?? []) as unknown as MessageRow[]).map(mapMessage);
+}
