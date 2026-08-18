@@ -5,8 +5,10 @@ import type { TagPosition, TagStyle } from "@/lib/appearance";
 import type { FlowMessage } from "@/lib/flow.server";
 import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { FlowEditorSurface, FlowToolbar, useFlowEditor } from "./rich-editor";
 import { TagChip } from "./tag-chip";
+
 
 
 function timeLabel(iso: string) {
