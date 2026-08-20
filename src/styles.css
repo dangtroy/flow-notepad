@@ -421,6 +421,78 @@
     border-top: var(--flow-border-width, 1px) solid var(--flow-border-color, var(--border));
   }
 
+  /* At rest a row is only its text. Controls fade in together, and because they
+     live in reserved margins the text never shifts. */
+  .flow-row {
+    position: relative;
+  }
+
+  .flow-meta,
+  .flow-acts {
+    opacity: 0;
+    transition: opacity 130ms ease-out;
+  }
+
+  .flow-row:hover > .flow-meta,
+  .flow-row:focus-within > .flow-meta,
+  .flow-row:hover > .flow-acts,
+  .flow-row:focus-within > .flow-acts,
+  .flow-row-open > .flow-meta,
+  .flow-row-open > .flow-acts,
+  .flow-stream.always-show .flow-row > .flow-meta,
+  .flow-stream.always-show .flow-row > .flow-acts {
+    opacity: 1;
+  }
+
+  /* Tags expand with grid rows — animating height would thrash the layout. */
+  .flow-tagwrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition:
+      grid-template-rows 160ms ease-out,
+      opacity 160ms ease-out;
+  }
+
+  .flow-tagwrap > div {
+    overflow: hidden;
+  }
+
+  .flow-row:hover .flow-tagwrap,
+  .flow-row:focus-within .flow-tagwrap,
+  .flow-row-open .flow-tagwrap,
+  .flow-stream.always-show .flow-tagwrap {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+
+  /* No hover on touch, and no room for margins on narrow screens. */
+  @media (max-width: 939px), (hover: none) {
+    .flow-meta,
+    .flow-acts {
+      opacity: 1;
+    }
+
+    .flow-acts {
+      position: static;
+      align-self: flex-start;
+    }
+
+    .flow-tagwrap {
+      grid-template-rows: 1fr;
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .flow-meta,
+    .flow-acts,
+    .flow-tagwrap {
+      transition: none;
+    }
+  }
+
+
 
   /* TipTap surface: no chrome of its own, inherits the prose rhythm. */
   .flow-editor .tiptap {

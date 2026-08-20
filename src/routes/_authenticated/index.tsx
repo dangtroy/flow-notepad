@@ -251,6 +251,13 @@ function FlowPage() {
     return groups;
   }, [threaded]);
 
+  /** Lets a reply show how long after its parent it actually landed. */
+  const createdAtById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const message of messages) map.set(message.id, message.created_at);
+    return map;
+  }, [messages]);
+
   useEffect(() => {
     // Retention pass on open: expired completed thoughts are removed for good.
     if (!notepadId) return;
@@ -684,7 +691,8 @@ function FlowPage() {
       >
         <div
           className={cn(
-            "flow-shell flex min-h-full flex-col px-5 pb-8 pt-8 sm:px-8",
+            "flow-stream flow-shell flex min-h-full flex-col px-5 pb-8 pt-8 sm:px-8",
+            appearance.alwaysShowDetails && "always-show",
             view === "reference" ? "justify-start" : "justify-end",
           )}
         >
@@ -692,7 +700,6 @@ function FlowPage() {
             <ReferenceList
               notes={referenceNotes}
               isPending={reference.isPending}
-              tagStyle={appearance.tagStyle}
               onSaveEdit={(id, html) => void handleSaveReferenceEdit(id, html)}
               onMoveToStream={(id) => void handleReferenceType(id, "stream")}
               onDelete={(id) => void handleReferenceDelete(id)}
@@ -733,13 +740,12 @@ function FlowPage() {
             </div>
           ) : (
             grouped.map((group) => {
-              const cleanNotepad = !appearance.showTags && !appearance.showTimestamps;
               return (
                 <section
                   key={group.label}
-                  className={cn(cleanNotepad ? "mb-2" : "mb-8", "last:mb-0")}
+                  className={cn("mb-8", "last:mb-0")}
                 >
-                  <div className={cn("items-center gap-3", cleanNotepad ? "hidden" : "mb-4 flex")}>
+                  <div className={"mb-4 flex items-center gap-3"}>
                     <span className="h-px flex-1 bg-border" />
                     <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/50">
                       {group.label}
@@ -751,15 +757,8 @@ function FlowPage() {
                     {group.threads.map((thread) => (
                       <div
                         key={thread.id}
-                        className={cn(
-                          "flow-row-stack first:border-t-0 first:pt-0",
-                          cleanNotepad
-                            ? "border-0 pt-1 [--flow-row-gap:0rem] [--flow-reply-gap:0.35rem]"
-                            : "flow-thread-divider pt-[var(--flow-thread-gap)]",
-                        )}
-                        style={{
-                          paddingBottom: cleanNotepad ? "0.15rem" : "var(--flow-thread-gap)",
-                        }}
+                        className="flow-row-stack flow-thread-divider pt-[var(--flow-thread-gap)] first:border-t-0 first:pt-0"
+                        style={{ paddingBottom: "var(--flow-thread-gap)" }}
                       >
                         {thread.entries.map(({ message, depth }) => (
                           <MessageRow
@@ -771,11 +770,11 @@ function FlowPage() {
                             onStartEdit={() => setEditingId(message.id)}
                             onCancelEdit={() => setEditingId(null)}
                             onSaveEdit={(html) => void handleSaveEdit(message, html)}
-                            showTags={appearance.showTags}
-                            showTimestamps={appearance.showTimestamps}
-                            showReplyTimestamps={appearance.showReplyTimestamps}
-                            tagStyle={appearance.tagStyle}
-                            tagPosition={appearance.tagPosition}
+                            parentCreatedAt={
+                              message.parent_message_id
+                                ? createdAtById.get(message.parent_message_id)
+                                : undefined
+                            }
 
                             onSetReminder={(iso) => void handleSetReminder(message, iso)}
                             onSetType={(type) => void handleSetType(message, type)}

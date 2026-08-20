@@ -166,47 +166,12 @@ export function AppearanceSettings() {
                 />
               </Row>
 
-              <Row label="Tag style">
-                <Choices
-                  value={appearance.tagStyle}
-                  options={[
-                    { label: "Pill", value: "pill" },
-                    { label: "Dot", value: "dot" },
-                    { label: "Text", value: "text" },
-                  ]}
-                  onSelect={(tagStyle) => update({ tagStyle })}
+              <Row label="Row details">
+                <Toggle
+                  label="Always show details"
+                  active={appearance.alwaysShowDetails}
+                  onClick={() => update({ alwaysShowDetails: !appearance.alwaysShowDetails })}
                 />
-              </Row>
-
-              <Row label="Tag position">
-                <Choices
-                  value={appearance.tagPosition}
-                  options={[
-                    { label: "Right of note", value: "right" },
-                    { label: "Below note", value: "below" },
-                  ]}
-                  onSelect={(tagPosition) => update({ tagPosition })}
-                />
-              </Row>
-
-              <Row label="Show">
-                <div className="flex flex-wrap gap-2">
-                  <Toggle
-                    label="Timestamps"
-                    active={appearance.showTimestamps}
-                    onClick={() => update({ showTimestamps: !appearance.showTimestamps })}
-                  />
-                  <Toggle
-                    label="Reply timestamps"
-                    active={appearance.showReplyTimestamps}
-                    onClick={() => update({ showReplyTimestamps: !appearance.showReplyTimestamps })}
-                  />
-                  <Toggle
-                    label="Tags"
-                    active={appearance.showTags}
-                    onClick={() => update({ showTags: !appearance.showTags })}
-                  />
-                </div>
               </Row>
             </div>
           </AccordionContent>

@@ -1,6 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Bell,
   BellOff,
   BookmarkPlus,
   Check,
@@ -11,7 +10,6 @@ import {
   Trash2,
 } from "lucide-react";
 
-import type { TagPosition, TagStyle } from "@/lib/appearance";
 import type { FlowMessage, MessageType } from "@/lib/flow.server";
 import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
@@ -25,11 +23,29 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ReminderPopover, reminderLabel } from "./reminder-control";
 import { FlowEditorSurface, FlowToolbar, useFlowEditor } from "./rich-editor";
-import { TagChip } from "./tag-chip";
+import { TagLink } from "./tag-chip";
 
 function timeLabel(iso: string) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
+
+/** A reply out of chronological order reads as a bug without this offset. */
+function offsetLabel(iso: string, parentIso: string | undefined) {
+  if (!parentIso) return null;
+  const minutes = Math.round(
+    (new Date(iso).getTime() - new Date(parentIso).getTime()) / (1000 * 60),
+  );
+  const sign = minutes < 0 ? "−" : "+";
+  const abs = Math.abs(minutes);
+  if (abs < 1) return null;
+  if (abs < 60) return `${sign}${abs}m`;
+  if (abs < 60 * 48) return `${sign}${Math.round(abs / 60)}h`;
+  return `${sign}${Math.round(abs / (60 * 24))}d`;
+}
+
+const iconClass = "h-4 w-4 [stroke-width:1.3]";
+const actionButton =
+  "inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground";
 
 /** One thought in the stream: quiet text on the page, never a card. */
 function MessageRowBase({
@@ -37,11 +53,7 @@ function MessageRowBase({
   isEditing,
   depth = 0,
   isReplyTarget,
-  showTags = true,
-  showTimestamps = true,
-  showReplyTimestamps = true,
-  tagStyle = "pill",
-  tagPosition = "right",
+  parentCreatedAt,
   onStartEdit,
   onCancelEdit,
   onSaveEdit,
@@ -56,11 +68,8 @@ function MessageRowBase({
   isEditing: boolean;
   depth?: number;
   isReplyTarget?: boolean;
-  showTags?: boolean;
-  showTimestamps?: boolean;
-  showReplyTimestamps?: boolean;
-  tagStyle?: TagStyle;
-  tagPosition?: TagPosition;
+  /** Only for replies: lets the row show how far after its parent it landed. */
+  parentCreatedAt?: string | undefined;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSaveEdit: (html: string) => void;
@@ -91,12 +100,10 @@ function MessageRowBase({
   const [menuOpen, setMenuOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const actionsOpen = reminderOpen || menuOpen || saveOpen;
-  const isPinnedNote = message.type === "pinned";
 
   const isReply = depth > 0;
-  const tags = showTags && message.tags.length > 0 ? message.tags : [];
-  const withTime = showTimestamps && (!isReply || showReplyTimestamps);
-  const keepGutter = showTimestamps;
+  const tags = message.tags;
+  const offset = isReply ? offsetLabel(message.created_at, parentCreatedAt) : null;
 
   return (
     <article
@@ -104,131 +111,103 @@ function MessageRowBase({
       data-reply={isReply ? "true" : undefined}
       onClick={handleSurfaceClick}
       className={cn(
-        "group relative -mx-3 rounded-md px-3 transition-colors duration-200 flow-row-pad",
-        !isEditing && "cursor-text hover:bg-surface/55",
+        "flow-row group relative flex gap-3 rounded-md transition-colors duration-200 flow-row-pad sm:gap-4",
+        actionsOpen && "flow-row-open",
+        !isEditing && "cursor-text",
         isEditing && "bg-surface",
         isReplyTarget && "bg-surface/55",
       )}
     >
-      <div className="flex gap-3 sm:gap-4">
-        {/* Left gutter: checkbox + time inline on one row. */}
-        <div
-          className={cn(
-            "hidden shrink-0 flex-row items-start gap-2 pt-[0.15rem] sm:flex",
-            keepGutter ? "w-28" : "w-8",
-          )}
-          style={depth > 1 ? { marginLeft: `${(depth - 1) * 1.1}rem` } : undefined}
-        >
+      {/* Left margin: checkbox + timestamp, revealed with the rest of the row. */}
+      <div
+        className="flow-meta hidden w-24 shrink-0 flex-row items-center gap-2 sm:flex"
+        style={{ height: "26.4px" }}
+      >
+        {!message.is_completed && (
           <button
             type="button"
             role="checkbox"
-            aria-checked={message.is_completed}
+            aria-checked={false}
             onClick={(event) => {
               event.stopPropagation();
               event.currentTarget.blur();
               onToggleComplete();
             }}
-            aria-label={message.is_completed ? "Mark as not done" : "Mark as done"}
-            title={message.is_completed ? "Mark as not done" : "Mark as done"}
-            className={cn(
-              "inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center border transition-colors duration-150",
-              message.is_completed
-                ? "border-primary/60 text-primary"
-                : "border-border text-transparent hover:border-muted-foreground/60",
-            )}
+            aria-label="Mark as done"
+            title="Mark as done"
+            className="inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center border border-border text-transparent transition-colors duration-150 hover:border-muted-foreground/60"
           >
             <Check className="h-2.5 w-2.5" />
           </button>
+        )}
 
-          {keepGutter && withTime && (
-            <div className="text-[11px] leading-5 tracking-wide whitespace-nowrap text-muted-foreground/55">
-              <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
-              {message.edited_at && <span className="text-muted-foreground/40"> · edited</span>}
-            </div>
-          )}
+        <div className="text-[11px] leading-none tabular-nums tracking-wide whitespace-nowrap text-muted-foreground/55">
+          <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
+          {offset && <span className="text-muted-foreground/40"> · {offset}</span>}
+          {message.edited_at && <span className="text-muted-foreground/40"> · edited</span>}
         </div>
+      </div>
 
-        <div className={cn("min-w-0 flex-1", isReply && "flow-reply-rail pl-3.5 sm:pl-4")}>
-          {isEditing ? (
-            <MessageEditor initialHtml={html} onCancel={onCancelEdit} onSave={onSaveEdit} />
-          ) : (
-            <>
-              {/* Narrow screens have no gutter: a quiet meta line leads instead. */}
-              <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] tracking-wide text-muted-foreground/55 sm:hidden">
+      <div
+        className={cn("min-w-0 flex-1", isReply && "flow-reply-rail pl-3.5 sm:pl-4")}
+        style={depth > 1 ? { marginLeft: `${(depth - 1) * 1.1}rem` } : undefined}
+      >
+        {isEditing ? (
+          <MessageEditor initialHtml={html} onCancel={onCancelEdit} onSave={onSaveEdit} />
+        ) : (
+          <>
+            {/* Narrow screens have no margins: a quiet meta line leads instead. */}
+            <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] tabular-nums tracking-wide text-muted-foreground/55 sm:hidden">
+              {!message.is_completed && (
                 <button
                   type="button"
                   role="checkbox"
-                  aria-checked={message.is_completed}
+                  aria-checked={false}
                   onClick={(event) => {
                     event.stopPropagation();
                     onToggleComplete();
                   }}
-                  aria-label={message.is_completed ? "Mark as not done" : "Mark as done"}
-                  className={cn(
-                    "inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center border transition-colors",
-                    message.is_completed
-                      ? "border-primary/60 text-primary"
-                      : "border-border text-transparent",
-                  )}
+                  aria-label="Mark as done"
+                  className="inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center border border-border text-transparent"
                 >
                   <Check className="h-2.5 w-2.5" />
                 </button>
-                {withTime && (
-                  <>
-                    <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
-                    {message.edited_at && <span> · edited</span>}
-                  </>
-                )}
-              </div>
+              )}
+              <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
+              {offset && <span> · {offset}</span>}
+              {message.edited_at && <span> · edited</span>}
+            </div>
 
-              <div className="flex items-start gap-4">
-                <div
-                  className={cn(
-                    "flow-prose min-w-0 flex-1",
-                    message.is_completed && "text-muted-foreground line-through decoration-1",
-                  )}
-                >
-                  <span dangerouslySetInnerHTML={{ __html: html }} />
-                </div>
+            <div
+              className={cn(
+                "flow-prose min-w-0",
+                message.is_completed && "line-through decoration-1",
+              )}
+            >
+              <span dangerouslySetInnerHTML={{ __html: html }} />
+            </div>
 
-                {/* Tags sit beside the text and step aside for the hover actions. */}
-                {tagPosition === "right" && tags.length > 0 && (
-                  <span className="hidden max-w-[34%] shrink-0 flex-wrap items-center justify-end gap-1.5 pt-[0.2rem] transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0 sm:flex">
+            {/* Tags live under the text and expand with the row. */}
+            {tags.length > 0 && (
+              <div className="flow-tagwrap">
+                <div>
+                  <div className="flex flex-wrap items-center gap-3 pt-1.5">
                     {tags.map((tag) => (
-                      <TagChip key={tag.id} tag={tag} style={tagStyle} />
+                      <TagLink key={tag.id} tag={tag} />
                     ))}
-                  </span>
-                )}
+                  </div>
+                </div>
               </div>
-
-              {/* One horizontal meta line: tags only. */}
-              {tagPosition === "below" && tags.length > 0 && (
-                <div className="mt-1.5 hidden flex-wrap items-center gap-2 text-[11px] leading-none tracking-wide text-muted-foreground/55 transition-opacity duration-150 group-focus-within:opacity-0 sm:flex">
-                  {tags.map((tag) => (
-                    <TagChip key={tag.id} tag={tag} style={tagStyle} />
-                  ))}
-                </div>
-              )}
-
-              {tags.length > 0 && (
-                <div className="mt-1 flex flex-wrap items-center gap-1.5 sm:hidden">
-                  {tags.map((tag) => (
-                    <TagChip key={tag.id} tag={tag} style={tagStyle} />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            )}
+          </>
+        )}
       </div>
 
-      {/* Common actions stay one click away; destructive actions live in the menu. */}
+      {/* Right margin: the four actions, no card, no border, no shadow. */}
       {!isEditing && (
         <div
-          className={cn(
-            "absolute right-2 top-1.5 flex items-center gap-0.5 rounded-md border border-border bg-popover p-0.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100",
-            actionsOpen && "opacity-100",
-          )}
+          className="flow-acts absolute right-1 flex items-center gap-2"
+          style={{ top: "var(--flow-row-pad, 0.55rem)", height: "26.4px" }}
         >
           <button
             type="button"
@@ -239,10 +218,11 @@ function MessageRowBase({
             }}
             aria-label="Reply"
             title="Reply"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-foreground"
+            className={actionButton}
           >
-            <Reply className="h-3.5 w-3.5" />
+            <Reply className={iconClass} />
           </button>
+
           {onSetType && (
             <Popover open={saveOpen} onOpenChange={setSaveOpen}>
               <PopoverTrigger asChild>
@@ -251,12 +231,9 @@ function MessageRowBase({
                   onClick={(event) => event.stopPropagation()}
                   aria-label="Save this"
                   title="Save this"
-                  className={cn(
-                    "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 hover:bg-elevated hover:text-foreground",
-                    message.type === "pinned" ? "text-primary" : "text-muted-foreground",
-                  )}
+                  className={cn(actionButton, message.type === "pinned" && "text-primary")}
                 >
-                  <BookmarkPlus className="h-3.5 w-3.5" />
+                  <BookmarkPlus className={iconClass} />
                 </button>
               </PopoverTrigger>
               <PopoverContent
@@ -304,12 +281,9 @@ function MessageRowBase({
               title={
                 message.remind_at ? `Reminder · ${reminderLabel(message.remind_at)}` : "Remind me"
               }
-              className={cn(
-                "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 hover:bg-elevated hover:text-foreground",
-                message.remind_at ? "text-primary" : "text-muted-foreground",
-              )}
+              className={cn(actionButton, message.remind_at && "text-primary")}
             >
-              <Bell className="h-3.5 w-3.5" />
+              <AlarmIcon />
             </button>
           </ReminderPopover>
 
@@ -319,9 +293,9 @@ function MessageRowBase({
                 type="button"
                 onClick={(event) => event.stopPropagation()}
                 aria-label="More actions"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-foreground"
+                className={actionButton}
               >
-                <MoreHorizontal className="h-3.5 w-3.5" />
+                <MoreHorizontal className={iconClass} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -329,6 +303,15 @@ function MessageRowBase({
               onClick={(event) => event.stopPropagation()}
               className="w-44 text-[12.5px]"
             >
+              {message.is_completed && (
+                <>
+                  <DropdownMenuItem onSelect={() => onToggleComplete()}>
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Mark as not done
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               {message.ai_cleaned && onRestoreOriginal && (
                 <>
                   <DropdownMenuItem onSelect={() => onRestoreOriginal()}>
@@ -357,6 +340,25 @@ function MessageRowBase({
         </div>
       )}
     </article>
+  );
+}
+
+/** A clock-face bell alternative: uniform stroke, no filled shapes. */
+function AlarmIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+      aria-hidden
+    >
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
   );
 }
 

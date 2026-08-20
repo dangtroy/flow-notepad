@@ -23,11 +23,8 @@ export type Appearance = {
   textSize: TextSize;
   density: Density;
   contentWidth: ContentWidth;
-  tagStyle: TagStyle;
-  tagPosition: TagPosition;
-  showTimestamps: boolean;
-  showReplyTimestamps: boolean;
-  showTags: boolean;
+  /** When on, row details stay revealed instead of waiting for hover. */
+  alwaysShowDetails: boolean;
   sidebarWidth: SidebarWidth;
   replySpacing: ReplySpacing;
   borderTone: BorderTone;
@@ -41,11 +38,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   textSize: "default",
   density: "comfortable",
   contentWidth: "default",
-  tagStyle: "pill",
-  tagPosition: "right",
-  showTimestamps: true,
-  showReplyTimestamps: true,
-  showTags: true,
+  alwaysShowDetails: false,
   sidebarWidth: "default",
   replySpacing: "comfortable",
   borderTone: "subtle",
@@ -133,16 +126,11 @@ export function readAppearance(): Appearance {
   }
 }
 
-/** Earlier versions kept theme and tag visibility in their own keys. */
+/** Earlier versions kept theme in its own key. */
 function migrateLegacy(): Appearance {
   const next = { ...DEFAULT_APPEARANCE };
   const theme = window.localStorage.getItem("flow-theme");
   if (theme === "light" || theme === "dark") next.theme = theme;
-  const tags = window.localStorage.getItem("flow-show-tags");
-  if (tags === "hidden") {
-    next.showTags = false;
-    next.showTimestamps = false;
-  }
   return next;
 }
 

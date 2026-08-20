@@ -5,8 +5,6 @@ import {
   CheckCheck,
   ChevronDown,
   ChevronRight,
-  Eye,
-  EyeOff,
   Inbox,
   LogOut,
   Moon,
@@ -50,7 +48,6 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const tags = useTags();
   const groups = useTagGroups();
   const { appearance, update, mode: themeMode } = useAppearance();
-  const showTags = appearance.showTags;
   const sort = appearance.tagSort;
 
   const clearDone = useServerFn(clearCompleted);
@@ -381,15 +378,6 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         >
           {themeMode === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
           {themeMode === "dark" ? "Light mode" : "Dark mode"}
-        </button>
-        <button
-          type="button"
-          onClick={() => update({ showTags: !showTags, showTimestamps: !showTags })}
-          className={cn(itemClass, "w-full text-left")}
-          aria-pressed={!showTags}
-        >
-          {showTags ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-          {showTags ? "Hide tags & timestamps" : "Show tags & timestamps"}
         </button>
 
         <button
