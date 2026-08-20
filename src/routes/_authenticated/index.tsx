@@ -123,6 +123,8 @@ function FlowPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; preview: string } | null>(null);
   const [railOpen, setRailOpen] = useState(true);
+  // Small screens have no room for the rail: it opens as a sheet instead.
+  const [panelSheet, setPanelSheet] = useState(false);
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
 
