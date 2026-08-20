@@ -5,8 +5,12 @@ type Client = SupabaseClient<Database>;
 
 export type FlowTag = { id: string; name: string; color: string | null };
 
+export type MessageType = "stream" | "pinned" | "reference";
+
 export type FlowMessage = {
   id: string;
+  /** stream = normal note, pinned = temporarily important, reference = permanent fact. */
+  type: MessageType;
   content: string;
   content_html: string | null;
   is_completed: boolean;
