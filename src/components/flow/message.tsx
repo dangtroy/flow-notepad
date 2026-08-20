@@ -173,26 +173,6 @@ function MessageRowBase({
   const withTime = showTimestamps && (!isReply || showReplyTimestamps);
   const keepGutter = showTimestamps;
 
-  const metaBits = (
-    <>
-      {isPinnedNote && <Pin className="h-3 w-3 text-primary/70" aria-label="Pinned" />}
-      {message.remind_at && (
-        <ReminderPopover value={message.remind_at} onChange={onSetReminder}>
-          <button
-            type="button"
-            onClick={(event) => event.stopPropagation()}
-            aria-label={`Reminder ${reminderLabel(message.remind_at)}`}
-            title={`Reminder · ${reminderLabel(message.remind_at)}`}
-            className="inline-flex items-center gap-1 text-muted-foreground/60 transition-colors hover:text-primary"
-          >
-            <Bell className="h-3 w-3" />
-            {reminderLabel(message.remind_at)}
-          </button>
-        </ReminderPopover>
-      )}
-    </>
-  );
-
   return (
     <article
       data-message-id={message.id}
@@ -206,7 +186,7 @@ function MessageRowBase({
       )}
     >
       <div className="flex gap-3 sm:gap-4">
-        {/* Left gutter: the completion checkbox, with the time quietly beneath. */}
+        {/* Left gutter: checkbox, status indicators, then time. */}
         <div className="hidden w-12 shrink-0 flex-col items-end gap-1 pt-[0.15rem] sm:flex">
           <button
             type="button"
@@ -228,6 +208,22 @@ function MessageRowBase({
           >
             <Check className="h-2.5 w-2.5" />
           </button>
+
+          {/* Top-left status indicators: diamond, pin, bell. */}
+          <div className="flex h-3.5 items-center justify-end gap-0.5">
+            {message.ai_cleaned && (
+              <CleanedMark
+                message={message}
+                onRestoreOriginal={onRestoreOriginal}
+                className="h-3.5 w-3.5 text-[0.65em]"
+              />
+            )}
+            {isPinnedNote && <Pin className="h-3 w-3 text-primary/70" aria-label="Pinned" />}
+            {message.remind_at && (
+              <Bell className="h-3 w-3 text-primary/70" aria-label="Reminder set" />
+            )}
+          </div>
+
           {keepGutter && withTime && (
             <div className="text-right text-[11px] leading-5 tracking-wide whitespace-nowrap text-muted-foreground/55">
               <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
@@ -264,7 +260,14 @@ function MessageRowBase({
                 >
                   <Check className="h-2.5 w-2.5" />
                 </button>
-                {isPinnedNote && <Pin className="h-3 w-3 text-primary/70" />}
+                {message.ai_cleaned && (
+                  <CleanedMark
+                    message={message}
+                    onRestoreOriginal={onRestoreOriginal}
+                    className="h-3.5 w-3.5 text-[0.65em] opacity-100"
+                  />
+                )}
+                {isPinnedNote && <Pin className="h-3 w-3 text-primary/70" aria-label="Pinned" />}
                 {message.remind_at && (
                   <span className="inline-flex items-center gap-1">
                     <Bell className="h-3 w-3 text-muted-foreground/60" />
@@ -286,13 +289,6 @@ function MessageRowBase({
                     message.is_completed && "text-muted-foreground line-through decoration-1",
                   )}
                 >
-                  {message.ai_cleaned && (
-                    <CleanedMark
-                      message={message}
-                      onRestoreOriginal={onRestoreOriginal}
-                      className="float-left -ml-0.5 mr-0.5"
-                    />
-                  )}
                   <span dangerouslySetInnerHTML={{ __html: html }} />
                 </div>
 
@@ -306,14 +302,12 @@ function MessageRowBase({
                 )}
               </div>
 
-              {/* One horizontal meta line: pin, reminder, then the tags. */}
-              {(isPinnedNote ||
-                message.remind_at ||
-                (tagPosition === "below" && tags.length > 0)) && (
+              {/* One horizontal meta line: tags only (pin/bell/diamond now live in the gutter). */}
+              {tagPosition === "below" && tags.length > 0 && (
                 <div className="mt-1.5 hidden flex-wrap items-center gap-2 text-[11px] leading-none tracking-wide text-muted-foreground/55 transition-opacity duration-150 group-focus-within:opacity-0 sm:flex">
-                  {metaBits}
-                  {tagPosition === "below" &&
-                    tags.map((tag) => <TagChip key={tag.id} tag={tag} style={tagStyle} />)}
+                  {tags.map((tag) => (
+                    <TagChip key={tag.id} tag={tag} style={tagStyle} />
+                  ))}
                 </div>
               )}
 
