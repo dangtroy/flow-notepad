@@ -365,7 +365,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           );
         })}
 
-        {list.length === 0 && (
+        {visible.length === 0 && (
           <p className="mt-5 px-2.5 text-[12px] leading-relaxed text-muted-foreground/45">
             Tags will appear here as your stream grows.
           </p>
