@@ -379,6 +379,40 @@ function FlowPage() {
     }
   }
 
+  /** Reference notes live outside the stream cache, so they refetch on change. */
+  async function handleSaveReferenceEdit(id: string, html: string) {
+    try {
+      await edit({ data: { id, html } });
+      void queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) });
+      void organizeInBackground(id).then(() =>
+        queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) }),
+      );
+    } catch {
+      toast.error("Could not save that note");
+    }
+  }
+
+  async function handleReferenceType(id: string, type: MessageType) {
+    try {
+      await changeType({ data: { id, type } });
+      void queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) });
+      void queryClient.invalidateQueries({ queryKey: streamKey });
+      toast.success("Moved back to your stream");
+    } catch {
+      toast.error("Could not move that note");
+    }
+  }
+
+  async function handleReferenceDelete(id: string) {
+    try {
+      await destroy({ data: { id } });
+      void queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) });
+      void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
+    } catch {
+      toast.error("Could not remove that note");
+    }
+  }
+
   /** Promotes a note between the stream, pinned, and reference kinds. */
   async function handleSetType(message: FlowMessage, type: MessageType) {
     const previous = message.type;
@@ -582,12 +616,53 @@ function FlowPage() {
         onJump={jumpToMessage}
       />
 
+        <div className="flow-shell flex items-center gap-1 px-5 pt-5 sm:px-8">
+          {(["stream", "reference"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() =>
+                void navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    view: option === "reference" ? ("reference" as const) : undefined,
+                  }),
+                })
+              }
+              className={cn(
+                "rounded-md border px-2.5 py-1 text-[10.5px] uppercase tracking-[0.14em] transition-colors duration-150",
+                view === option
+                  ? "border-border bg-surface text-foreground"
+                  : "border-transparent text-muted-foreground/60 hover:text-foreground",
+              )}
+            >
+              {option === "stream" ? "Stream" : "Reference"}
+            </button>
+          ))}
+        </div>
+
       <div
         ref={scrollRef}
         onScroll={onScroll}
         className="flex-1 overflow-y-auto overscroll-contain"
       >
-        <div className="flow-shell flex min-h-full flex-col justify-end px-5 pb-8 pt-8 sm:px-8">
+        <div
+          className={cn(
+            "flow-shell flex min-h-full flex-col px-5 pb-8 pt-8 sm:px-8",
+            view === "reference" ? "justify-start" : "justify-end",
+          )}
+        >
+          {view === "reference" ? (
+            <ReferenceList
+              notes={reference.data?.messages ?? []}
+              isPending={reference.isPending}
+              tagStyle={appearance.tagStyle}
+              onSaveEdit={(id, html) => void handleSaveReferenceEdit(id, html)}
+              onMoveToStream={(id) => void handleReferenceType(id, "stream")}
+              onDelete={(id) => void handleReferenceDelete(id)}
+            />
+          ) : (
+          <>
           {hasNextPage && (
             <p className="pb-6 text-center text-[11px] uppercase tracking-[0.16em] text-muted-foreground/45">
               {isFetchingNextPage ? "Loading earlier thoughts…" : "Scroll up for earlier thoughts"}
@@ -662,6 +737,7 @@ function FlowPage() {
 
                             onTogglePin={() => void handleTogglePin(message)}
                             onSetReminder={(iso) => void handleSetReminder(message, iso)}
+                            onSetType={(type) => void handleSetType(message, type)}
                             onToggleComplete={() => void handleToggleComplete(message)}
                             onDeleteNow={() => void handleDeleteNow(message)}
                             onRestoreOriginal={() => void handleRestoreOriginal(message)}
@@ -679,6 +755,8 @@ function FlowPage() {
                 </section>
               );
             })
+          )}
+          </>
           )}
         </div>
       </div>
