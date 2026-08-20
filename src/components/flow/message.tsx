@@ -254,7 +254,7 @@ function MessageRowBase({
                   }}
                   aria-label={message.is_completed ? "Mark as not done" : "Mark as done"}
                   className={cn(
-                    "inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded-sm border transition-colors",
+                    "inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded border transition-colors",
                     message.is_completed
                       ? "border-primary/60 text-primary"
                       : "border-border text-transparent",
