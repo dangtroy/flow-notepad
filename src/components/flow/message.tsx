@@ -123,7 +123,6 @@ function MessageRowBase({
   onDeleteNow,
   onReply,
   onRestoreOriginal,
-  onTogglePin,
   onSetReminder,
   onSetType,
 }: {
@@ -143,7 +142,6 @@ function MessageRowBase({
   onDeleteNow: () => void;
   onReply: () => void;
   onRestoreOriginal?: () => void;
-  onTogglePin: () => void;
   onSetReminder: (iso: string | null) => void;
   /** Promotes the note between stream and pinned kinds, or out to Reference. */
   onSetType?: (type: MessageType) => void;
@@ -167,8 +165,7 @@ function MessageRowBase({
   const [menuOpen, setMenuOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const actionsOpen = reminderOpen || menuOpen || saveOpen;
-  // Both the legacy pin flag and the "pinned" note kind read as pinned.
-  const isPinnedNote = message.is_pinned || message.type === "pinned";
+  const isPinnedNote = message.type === "pinned";
 
 
   const isReply = depth > 0;
@@ -239,7 +236,7 @@ function MessageRowBase({
                 {message.ai_cleaned && (
                   <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
                 )}
-                {message.is_pinned && <Pin className="h-3 w-3 text-primary/70" />}
+                {isPinnedNote && <Pin className="h-3 w-3 text-primary/70" />}
                 {message.remind_at && (
                   <span className="inline-flex items-center gap-1">
                     <Bell className="h-3 w-3 text-muted-foreground/60" />
@@ -330,23 +327,6 @@ function MessageRowBase({
           >
             <Reply className="h-3.5 w-3.5" />
           </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              event.currentTarget.blur();
-              onTogglePin();
-            }}
-            aria-label={message.is_pinned ? "Unpin" : "Pin"}
-            title={message.is_pinned ? "Unpin" : "Pin"}
-            className={cn(
-              "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 hover:bg-elevated hover:text-foreground",
-              message.is_pinned ? "text-primary" : "text-muted-foreground",
-            )}
-          >
-            <Pin className="h-3.5 w-3.5" />
-          </button>
-
           {onSetType && (
             <Popover open={saveOpen} onOpenChange={setSaveOpen}>
               <PopoverTrigger asChild>

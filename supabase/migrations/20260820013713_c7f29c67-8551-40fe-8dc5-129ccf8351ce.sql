@@ -1,0 +1,1 @@
+UPDATE public.messages SET type = 'pinned' WHERE is_pinned = true AND type = 'stream';

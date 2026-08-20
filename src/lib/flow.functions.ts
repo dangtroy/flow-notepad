@@ -1090,27 +1090,6 @@ export const reorderNotepadList = createServerFn({ method: "POST" })
 
 /* ---------- Pins & reminders ---------- */
 
-export const setMessagePin = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { id: string; pinned: boolean }) => {
-    if (!input?.id) throw new Error("Missing message");
-    return { id: input.id, pinned: Boolean(input.pinned) };
-  })
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: message, error } = await supabase
-      .from("messages")
-      .update({
-        is_pinned: data.pinned,
-        pinned_at: data.pinned ? new Date().toISOString() : null,
-      } as never)
-      .eq("id", data.id)
-      .eq("user_id", userId)
-      .select(MESSAGE_SELECT)
-      .single();
-    if (error) throw error;
-    return mapMessage(message as never);
-  });
 
 /** Sets, moves, or clears a note's in-app reminder. */
 export const setMessageReminder = createServerFn({ method: "POST" })
@@ -1199,6 +1178,9 @@ export const setMessageType = createServerFn({ method: "POST" })
       .from("messages")
       .update({
         type: data.type,
+        // `type` is the source of truth; `is_pinned`/`pinned_at` mirror it.
+        is_pinned: data.type === "pinned",
+        pinned_at: data.type === "pinned" ? new Date().toISOString() : null,
         ...(data.type === "reference" ? { is_completed: false, completed_at: null } : {}),
       } as never)
       .eq("id", data.id)

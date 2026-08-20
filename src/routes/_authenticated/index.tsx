@@ -20,7 +20,6 @@ import {
   restoreOriginalMessage,
   sendMessage,
   setMessageCompletion,
-  setMessagePin,
   setMessageReminder,
   setMessageType,
   updateMessage,
@@ -101,7 +100,6 @@ function FlowPage() {
   const cleanup = useServerFn(cleanupCompleted);
   const destroy = useServerFn(deleteMessageNow);
   const restoreOriginal = useServerFn(restoreOriginalMessage);
-  const pin = useServerFn(setMessagePin);
   const remind = useServerFn(setMessageReminder);
   const dismiss = useServerFn(dismissReminder);
   const fetchPinned = useServerFn(getPinnedMessages);
@@ -420,6 +418,7 @@ function FlowPage() {
     try {
       const saved = await changeType({ data: { id: message.id, type } });
       patchMessage(message.id, saved as FlowMessage);
+      refreshPinsAndReminders();
       if (type === "reference" || previous === "reference") {
         void queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) });
         void queryClient.invalidateQueries({ queryKey: streamKey });
@@ -559,21 +558,6 @@ function FlowPage() {
     }
   }, []);
 
-  async function handleTogglePin(message: FlowMessage) {
-    const next = !message.is_pinned;
-    patchMessage(message.id, {
-      is_pinned: next,
-      pinned_at: next ? new Date().toISOString() : null,
-    });
-    try {
-      await pin({ data: { id: message.id, pinned: next } });
-      refreshPinsAndReminders();
-    } catch {
-      patchMessage(message.id, { is_pinned: message.is_pinned, pinned_at: message.pinned_at });
-      toast.error("Could not pin that thought");
-    }
-  }
-
   async function handleSetReminder(message: FlowMessage, iso: string | null) {
     patchMessage(message.id, { remind_at: iso, reminder_dismissed_at: null });
     try {
@@ -612,7 +596,7 @@ function FlowPage() {
         onSnooze={(message, iso) => void handleSetReminder(message, iso)}
         onComplete={(message) => void handleCompleteFromReminder(message)}
         onDismiss={(message) => void handleDismissReminder(message)}
-        onUnpin={(message) => void handleTogglePin(message)}
+        onUnpin={(message) => void handleSetType(message, "stream")}
         onJump={jumpToMessage}
       />
 
@@ -735,7 +719,6 @@ function FlowPage() {
                             tagStyle={appearance.tagStyle}
                             tagPosition={appearance.tagPosition}
 
-                            onTogglePin={() => void handleTogglePin(message)}
                             onSetReminder={(iso) => void handleSetReminder(message, iso)}
                             onSetType={(type) => void handleSetType(message, type)}
                             onToggleComplete={() => void handleToggleComplete(message)}
