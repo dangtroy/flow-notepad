@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { clearCompleted, reorderTags, saveTag, saveTagGroup } from "@/lib/flow.functions";
 import { FlowLogo } from "@/components/flow/flow-logo";
-import type { FlowTagDetail } from "@/lib/flow.server";
+import type { FlowTagDetail, FlowTagGroup } from "@/lib/flow.server";
 import { tagsKey, tagGroupsKey, useTagGroups, useTags } from "@/lib/use-tags";
 import { tagAccent } from "@/lib/tag-colors";
 import { tagIdsFrom, tagsParam, toggleTagId } from "@/lib/tag-filter";
@@ -121,16 +121,20 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
   async function toggleCollapsed(section: TagSection) {
     if (!section.group) return;
-    const next = !section.group.is_collapsed;
+    const group = section.group;
+    const next = !group.is_collapsed;
+    // Collapse instantly; the server catches up behind the UI.
+    queryClient.setQueryData<FlowTagGroup[]>(tagGroupsKey(notepadId), (current) =>
+      (current ?? []).map((row) => (row.id === group.id ? { ...row, is_collapsed: next } : row)),
+    );
     try {
-      queryClient.setQueryData(
-        tagGroupsKey(notepadId),
-        await persistGroup({ data: { id: section.group.id, isCollapsed: next, notepadId } }),
-      );
+      await persistGroup({ data: { id: group.id, isCollapsed: next, notepadId } });
     } catch {
       toast.error("Could not update that group");
+      void queryClient.invalidateQueries({ queryKey: tagGroupsKey(notepadId) });
     }
   }
+
 
   /** Manual sorting: a drag sets both the order and the group it landed in. */
   async function handleDrop(section: TagSection, beforeId: string | null) {
@@ -340,7 +344,13 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
               </div>
 
               {!collapsed && (
-                <div className="mt-1.5 min-h-[0.5rem] space-y-0.5">
+                <div
+                  className={cn(
+                    "mt-1 min-h-[0.5rem] space-y-0.5",
+                    section.kind === "group" &&
+                      "ml-[0.85rem] border-l border-sidebar-border/70 pl-1.5",
+                  )}
+                >
                   {section.tags.map((tag) => tagRow(tag, section))}
                   {section.tags.length === 0 && (
                     <p className="px-2.5 text-[12px] leading-relaxed text-muted-foreground/45">
