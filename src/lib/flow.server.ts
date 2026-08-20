@@ -423,3 +423,24 @@ export async function loadDueReminders(
   if (error) throw error;
   return ((data ?? []) as unknown as MessageRow[]).map(mapMessage);
 }
+
+/**
+ * Reference notes: permanently useful facts with no action expected. Small lists
+ * by nature, so no pagination — just a sane cap.
+ */
+export async function loadReferenceNotes(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+): Promise<FlowMessage[]> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select(MESSAGE_SELECT)
+    .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
+    .eq("type", "reference")
+    .order("updated_at", { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  return ((data ?? []) as unknown as MessageRow[]).map(mapMessage);
+}
