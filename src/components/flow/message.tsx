@@ -457,7 +457,7 @@ function MessageRowBase({
   );
 }
 
-function MessageEditor({
+export function MessageEditor({
   initialHtml,
   onSave,
   onCancel,
