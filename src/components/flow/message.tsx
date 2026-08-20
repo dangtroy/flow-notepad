@@ -145,6 +145,8 @@ function MessageRowBase({
   onRestoreOriginal?: () => void;
   onTogglePin: () => void;
   onSetReminder: (iso: string | null) => void;
+  /** Promotes the note between stream and pinned kinds, or out to Reference. */
+  onSetType?: (type: MessageType) => void;
 }) {
   const html = useMemo(
     () => sanitizeHtml(message.content_html ?? textToHtml(message.content)),
