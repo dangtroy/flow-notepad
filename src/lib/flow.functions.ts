@@ -1178,6 +1178,9 @@ export const setMessageType = createServerFn({ method: "POST" })
       .from("messages")
       .update({
         type: data.type,
+        // `type` is the source of truth; `is_pinned`/`pinned_at` mirror it.
+        is_pinned: data.type === "pinned",
+        pinned_at: data.type === "pinned" ? new Date().toISOString() : null,
         ...(data.type === "reference" ? { is_completed: false, completed_at: null } : {}),
       } as never)
       .eq("id", data.id)
