@@ -11,24 +11,24 @@ import { TagChip } from "./tag-chip";
 type Group = { key: string; label: string; notes: FlowMessage[] };
 
 /**
- * Reference notes are grouped by tag, alphabetically, with untagged notes last —
- * the same convention the sidebar uses for ungrouped tags. A note with several
- * tags appears under each of them; it's never deduplicated away from a group.
+ * Reference notes are grouped by their primary tag (the first tag in the
+ * note's own tags array), alphabetically, with untagged notes last — the same
+ * convention the sidebar uses for ungrouped tags. A note's remaining tags
+ * still render as chips on its row, but they no longer create extra groups.
  */
 export function groupReferenceNotes(notes: FlowMessage[]): Group[] {
   const byTag = new Map<string, Group>();
   const general: FlowMessage[] = [];
 
   for (const note of notes) {
-    if (!note.tags.length) {
+    const primary = note.tags[0];
+    if (!primary) {
       general.push(note);
       continue;
     }
-    for (const tag of note.tags) {
-      const group = byTag.get(tag.id) ?? { key: tag.id, label: tag.name, notes: [] };
-      group.notes.push(note);
-      byTag.set(tag.id, group);
-    }
+    const group = byTag.get(primary.id) ?? { key: primary.id, label: primary.name, notes: [] };
+    group.notes.push(note);
+    byTag.set(primary.id, group);
   }
 
   const groups = [...byTag.values()].sort((a, b) => a.label.localeCompare(b.label));
