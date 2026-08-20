@@ -110,11 +110,11 @@ function MessageRowBase({
         isReplyTarget && "bg-surface/55",
       )}
     >
-      <div className="flex gap-3 sm:gap-4">
-        {/* Left gutter: checkbox + time inline on one row. */}
+      <div className="flex items-start gap-1.5 sm:gap-2">
+        {/* Left gutter: checkbox + time inline on one row, timestamp flushed right. */}
         <div
           className={cn(
-            "hidden shrink-0 flex-row items-start gap-2 pt-[0.15rem] sm:flex",
+            "hidden shrink-0 flex-row items-start justify-between sm:flex",
             keepGutter ? "w-28" : "w-8",
           )}
           style={depth > 1 ? { marginLeft: `${(depth - 1) * 1.1}rem` } : undefined}
