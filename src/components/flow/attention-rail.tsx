@@ -21,13 +21,13 @@ function Badge({ value }: { value: number }) {
   );
 }
 
-function SectionLabel({ children, count }: { children: React.ReactNode; count: number }) {
+function SectionLabel({ children, count }: { children: React.ReactNode; count?: number }) {
   return (
     <div className="mb-2 flex items-center gap-2">
       <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/55">
         {children}
       </span>
-      <Badge value={count} />
+      {count !== undefined && <Badge value={count} />}
     </div>
   );
 }
@@ -263,7 +263,7 @@ export function AttentionRail({
         </section>
 
         <section>
-          <SectionLabel count={0}>This Week</SectionLabel>
+          <SectionLabel>This Week</SectionLabel>
           <dl className="flex flex-col gap-1.5 text-[12px]">
             {[
               { label: "Captured", value: stats.captured },
