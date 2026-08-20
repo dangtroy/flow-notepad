@@ -115,6 +115,7 @@ export const sendMessage = createServerFn({ method: "POST" })
       .insert({
         user_id: userId,
         conversation_id: conversationId,
+        type: data.type,
         content: data.text,
         content_html: data.html,
         parent_message_id: parentId,
