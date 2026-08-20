@@ -680,8 +680,8 @@ function FlowPage() {
           counts={counts}
           query={queryInput}
           onQueryChange={setQueryInput}
-          railOpen={railOpen}
-          onToggleRail={() => setRailOpen((value) => !value)}
+          attentionCount={dueReminders.length + pinned.length}
+          onOpenPanel={() => setPanelSheet(true)}
         />
 
       <div
@@ -693,7 +693,8 @@ function FlowPage() {
           className={cn(
             "flow-stream flow-shell flex min-h-full flex-col px-5 pb-8 pt-8 sm:px-8",
             appearance.alwaysShowDetails && "always-show",
-            view === "reference" ? "justify-start" : "justify-end",
+            // Only the live stream reads bottom-up; the saved views are lists.
+            view === "all" || view === "today" ? "justify-end" : "justify-start",
           )}
         >
           {view === "reference" ? (
