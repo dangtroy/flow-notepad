@@ -169,7 +169,18 @@ export async function loadStreamPage(
   supabase: Client,
   userId: string,
   notepadId: string,
-  options: { limit: number; before?: string | null; tagIds?: string[]; mode?: FilterMode },
+  options: {
+    limit: number;
+    before?: string | null;
+    tagIds?: string[];
+    mode?: FilterMode;
+    /** Case-insensitive substring match over the note text. */
+    query?: string | null;
+    /** Lower bound on created_at (client-computed local midnight for "Today"). */
+    since?: string | null;
+    /** Narrows the note kinds included; defaults to the stream set. */
+    types?: MessageType[];
+  },
 ): Promise<StreamPage> {
   const tagIds = options.tagIds ?? [];
   let ids: string[] | null = null;
@@ -184,12 +195,14 @@ export async function loadStreamPage(
     .eq("user_id", userId)
     .eq("conversation_id", notepadId)
     // Reference notes are permanent facts; they live only in the Reference view.
-    .in("type", ["stream", "pinned"])
+    .in("type", options.types ?? ["stream", "pinned"])
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(options.limit + 1);
   if (ids) query = query.in("id", ids);
   if (options.before) query = query.lt("created_at", options.before);
+  if (options.since) query = query.gte("created_at", options.since);
+  if (options.query) query = query.ilike("content", `%${options.query}%`);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -204,6 +217,58 @@ export async function loadStreamPage(
     nextCursor: hasMore && oldest ? oldest.created_at : null,
   };
 }
+
+/** Counts for the All / Today / Pinned / Reference tab badges. */
+export async function loadViewCounts(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+  since: string,
+) {
+  const base = () =>
+    supabase
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("conversation_id", notepadId);
+
+  const [all, today, pinned, reference] = await Promise.all([
+    base().in("type", ["stream", "pinned"]),
+    base().in("type", ["stream", "pinned"]).gte("created_at", since),
+    base().eq("type", "pinned"),
+    base().eq("type", "reference"),
+  ]);
+
+  return {
+    all: all.count ?? 0,
+    today: today.count ?? 0,
+    pinned: pinned.count ?? 0,
+    reference: reference.count ?? 0,
+  };
+}
+
+/** Captured / completed in the last seven days, for the rail's week summary. */
+export async function loadWeekStats(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+  since: string,
+) {
+  const base = () =>
+    supabase
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("conversation_id", notepadId);
+
+  const [captured, completed] = await Promise.all([
+    base().gte("created_at", since),
+    base().eq("is_completed", true).gte("completed_at", since),
+  ]);
+
+  return { captured: captured.count ?? 0, completed: completed.count ?? 0 };
+}
+
 
 export type FlowTagDetail = {
   id: string;
