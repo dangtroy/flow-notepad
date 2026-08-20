@@ -73,12 +73,15 @@ export const sendMessage = createServerFn({ method: "POST" })
       /** Set only when AI writing cleanup produced the text being sent. */
       originalHtml?: string | null;
       cleanedHtml?: string | null;
+      /** Pinning is only ever a promotion afterwards, never a creation choice. */
+      type?: "stream" | "reference";
     }) => {
       const html = sanitizeHtml(input?.html ?? "");
       if (!html || isEmptyDocument(html)) throw new Error("A thought cannot be empty");
       const originalHtml = input?.originalHtml ? sanitizeHtml(input.originalHtml) : null;
       const cleanedHtml = input?.cleanedHtml ? sanitizeHtml(input.cleanedHtml) : null;
       return {
+        type: input?.type === "reference" ? ("reference" as const) : ("stream" as const),
         html: html.slice(0, 200000),
         text: htmlToText(html).slice(0, 20000),
         parentMessageId: input?.parentMessageId ?? null,
