@@ -22,26 +22,33 @@ import {
   setMessageCompletion,
   setMessagePin,
   setMessageReminder,
+  setMessageType,
   updateMessage,
 } from "@/lib/flow.functions";
-import type { FlowMessage } from "@/lib/flow.server";
+import type { FlowMessage, MessageType } from "@/lib/flow.server";
 import { htmlToText } from "@/lib/rich-text";
 import { tagIdsFrom, type FilterMode } from "@/lib/tag-filter";
 import { useAppearance } from "@/lib/use-appearance";
-import { tagsKey } from "@/lib/use-tags";
+import { referenceKey, tagsKey, useReferenceNotes } from "@/lib/use-tags";
 import { useActiveNotepadId } from "@/lib/use-notepad";
 import { Composer, type CleanupMeta } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
 import { ContextBar } from "@/components/flow/context-bar";
+import { ReferenceList } from "@/components/flow/reference-list";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/")({
   validateSearch: (
     search: Record<string, unknown>,
-  ): { tags?: string | undefined; mode?: FilterMode | undefined } => ({
+  ): {
+    tags?: string | undefined;
+    mode?: FilterMode | undefined;
+    view?: "reference" | undefined;
+  } => ({
     tags:
       typeof search["tags"] === "string" && search["tags"] ? (search["tags"] as string) : undefined,
     mode: search["mode"] === "and" ? "and" : undefined,
+    view: search["view"] === "reference" ? "reference" : undefined,
   }),
   head: () => ({
     meta: [
@@ -99,12 +106,18 @@ function FlowPage() {
   const dismiss = useServerFn(dismissReminder);
   const fetchPinned = useServerFn(getPinnedMessages);
   const fetchDue = useServerFn(getDueReminders);
+  const changeType = useServerFn(setMessageType);
+  const navigate = Route.useNavigate();
   const { appearance } = useAppearance();
   const notepadId = useActiveNotepadId();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; preview: string } | null>(null);
   const [showPinnedContext, setShowPinnedContext] = useState(true);
+
+  // Reference notes are a separate, tag-grouped view over the same notepad.
+  const view: "stream" | "reference" = search.view === "reference" ? "reference" : "stream";
+  const reference = useReferenceNotes();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<number | null>(null);
@@ -296,6 +309,28 @@ function FlowPage() {
   }
 
   async function handleSend(html: string, cleanup: CleanupMeta) {
+    // Sending while the Reference view is open keeps the note there.
+    if (view === "reference") {
+      try {
+        const saved = await send({
+          data: {
+            html,
+            notepadId,
+            type: "reference",
+            originalHtml: cleanup?.originalHtml ?? null,
+            cleanedHtml: cleanup?.cleanedHtml ?? null,
+          },
+        });
+        void queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) });
+        void organizeInBackground(saved.id).then(() =>
+          queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) }),
+        );
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not save that thought");
+      }
+      return;
+    }
+
     const tempId = `temp-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
     const parentMessageId = replyTo?.id ?? null;
@@ -304,6 +339,7 @@ function FlowPage() {
       ...current,
       {
         id: tempId,
+        type: "stream",
         content: htmlToText(html),
         content_html: html,
         is_completed: false,
@@ -340,6 +376,26 @@ function FlowPage() {
     } catch (error) {
       patchStream((current) => current.filter((m) => m.id !== tempId));
       toast.error(error instanceof Error ? error.message : "Could not save that thought");
+    }
+  }
+
+  /** Promotes a note between the stream, pinned, and reference kinds. */
+  async function handleSetType(message: FlowMessage, type: MessageType) {
+    const previous = message.type;
+    patchMessage(message.id, { type });
+    try {
+      const saved = await changeType({ data: { id: message.id, type } });
+      patchMessage(message.id, saved as FlowMessage);
+      if (type === "reference" || previous === "reference") {
+        void queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) });
+        void queryClient.invalidateQueries({ queryKey: streamKey });
+      }
+      toast.success(
+        type === "reference" ? "Kept as reference" : type === "pinned" ? "Pinned" : "Back in stream",
+      );
+    } catch {
+      patchMessage(message.id, { type: previous });
+      toast.error("Could not change that note");
     }
   }
 
