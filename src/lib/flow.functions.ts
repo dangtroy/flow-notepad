@@ -7,6 +7,9 @@ import {
   loadPinnedMessages,
   loadReferenceNotes,
   loadStreamPage,
+  loadViewCounts,
+  loadWeekStats,
+
   loadTagGroups,
   loadTags,
   MESSAGE_SELECT,
