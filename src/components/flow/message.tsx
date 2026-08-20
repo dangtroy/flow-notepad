@@ -279,7 +279,12 @@ function MessageRowBase({
 
       {/* Common actions stay one click away; destructive actions live in the menu. */}
       {!isEditing && (
-        <div className="absolute right-2 top-1.5 flex items-center gap-0.5 rounded-md border border-border bg-popover/95 p-0.5 opacity-0 shadow-quiet backdrop-blur transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
+        <div
+          className={cn(
+            "absolute right-2 top-1.5 flex items-center gap-0.5 rounded-md border border-border bg-popover/95 p-0.5 opacity-0 shadow-quiet backdrop-blur transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100",
+            actionsOpen && "opacity-100",
+          )}
+        >
           <button
             type="button"
             onClick={(event) => {
