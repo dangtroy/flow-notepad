@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { clearCompleted, reorderTags, saveTag, saveTagGroup } from "@/lib/flow.functions";
 import { FlowLogo } from "@/components/flow/flow-logo";
-import type { FlowTagDetail } from "@/lib/flow.server";
+import type { FlowTagDetail, FlowTagGroup } from "@/lib/flow.server";
 import { tagsKey, tagGroupsKey, useTagGroups, useTags } from "@/lib/use-tags";
 import { tagAccent } from "@/lib/tag-colors";
 import { tagIdsFrom, tagsParam, toggleTagId } from "@/lib/tag-filter";
@@ -344,7 +344,13 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
               </div>
 
               {!collapsed && (
-                <div className="mt-1.5 min-h-[0.5rem] space-y-0.5">
+                <div
+                  className={cn(
+                    "mt-1 min-h-[0.5rem] space-y-0.5",
+                    section.kind === "group" &&
+                      "ml-[0.85rem] border-l border-sidebar-border/70 pl-1.5",
+                  )}
+                >
                   {section.tags.map((tag) => tagRow(tag, section))}
                   {section.tags.length === 0 && (
                     <p className="px-2.5 text-[12px] leading-relaxed text-muted-foreground/45">
