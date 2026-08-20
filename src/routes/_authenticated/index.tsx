@@ -670,6 +670,23 @@ function FlowPage() {
     );
   }, [reference.data, query]);
 
+  /** One set of panel handlers, shared by the rail and its small-screen sheet. */
+  const railProps = {
+    reminders: dueReminders,
+    pinned,
+    stats: {
+      captured: weekData?.captured ?? 0,
+      completed: weekData?.completed ?? 0,
+      references: counts.reference,
+    },
+    onSnooze: (message: FlowMessage, iso: string) => void handleSetReminder(message, iso),
+    onComplete: (message: FlowMessage) => void handleCompleteFromReminder(message),
+    onDismiss: (message: FlowMessage) => void handleDismissReminder(message),
+    onUnpin: (message: FlowMessage) => void handleSetType(message, "stream"),
+    onJump: jumpToMessage,
+  };
+
+
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-h-0 flex-1 flex-col">
