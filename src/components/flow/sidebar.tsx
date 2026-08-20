@@ -121,16 +121,20 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
   async function toggleCollapsed(section: TagSection) {
     if (!section.group) return;
-    const next = !section.group.is_collapsed;
+    const group = section.group;
+    const next = !group.is_collapsed;
+    // Collapse instantly; the server catches up behind the UI.
+    queryClient.setQueryData<FlowTagGroup[]>(tagGroupsKey(notepadId), (current) =>
+      (current ?? []).map((row) => (row.id === group.id ? { ...row, is_collapsed: next } : row)),
+    );
     try {
-      queryClient.setQueryData(
-        tagGroupsKey(notepadId),
-        await persistGroup({ data: { id: section.group.id, isCollapsed: next, notepadId } }),
-      );
+      await persistGroup({ data: { id: group.id, isCollapsed: next, notepadId } });
     } catch {
       toast.error("Could not update that group");
+      void queryClient.invalidateQueries({ queryKey: tagGroupsKey(notepadId) });
     }
   }
+
 
   /** Manual sorting: a drag sets both the order and the group it landed in. */
   async function handleDrop(section: TagSection, beforeId: string | null) {
