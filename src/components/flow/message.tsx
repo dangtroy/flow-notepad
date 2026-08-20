@@ -279,6 +279,7 @@ function MessageRowBase({
             type="button"
             onClick={(event) => {
               event.stopPropagation();
+              event.currentTarget.blur();
               onToggleComplete();
             }}
             aria-label={message.is_completed ? "Mark as not done" : "Mark as done"}
@@ -294,6 +295,7 @@ function MessageRowBase({
             type="button"
             onClick={(event) => {
               event.stopPropagation();
+              event.currentTarget.blur();
               onReply();
             }}
             aria-label="Reply"
@@ -306,6 +308,7 @@ function MessageRowBase({
             type="button"
             onClick={(event) => {
               event.stopPropagation();
+              event.currentTarget.blur();
               onTogglePin();
             }}
             aria-label={message.is_pinned ? "Unpin" : "Pin"}
