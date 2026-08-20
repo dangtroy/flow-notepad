@@ -710,7 +710,13 @@ function FlowPage() {
           ) : grouped.length === 0 ? (
             <div className="mt-24 text-center">
               <p className="flow-prose text-muted-foreground">
-                {isFiltered ? (
+                {query ? (
+                  <>No notes match &ldquo;{query}&rdquo; in this view.</>
+                ) : view === "today" ? (
+                  <>Nothing written today yet.</>
+                ) : view === "pinned" ? (
+                  <>Nothing pinned yet.</>
+                ) : isFiltered ? (
                   <>
                     Nothing tagged this way yet.
                     <br />
