@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowUp, Paperclip, Sparkles, Type, X } from "lucide-react";
+import { ArrowUp, ImagePlus, Sparkles, Type, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { cleanUpNote, getCleanupPreference, setCleanupPreference } from "@/lib/flow.functions";
+import { dragHasFiles, imageFilesFrom } from "@/lib/images";
 import { cn } from "@/lib/utils";
-import { FlowEditorSurface, FlowToolbar, useFlowEditor } from "./rich-editor";
+import {
+  FlowEditorSurface,
+  FlowToolbar,
+  insertImageFiles,
+  pickImages,
+  useFlowEditor,
+} from "./rich-editor";
+
 
 export type CleanupMeta = { originalHtml: string; cleanedHtml: string } | null;
 
@@ -26,6 +34,8 @@ export function Composer({
   const [isEmpty, setIsEmpty] = useState(true);
   const [focused, setFocused] = useState(false);
   const [pinnedToolbar, setPinnedToolbar] = useState(false);
+  const [dropping, setDropping] = useState(false);
+
 
   const queryClient = useQueryClient();
   const clean = useServerFn(cleanUpNote);
@@ -139,11 +149,42 @@ export function Composer({
           </div>
         )}
         <div
+          onDragOver={(event) => {
+            if (!dragHasFiles(event.dataTransfer)) return;
+            event.preventDefault();
+            setDropping(true);
+          }}
+          onDragLeave={(event) => {
+            if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+            setDropping(false);
+          }}
+          onDrop={(event) => {
+            if (!dragHasFiles(event.dataTransfer)) return;
+            event.preventDefault();
+            setDropping(false);
+            const files = imageFilesFrom(event.dataTransfer.files);
+            if (!editor) return;
+            if (!files.length) {
+              toast.error("Only images can be dropped in for now");
+              return;
+            }
+            void insertImageFiles(editor, files);
+          }}
           className={cn(
-            "rounded-xl border border-border bg-background/60 transition-colors duration-200",
+            "relative rounded-xl border border-border bg-background/60 transition-colors duration-200",
             focused && "border-border-strong",
+            dropping && "border-primary/70 bg-primary/[0.04]",
           )}
         >
+          {dropping && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/70 text-[12px] text-muted-foreground">
+              <span className="inline-flex items-center gap-2">
+                <ImagePlus className="h-3.5 w-3.5" />
+                Drop images to add them to this note
+              </span>
+            </div>
+          )}
+
 
           <div
             className={cn(
@@ -188,13 +229,14 @@ export function Composer({
               </button>
               <button
                 type="button"
-                disabled
-                aria-label="Attach (coming soon)"
-                title="Attachments coming soon"
-                className="inline-flex h-7 w-7 cursor-not-allowed items-center justify-center rounded-md text-muted-foreground/45"
+                aria-label="Add image"
+                title="Add an image — or drop one in"
+                onClick={() => editor && pickImages(editor)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-foreground"
               >
-                <Paperclip className="h-3.5 w-3.5" />
+                <ImagePlus className="h-3.5 w-3.5" />
               </button>
+
             </div>
 
             <div className="flex shrink-0 items-center gap-2.5">

@@ -32,10 +32,12 @@ const ALLOWED: Record<string, string[]> = {
   div: [],
   span: [],
   input: ["type", "checked", "disabled"],
+  img: ["src", "alt", "title", "width", "height"],
 };
 
-const VOID_TAGS = new Set(["br", "input"]);
+const VOID_TAGS = new Set(["br", "input", "img"]);
 const BLOCK_TAGS = new Set(["p", "h1", "h2", "h3", "li", "blockquote", "pre", "div"]);
+
 
 function safeHref(value: string): string | null {
   const trimmed = value.trim();
@@ -44,6 +46,17 @@ function safeHref(value: string): string | null {
   if (trimmed.startsWith("/") || trimmed.startsWith("#")) return trimmed;
   return `https://${trimmed}`;
 }
+
+/** Inline images are either an https link or a base64 image the editor made. */
+function safeImageSrc(value: string): string | null {
+  const trimmed = value.trim();
+  if (/^data:image\/(png|jpeg|jpg|gif|webp|avif);base64,[a-z0-9+/=\s]+$/i.test(trimmed)) {
+    return trimmed.replace(/\s+/g, "");
+  }
+  if (/^https:\/\//i.test(trimmed)) return trimmed;
+  return null;
+}
+
 
 function escapeText(value: string): string {
   return value.replace(/&(?!(?:#\d+|#x[0-9a-f]+|[a-z]+);)/gi, "&amp;").replace(/</g, "&lt;");
@@ -106,6 +119,13 @@ export function sanitizeHtml(input: string): string {
         attrText += ` href="${escapeAttr(href)}"`;
         continue;
       }
+      if (name === "src") {
+        const src = safeImageSrc(value);
+        if (!src) continue;
+        attrText += ` src="${escapeAttr(src)}"`;
+        continue;
+      }
+
       attrText += value ? ` ${name}="${escapeAttr(value)}"` : ` ${name}`;
     }
 
@@ -148,7 +168,13 @@ function decodeEntities(value: string): string {
 export function htmlToText(html: string): string {
   if (!html) return "";
   const text = html
+    // An image is content: it must survive as text so the note is never "empty".
+    .replace(/<img\b[^>]*alt="([^"]*)"[^>]*>/gi, (_whole, alt: string) =>
+      alt.trim() ? `\n[image: ${alt.trim()}]` : "\n[image]",
+    )
+    .replace(/<img\b[^>]*>/gi, "\n[image]")
     .replace(/<\/?(ul|ol)\b[^>]*>/gi, "\n")
+
     .replace(/<li\b[^>]*>/gi, "\n• ")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(new RegExp(`</(${[...BLOCK_TAGS].join("|")})\\s*>`, "gi"), "\n")

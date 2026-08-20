@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
+import Image from "@tiptap/extension-image";
 import {
   Bold,
   Code,
   Heading2,
+  ImagePlus,
   Italic,
   Link2,
   List,
@@ -18,6 +20,7 @@ import {
   Undo2,
 } from "lucide-react";
 
+import { imageFilesFrom, prepareImage } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
 export const editorExtensions = [
@@ -29,7 +32,39 @@ export const editorExtensions = [
   }),
   TaskList,
   TaskItem.configure({ nested: true }),
+  Image.configure({ allowBase64: true, HTMLAttributes: { class: "flow-image" } }),
 ];
+
+/**
+ * Drops or pastes images straight into the note. Each file is downscaled in the
+ * browser first, so an image behaves like any other part of the text.
+ */
+export async function insertImageFiles(editor: Editor, files: File[]): Promise<number> {
+  const images = imageFilesFrom(files);
+  if (!images.length) return 0;
+  let inserted = 0;
+  for (const file of images) {
+    try {
+      const { src, alt } = await prepareImage(file);
+      editor.chain().focus().setImage({ src, alt }).run();
+      inserted += 1;
+    } catch {
+      // One bad file never stops the rest.
+    }
+  }
+  return inserted;
+}
+
+/** Opens the file picker and inserts whatever the user chooses. */
+export function pickImages(editor: Editor) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.multiple = true;
+  input.onchange = () => void insertImageFiles(editor, Array.from(input.files ?? []));
+  input.click();
+}
+
 
 type ToolbarAction = {
   key: string;
@@ -135,6 +170,13 @@ const ACTIONS: ToolbarAction[] = [
     active: (e) => e.isActive("link"),
   },
   {
+    key: "image",
+    label: "Image",
+    icon: ImagePlus,
+    group: true,
+    run: (e) => pickImages(e),
+  },
+  {
     key: "undo",
     label: "Undo",
     icon: Undo2,
@@ -148,6 +190,7 @@ const ACTIONS: ToolbarAction[] = [
     run: (e) => e.chain().focus().redo().run(),
   },
 ];
+
 
 export function FlowToolbar({ editor, className }: { editor: Editor; className?: string }) {
   // Re-render on selection/content change so active states stay truthful.
@@ -233,6 +276,24 @@ export function useFlowEditor({
     autofocus: autoFocus ? "end" : false,
     editorProps: {
       attributes: { class: "flow-prose focus:outline-none", spellcheck: "true" },
+      // Dropping or pasting an image writes it into the note in place.
+      handleDrop: (_view, event) => {
+        const instance = editorRef.current;
+        const files = imageFilesFrom((event as DragEvent).dataTransfer?.files ?? null);
+        if (!instance || !files.length) return false;
+        event.preventDefault();
+        void insertImageFiles(instance, files);
+        return true;
+      },
+      handlePaste: (_view, event) => {
+        const instance = editorRef.current;
+        const files = imageFilesFrom(event.clipboardData?.files ?? null);
+        if (!instance || !files.length) return false;
+        event.preventDefault();
+        void insertImageFiles(instance, files);
+        return true;
+      },
+
       handleKeyDown: (_view, event) => {
         const instance = editorRef.current;
         if (event.key === "Escape" && handlers.current.onCancel) {
