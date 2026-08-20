@@ -170,6 +170,13 @@ const ACTIONS: ToolbarAction[] = [
     active: (e) => e.isActive("link"),
   },
   {
+    key: "image",
+    label: "Image",
+    icon: ImagePlus,
+    group: true,
+    run: (e) => pickImages(e),
+  },
+  {
     key: "undo",
     label: "Undo",
     icon: Undo2,
@@ -183,6 +190,7 @@ const ACTIONS: ToolbarAction[] = [
     run: (e) => e.chain().focus().redo().run(),
   },
 ];
+
 
 export function FlowToolbar({ editor, className }: { editor: Editor; className?: string }) {
   // Re-render on selection/content change so active states stay truthful.
