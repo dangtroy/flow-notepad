@@ -47,14 +47,14 @@ function recent(a: FlowMessage, b: FlowMessage) {
 export function ReferenceList({
   notes,
   isPending,
-  tagStyle,
+  tagStyle = "dot",
   onSaveEdit,
   onMoveToStream,
   onDelete,
 }: {
   notes: FlowMessage[];
   isPending?: boolean;
-  tagStyle?: TagStyle;
+  tagStyle?: TagStyle | undefined;
   onSaveEdit: (id: string, html: string) => void;
   onMoveToStream: (id: string) => void;
   onDelete: (id: string) => void;
@@ -116,7 +116,7 @@ function ReferenceRow({
   onDelete,
 }: {
   note: FlowMessage;
-  tagStyle?: TagStyle;
+  tagStyle: TagStyle;
   isEditing: boolean;
   onStartEdit: () => void;
   onCancelEdit: () => void;
