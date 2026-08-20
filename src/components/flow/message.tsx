@@ -152,7 +152,6 @@ function MessageRowBase({
     onStartEdit();
   }
 
-  const [reminderOpen, setReminderOpen] = useState(false);
   const isReply = depth > 0;
   const tags = showTags && message.tags.length > 0 ? message.tags : [];
   const withTime = showTimestamps && (!isReply || showReplyTimestamps);
@@ -251,7 +250,7 @@ function MessageRowBase({
 
                 {/* Tags sit beside the text and step aside for the hover actions. */}
                 {tagPosition === "right" && tags.length > 0 && (
-                  <span className="hidden max-w-[34%] shrink-0 flex-wrap items-center justify-end gap-1.5 pt-[0.2rem] transition-opacity duration-150 group-hover:opacity-0 sm:flex">
+                  <span className="hidden max-w-[34%] shrink-0 flex-wrap items-center justify-end gap-1.5 pt-[0.2rem] transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0 sm:flex">
                     {tags.map((tag) => (
                       <TagChip key={tag.id} tag={tag} style={tagStyle} />
                     ))}
@@ -261,7 +260,7 @@ function MessageRowBase({
 
 
               {tagPosition === "below" && tags.length > 0 && (
-                <div className="mt-1.5 hidden flex-wrap items-center gap-1.5 sm:flex">
+                <div className="mt-1.5 hidden flex-wrap items-center gap-1.5 transition-opacity duration-150 group-focus-within:opacity-0 sm:flex">
                   {tags.map((tag) => (
                     <TagChip key={tag.id} tag={tag} style={tagStyle} />
                   ))}
@@ -280,9 +279,9 @@ function MessageRowBase({
         </div>
       </div>
 
-      {/* A fixed three-icon toolbar; everything else lives behind the menu. */}
+       {/* Common actions stay one click away; destructive actions live in the menu. */}
       {!isEditing && (
-        <div className="absolute right-2 top-1.5 flex items-center gap-0.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
+         <div className="absolute right-2 top-1.5 flex items-center gap-0.5 rounded-md border border-border bg-popover/95 p-0.5 opacity-0 shadow-quiet backdrop-blur transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
           <button
             type="button"
             onClick={(event) => {
@@ -326,14 +325,19 @@ function MessageRowBase({
             <Pin className="h-3.5 w-3.5" />
           </button>
 
-          <ReminderPopover
-            value={message.remind_at}
-            onChange={onSetReminder}
-            align="end"
-            open={reminderOpen}
-            onOpenChange={setReminderOpen}
-          >
-            <span />
+           <ReminderPopover value={message.remind_at} onChange={onSetReminder} align="end">
+             <button
+               type="button"
+               onClick={(event) => event.stopPropagation()}
+               aria-label={message.remind_at ? "Change reminder" : "Set reminder"}
+               title={message.remind_at ? `Reminder · ${reminderLabel(message.remind_at)}` : "Remind me"}
+               className={cn(
+                 "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 hover:bg-elevated hover:text-foreground",
+                 message.remind_at ? "text-primary" : "text-muted-foreground",
+               )}
+             >
+               <Bell className="h-3.5 w-3.5" />
+             </button>
           </ReminderPopover>
 
           <DropdownMenu>
@@ -352,17 +356,13 @@ function MessageRowBase({
               onClick={(event) => event.stopPropagation()}
               className="w-44 text-[12.5px]"
             >
-              <DropdownMenuItem onSelect={() => setReminderOpen(true)}>
-                <Bell className="h-3.5 w-3.5" />
-                {message.remind_at ? `Reminder · ${reminderLabel(message.remind_at)}` : "Remind me"}
-              </DropdownMenuItem>
               {message.remind_at && (
                 <DropdownMenuItem onSelect={() => onSetReminder(null)}>
                   <BellOff className="h-3.5 w-3.5" />
                   Clear reminder
                 </DropdownMenuItem>
               )}
-              <DropdownMenuSeparator />
+               {message.remind_at && <DropdownMenuSeparator />}
               <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDeleteNow()}>
                 <Trash2 className="h-3.5 w-3.5" />
                 Delete thread

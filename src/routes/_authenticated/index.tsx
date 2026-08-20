@@ -33,6 +33,7 @@ import { useActiveNotepadId } from "@/lib/use-notepad";
 import { Composer, type CleanupMeta } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
 import { ContextBar } from "@/components/flow/context-bar";
+import { cn } from "@/lib/utils";
 
 
 export const Route = createFileRoute("/_authenticated/")({
@@ -106,6 +107,7 @@ function FlowPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; preview: string } | null>(null);
+  const [showPinnedContext, setShowPinnedContext] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<number | null>(null);
@@ -241,7 +243,9 @@ function FlowPage() {
 
   const onScroll = useCallback(() => {
     const element = scrollRef.current;
-    if (!element || !hasNextPage || isFetchingNextPage) return;
+    if (!element) return;
+    setShowPinnedContext(element.scrollTop <= 8);
+    if (!hasNextPage || isFetchingNextPage) return;
     if (element.scrollTop < 240) {
       anchorRef.current = element.scrollHeight - element.scrollTop;
       void fetchNextPage();
@@ -518,7 +522,7 @@ function FlowPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ContextBar
-        pinned={pinned}
+        pinned={showPinnedContext ? pinned : []}
         reminders={dueReminders}
         onSnooze={(message, iso) => void handleSetReminder(message, iso)}
         onComplete={(message) => void handleCompleteFromReminder(message)}
@@ -556,9 +560,11 @@ function FlowPage() {
               </p>
             </div>
           ) : (
-            grouped.map((group) => (
-              <section key={group.label} className="mb-8 last:mb-0">
-                <div className="mb-4 flex items-center gap-3">
+            grouped.map((group) => {
+              const cleanNotepad = !appearance.showTags && !appearance.showTimestamps;
+              return (
+              <section key={group.label} className={cn(cleanNotepad ? "mb-2" : "mb-8", "last:mb-0")}>
+                <div className={cn("items-center gap-3", cleanNotepad ? "hidden" : "mb-4 flex")}>
                   <span className="h-px flex-1 bg-border" />
                   <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/50">
                     {group.label}
@@ -570,8 +576,13 @@ function FlowPage() {
                   {group.threads.map((thread) => (
                     <div
                       key={thread.id}
-                      className="flow-row-stack flow-thread-divider pt-[var(--flow-thread-gap)] first:border-t-0 first:pt-0"
-                      style={{ paddingBottom: "var(--flow-thread-gap)" }}
+                      className={cn(
+                        "flow-row-stack first:border-t-0 first:pt-0",
+                        cleanNotepad
+                          ? "border-0 pt-1 [--flow-row-gap:0rem] [--flow-reply-gap:0.35rem]"
+                          : "flow-thread-divider pt-[var(--flow-thread-gap)]",
+                      )}
+                      style={{ paddingBottom: cleanNotepad ? "0.15rem" : "var(--flow-thread-gap)" }}
                     >
                       {thread.entries.map(({ message, depth }) => (
                         <MessageRow
@@ -606,7 +617,8 @@ function FlowPage() {
                   ))}
                 </div>
               </section>
-            ))
+              );
+            })
           )}
         </div>
       </div>
