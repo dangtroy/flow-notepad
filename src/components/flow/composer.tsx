@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowUp, Paperclip, Sparkles, Type, X } from "lucide-react";
+import { ArrowUp, ImagePlus, Sparkles, Type, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { cleanUpNote, getCleanupPreference, setCleanupPreference } from "@/lib/flow.functions";
+import { dragHasFiles, imageFilesFrom } from "@/lib/images";
 import { cn } from "@/lib/utils";
-import { FlowEditorSurface, FlowToolbar, useFlowEditor } from "./rich-editor";
+import {
+  FlowEditorSurface,
+  FlowToolbar,
+  insertImageFiles,
+  pickImages,
+  useFlowEditor,
+} from "./rich-editor";
+
 
 export type CleanupMeta = { originalHtml: string; cleanedHtml: string } | null;
 
