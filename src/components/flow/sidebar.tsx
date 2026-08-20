@@ -230,7 +230,10 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="relative z-50 flex items-center justify-between gap-2 px-4 pb-5 pt-5">
+      <div
+        data-sidebar-head
+        className="relative z-50 flex items-center justify-between gap-2 px-4 pb-5 pt-5"
+      >
         <div className="flex min-w-0 items-center gap-2">
           <Link to="/" search={{}} onClick={onNavigate} aria-label="All notes">
             <FlowLogo className="h-5 shrink-0" />

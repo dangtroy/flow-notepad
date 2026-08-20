@@ -12,8 +12,9 @@ export const STREAM_VIEWS: Array<{ value: StreamView; label: string }> = [
 ];
 
 /**
- * One header row above the stream: search within the active view, the four view
- * tabs with their counts, and the toggle for the attention rail.
+ * One header row above the stream: search within the active view and the four
+ * view tabs with their counts. The attention rail hides itself from its own
+ * header on wide screens, so the only trigger here is the small-screen one.
  */
 export function StreamTopBar({
   view,
@@ -21,16 +22,17 @@ export function StreamTopBar({
   counts,
   query,
   onQueryChange,
-  railOpen,
-  onToggleRail,
+  attentionCount,
+  onOpenPanel,
 }: {
   view: StreamView;
   onViewChange: (view: StreamView) => void;
   counts: Record<StreamView, number>;
   query: string;
   onQueryChange: (query: string) => void;
-  railOpen: boolean;
-  onToggleRail: () => void;
+  /** Reminders + pinned: shown on the small-screen panel trigger. */
+  attentionCount: number;
+  onOpenPanel: () => void;
 }) {
   return (
     <div className="border-b border-border bg-surface/40 px-5 py-3 sm:px-8">
@@ -77,20 +79,20 @@ export function StreamTopBar({
           ))}
         </div>
 
+        {/* Small screens have no rail, so this is the only way in. */}
         <button
           type="button"
-          onClick={onToggleRail}
-          aria-label={railOpen ? "Hide attention panel" : "Show attention panel"}
-          title="Panel"
-          className={cn(
-            "order-2 hidden items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] transition-colors duration-150 sm:order-3 lg:flex",
-            railOpen
-              ? "border-border bg-surface text-foreground"
-              : "border-transparent text-muted-foreground/60 hover:text-foreground",
-          )}
+          onClick={onOpenPanel}
+          aria-label="Show attention panel"
+          title="Needs attention"
+          className="order-2 flex items-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-[11px] text-muted-foreground/70 transition-colors duration-150 hover:text-foreground sm:order-3 lg:hidden"
         >
           <PanelRight className="h-3.5 w-3.5" />
-          Panel
+          {attentionCount > 0 && (
+            <span className="rounded-full bg-elevated px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground/80">
+              {attentionCount}
+            </span>
+          )}
         </button>
       </div>
     </div>

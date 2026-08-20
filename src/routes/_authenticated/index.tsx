@@ -41,6 +41,7 @@ import {
   type StreamView,
 } from "@/components/flow/stream-top-bar";
 import { ReferenceList } from "@/components/flow/reference-list";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/")({
@@ -123,6 +124,8 @@ function FlowPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; preview: string } | null>(null);
   const [railOpen, setRailOpen] = useState(true);
+  // Small screens have no room for the rail: it opens as a sheet instead.
+  const [panelSheet, setPanelSheet] = useState(false);
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
 
@@ -667,6 +670,23 @@ function FlowPage() {
     );
   }, [reference.data, query]);
 
+  /** One set of panel handlers, shared by the rail and its small-screen sheet. */
+  const railProps = {
+    reminders: dueReminders,
+    pinned,
+    stats: {
+      captured: weekData?.captured ?? 0,
+      completed: weekData?.completed ?? 0,
+      references: counts.reference,
+    },
+    onSnooze: (message: FlowMessage, iso: string) => void handleSetReminder(message, iso),
+    onComplete: (message: FlowMessage) => void handleCompleteFromReminder(message),
+    onDismiss: (message: FlowMessage) => void handleDismissReminder(message),
+    onUnpin: (message: FlowMessage) => void handleSetType(message, "stream"),
+    onJump: jumpToMessage,
+  };
+
+
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-h-0 flex-1 flex-col">
@@ -680,8 +700,8 @@ function FlowPage() {
           counts={counts}
           query={queryInput}
           onQueryChange={setQueryInput}
-          railOpen={railOpen}
-          onToggleRail={() => setRailOpen((value) => !value)}
+          attentionCount={dueReminders.length + pinned.length}
+          onOpenPanel={() => setPanelSheet(true)}
         />
 
       <div
@@ -693,7 +713,8 @@ function FlowPage() {
           className={cn(
             "flow-stream flow-shell flex min-h-full flex-col px-5 pb-8 pt-8 sm:px-8",
             appearance.alwaysShowDetails && "always-show",
-            view === "reference" ? "justify-start" : "justify-end",
+            // Only the live stream reads bottom-up; the saved views are lists.
+            view === "all" || view === "today" ? "justify-end" : "justify-start",
           )}
         >
           {view === "reference" ? (
@@ -808,22 +829,27 @@ function FlowPage() {
         />
       </div>
 
-      <AttentionRail
-        open={railOpen}
-        onOpenChange={setRailOpen}
-        reminders={dueReminders}
-        pinned={pinned}
-        stats={{
-          captured: weekData?.captured ?? 0,
-          completed: weekData?.completed ?? 0,
-          references: counts.reference,
-        }}
-        onSnooze={(message, iso) => void handleSetReminder(message, iso)}
-        onComplete={(message) => void handleCompleteFromReminder(message)}
-        onDismiss={(message) => void handleDismissReminder(message)}
-        onUnpin={(message) => void handleSetType(message, "stream")}
-        onJump={jumpToMessage}
-      />
+      <AttentionRail {...railProps} open={railOpen} onOpenChange={setRailOpen} />
+
+      {/* Same panel, reachable on phones and narrow windows. */}
+      <Sheet open={panelSheet} onOpenChange={setPanelSheet}>
+        <SheetContent
+          side="right"
+          className="w-[20rem] border-border bg-surface p-0 lg:hidden"
+        >
+          <SheetTitle className="sr-only">Needs attention</SheetTitle>
+          <AttentionRail
+            {...railProps}
+            embedded
+            open
+            onOpenChange={() => setPanelSheet(false)}
+            onJump={(id) => {
+              setPanelSheet(false);
+              jumpToMessage(id);
+            }}
+          />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
