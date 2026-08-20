@@ -276,6 +276,24 @@ export function useFlowEditor({
     autofocus: autoFocus ? "end" : false,
     editorProps: {
       attributes: { class: "flow-prose focus:outline-none", spellcheck: "true" },
+      // Dropping or pasting an image writes it into the note in place.
+      handleDrop: (_view, event) => {
+        const instance = editorRef.current;
+        const files = imageFilesFrom((event as DragEvent).dataTransfer?.files ?? null);
+        if (!instance || !files.length) return false;
+        event.preventDefault();
+        void insertImageFiles(instance, files);
+        return true;
+      },
+      handlePaste: (_view, event) => {
+        const instance = editorRef.current;
+        const files = imageFilesFrom(event.clipboardData?.files ?? null);
+        if (!instance || !files.length) return false;
+        event.preventDefault();
+        void insertImageFiles(instance, files);
+        return true;
+      },
+
       handleKeyDown: (_view, event) => {
         const instance = editorRef.current;
         if (event.key === "Escape" && handlers.current.onCancel) {
