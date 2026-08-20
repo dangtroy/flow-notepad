@@ -1,0 +1,98 @@
+import { PanelRight, Search } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+
+export type StreamView = "all" | "today" | "pinned" | "reference";
+
+export const STREAM_VIEWS: Array<{ value: StreamView; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "today", label: "Today" },
+  { value: "pinned", label: "Pinned" },
+  { value: "reference", label: "Reference" },
+];
+
+/**
+ * One header row above the stream: search within the active view, the four view
+ * tabs with their counts, and the toggle for the attention rail.
+ */
+export function StreamTopBar({
+  view,
+  onViewChange,
+  counts,
+  query,
+  onQueryChange,
+  railOpen,
+  onToggleRail,
+}: {
+  view: StreamView;
+  onViewChange: (view: StreamView) => void;
+  counts: Record<StreamView, number>;
+  query: string;
+  onQueryChange: (query: string) => void;
+  railOpen: boolean;
+  onToggleRail: () => void;
+}) {
+  return (
+    <div className="border-b border-border bg-surface/40 px-5 py-3 sm:px-8">
+      <div className="flow-shell flex flex-wrap items-center gap-3">
+        <div className="relative order-1 min-w-[12rem] flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            placeholder="Search notes, tags..."
+            aria-label="Search notes"
+            className="w-full rounded-md border border-border bg-background/50 py-1.5 pl-8 pr-14 text-[12.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-primary/50"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => onQueryChange("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-1 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        <div className="order-3 flex items-center gap-1 sm:order-2">
+          {STREAM_VIEWS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onViewChange(option.value)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10.5px] uppercase tracking-[0.14em] transition-colors duration-150",
+                view === option.value
+                  ? "border-border bg-surface text-foreground"
+                  : "border-transparent text-muted-foreground/60 hover:text-foreground",
+              )}
+            >
+              {option.label}
+              <span className="rounded-full bg-elevated px-1.5 py-0.5 text-[10px] tracking-normal tabular-nums text-muted-foreground/70">
+                {counts[option.value]}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={onToggleRail}
+          aria-label={railOpen ? "Hide attention panel" : "Show attention panel"}
+          title="Panel"
+          className={cn(
+            "order-2 hidden items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] transition-colors duration-150 sm:order-3 lg:flex",
+            railOpen
+              ? "border-border bg-surface text-foreground"
+              : "border-transparent text-muted-foreground/60 hover:text-foreground",
+          )}
+        >
+          <PanelRight className="h-3.5 w-3.5" />
+          Panel
+        </button>
+      </div>
+    </div>
+  );
+}
