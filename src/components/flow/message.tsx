@@ -286,14 +286,12 @@ function MessageRowBase({
                 )}
               </div>
 
-              {/* One horizontal meta line: pin, reminder, then the tags. */}
-              {(isPinnedNote ||
-                message.remind_at ||
-                (tagPosition === "below" && tags.length > 0)) && (
+              {/* One horizontal meta line: tags only (pin/bell/diamond now live in the gutter). */}
+              {tagPosition === "below" && tags.length > 0 && (
                 <div className="mt-1.5 hidden flex-wrap items-center gap-2 text-[11px] leading-none tracking-wide text-muted-foreground/55 transition-opacity duration-150 group-focus-within:opacity-0 sm:flex">
-                  {metaBits}
-                  {tagPosition === "below" &&
-                    tags.map((tag) => <TagChip key={tag.id} tag={tag} style={tagStyle} />)}
+                  {tags.map((tag) => (
+                    <TagChip key={tag.id} tag={tag} style={tagStyle} />
+                  ))}
                 </div>
               )}
 
