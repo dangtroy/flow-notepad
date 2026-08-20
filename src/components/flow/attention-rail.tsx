@@ -48,6 +48,7 @@ function dayTime(iso: string) {
 export function AttentionRail({
   open,
   onOpenChange,
+  embedded = false,
   reminders,
   pinned,
   stats,
@@ -59,6 +60,8 @@ export function AttentionRail({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Rendered inside the small-screen sheet: no aside chrome, no collapse. */
+  embedded?: boolean;
   reminders: FlowMessage[];
   pinned: FlowMessage[];
   stats: { captured: number; completed: number; references: number };
@@ -73,7 +76,7 @@ export function AttentionRail({
 
   const total = reminders.length + pinned.length;
 
-  if (!open) {
+  if (!open && !embedded) {
     return (
       <aside className="hidden w-[46px] shrink-0 border-l border-border bg-surface/40 lg:flex lg:flex-col lg:items-center lg:gap-3 lg:py-4">
         <button
@@ -99,20 +102,31 @@ export function AttentionRail({
   const shownReminders = allReminders ? reminders : reminders.slice(0, PREVIEW);
   const shownPinned = allPinned ? pinned : pinned.slice(0, PREVIEW);
 
+  const Shell = embedded ? "div" : "aside";
+
   return (
-    <aside className="hidden w-[19rem] shrink-0 flex-col border-l border-border bg-surface/40 lg:flex">
-      <div className="flex h-12 items-center gap-2 border-b border-border px-4">
+    <Shell
+      className={cn(
+        "flex-col bg-surface/40",
+        embedded
+          ? "flex h-full min-h-0"
+          : "hidden w-[19rem] shrink-0 border-l border-border lg:flex",
+      )}
+    >
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
         <span className="flex-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60">
           Needs Attention
         </span>
-        <button
-          type="button"
-          onClick={() => onOpenChange(false)}
-          className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
-        >
-          Hide
-          <ChevronRight className="h-3.5 w-3.5" />
-        </button>
+        {!embedded && (
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
+          >
+            Hide
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4">
@@ -279,6 +293,6 @@ export function AttentionRail({
           </dl>
         </section>
       </div>
-    </aside>
+    </Shell>
   );
 }
