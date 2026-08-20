@@ -86,6 +86,7 @@ export function mapMessage(row: MessageRow): FlowMessage {
   const links = (row.message_tags ?? []) as Array<{ tags: FlowTag | null }>;
   return {
     id: row.id,
+    type: (row.type as MessageType | null) ?? "stream",
     content: row.content,
     content_html: row.content_html,
     is_completed: row.is_completed,
