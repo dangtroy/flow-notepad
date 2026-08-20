@@ -147,11 +147,42 @@ export function Composer({
           </div>
         )}
         <div
+          onDragOver={(event) => {
+            if (!dragHasFiles(event.dataTransfer)) return;
+            event.preventDefault();
+            setDropping(true);
+          }}
+          onDragLeave={(event) => {
+            if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+            setDropping(false);
+          }}
+          onDrop={(event) => {
+            if (!dragHasFiles(event.dataTransfer)) return;
+            event.preventDefault();
+            setDropping(false);
+            const files = imageFilesFrom(event.dataTransfer.files);
+            if (!editor) return;
+            if (!files.length) {
+              toast.error("Only images can be dropped in for now");
+              return;
+            }
+            void insertImageFiles(editor, files);
+          }}
           className={cn(
-            "rounded-xl border border-border bg-background/60 transition-colors duration-200",
+            "relative rounded-xl border border-border bg-background/60 transition-colors duration-200",
             focused && "border-border-strong",
+            dropping && "border-primary/70 bg-primary/[0.04]",
           )}
         >
+          {dropping && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/70 text-[12px] text-muted-foreground">
+              <span className="inline-flex items-center gap-2">
+                <ImagePlus className="h-3.5 w-3.5" />
+                Drop images to add them to this note
+              </span>
+            </div>
+          )}
+
 
           <div
             className={cn(
