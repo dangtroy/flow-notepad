@@ -1,12 +1,11 @@
 import { useMemo, useState } from "react";
-import { ArrowLeftRight, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeftRight, Trash2 } from "lucide-react";
 
-import type { TagStyle } from "@/lib/appearance";
 import type { FlowMessage } from "@/lib/flow.server";
 import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
 import { cn, timeAgo } from "@/lib/utils";
 import { MessageEditor } from "./message";
-import { TagChip } from "./tag-chip";
+import { TagLink } from "./tag-chip";
 
 type Group = { key: string; label: string; notes: FlowMessage[] };
 
@@ -47,14 +46,12 @@ function recent(a: FlowMessage, b: FlowMessage) {
 export function ReferenceList({
   notes,
   isPending,
-  tagStyle = "dot",
   onSaveEdit,
   onMoveToStream,
   onDelete,
 }: {
   notes: FlowMessage[];
   isPending?: boolean;
-  tagStyle?: TagStyle | undefined;
   onSaveEdit: (id: string, html: string) => void;
   onMoveToStream: (id: string) => void;
   onDelete: (id: string) => void;
@@ -92,7 +89,6 @@ export function ReferenceList({
               <ReferenceRow
                 key={`${group.key}-${note.id}`}
                 note={note}
-                tagStyle={tagStyle}
                 isEditing={editingId === note.id}
                 onStartEdit={() => setEditingId(note.id)}
                 onCancelEdit={() => setEditingId(null)}
@@ -111,9 +107,12 @@ export function ReferenceList({
   );
 }
 
+const iconClass = "h-4 w-4 [stroke-width:1.3]";
+const actionButton =
+  "inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground";
+
 function ReferenceRow({
   note,
-  tagStyle,
   isEditing,
   onStartEdit,
   onCancelEdit,
@@ -122,7 +121,6 @@ function ReferenceRow({
   onDelete,
 }: {
   note: FlowMessage;
-  tagStyle: TagStyle;
   isEditing: boolean;
   onStartEdit: () => void;
   onCancelEdit: () => void;
@@ -147,66 +145,52 @@ function ReferenceRow({
     <article
       onClick={handleSurfaceClick}
       className={cn(
-        "group relative -mx-3 rounded-md px-3 transition-colors duration-200 flow-row-pad",
-        !isEditing && "cursor-text hover:bg-surface/55",
+        "flow-row group relative flex gap-3 rounded-md transition-colors duration-200 flow-row-pad sm:gap-4",
+        !isEditing && "cursor-text",
         isEditing && "bg-surface",
       )}
     >
-      <div className="flex gap-3 sm:gap-4">
-        {/* Same quiet left gutter as the stream, so both views share a spine. */}
-        <div className="hidden w-12 shrink-0 pt-[0.15rem] text-right text-[11px] leading-5 tracking-wide whitespace-nowrap text-muted-foreground/55 sm:block">
+      {/* The same quiet left margin the stream uses, revealed on hover. */}
+      <div
+        className="flow-meta hidden w-24 shrink-0 flex-row items-center gap-2 sm:flex"
+        style={{ height: "26.4px" }}
+      >
+        <div className="text-[11px] leading-none tabular-nums tracking-wide whitespace-nowrap text-muted-foreground/55">
           <time dateTime={note.updated_at}>{timeAgo(note.updated_at)}</time>
-        </div>
-
-        <div className="min-w-0 flex-1">
-          {isEditing ? (
-            <MessageEditor initialHtml={html} onCancel={onCancelEdit} onSave={onSaveEdit} />
-          ) : (
-            <>
-              <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] tracking-wide text-muted-foreground/55 sm:hidden">
-                <time dateTime={note.updated_at}>{timeAgo(note.updated_at)}</time>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div
-                  className="flow-prose min-w-0 flex-1"
-                  dangerouslySetInnerHTML={{ __html: html }}
-                />
-                {note.tags.length > 0 && (
-                  <span className="hidden max-w-[34%] shrink-0 flex-wrap items-center justify-end gap-1.5 pt-[0.2rem] transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0 sm:flex">
-                    {note.tags.map((tag) => (
-                      <TagChip key={tag.id} tag={tag} style={tagStyle} />
-                    ))}
-                  </span>
-                )}
-              </div>
-
-              {note.tags.length > 0 && (
-                <div className="mt-1 flex flex-wrap items-center gap-1.5 sm:hidden">
-                  {note.tags.map((tag) => (
-                    <TagChip key={tag.id} tag={tag} style={tagStyle} />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
         </div>
       </div>
 
+      <div className="min-w-0 flex-1">
+        {isEditing ? (
+          <MessageEditor initialHtml={html} onCancel={onCancelEdit} onSave={onSaveEdit} />
+        ) : (
+          <>
+            <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] tabular-nums tracking-wide text-muted-foreground/55 sm:hidden">
+              <time dateTime={note.updated_at}>{timeAgo(note.updated_at)}</time>
+            </div>
+
+            <div className="flow-prose min-w-0" dangerouslySetInnerHTML={{ __html: html }} />
+
+            {note.tags.length > 0 && (
+              <div className="flow-tagwrap">
+                <div>
+                  <div className="flex flex-wrap items-center gap-3 pt-1.5">
+                    {note.tags.map((tag) => (
+                      <TagLink key={tag.id} tag={tag} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {!isEditing && (
-        <div className="absolute right-2 top-1.5 flex items-center gap-0.5 rounded-md border border-border bg-popover p-0.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onStartEdit();
-            }}
-            aria-label="Edit"
-            title="Edit"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-foreground"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
+        <div
+          className="flow-acts absolute right-1 flex items-center gap-2"
+          style={{ top: "var(--flow-row-pad, 0.55rem)", height: "26.4px" }}
+        >
           <button
             type="button"
             onClick={(event) => {
@@ -216,9 +200,9 @@ function ReferenceRow({
             }}
             aria-label="Move to Stream"
             title="Move to Stream"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-foreground"
+            className={actionButton}
           >
-            <ArrowLeftRight className="h-3.5 w-3.5" />
+            <ArrowLeftRight className={iconClass} />
           </button>
           <button
             type="button"
@@ -229,13 +213,12 @@ function ReferenceRow({
             }}
             aria-label="Delete"
             title="Delete"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-destructive"
+            className={cn(actionButton, "hover:text-destructive")}
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className={iconClass} />
           </button>
         </div>
       )}
     </article>
   );
 }
-
