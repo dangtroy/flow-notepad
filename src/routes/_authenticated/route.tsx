@@ -38,7 +38,11 @@ function AppShell() {
             >
               <PanelLeft className="h-4 w-4" />
             </SheetTrigger>
-            <SheetContent side="left" className="w-[15rem] border-sidebar-border bg-sidebar p-0">
+            {/* The sheet's own close button sits top-right, so the header makes room. */}
+            <SheetContent
+              side="left"
+              className="w-[15rem] border-sidebar-border bg-sidebar p-0 [&_[data-sidebar-head]]:pr-11"
+            >
               <SheetTitle className="sr-only">Navigation</SheetTitle>
               <SidebarBody onNavigate={() => setDrawerOpen(false)} />
             </SheetContent>
