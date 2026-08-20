@@ -183,6 +183,8 @@ export async function loadStreamPage(
     .select(MESSAGE_SELECT)
     .eq("user_id", userId)
     .eq("conversation_id", notepadId)
+    // Reference notes are permanent facts; they live only in the Reference view.
+    .in("type", ["stream", "pinned"])
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(options.limit + 1);
