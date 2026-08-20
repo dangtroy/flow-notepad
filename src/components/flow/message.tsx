@@ -289,13 +289,6 @@ function MessageRowBase({
                     message.is_completed && "text-muted-foreground line-through decoration-1",
                   )}
                 >
-                  {message.ai_cleaned && (
-                    <CleanedMark
-                      message={message}
-                      onRestoreOriginal={onRestoreOriginal}
-                      className="float-left -ml-0.5 mr-0.5"
-                    />
-                  )}
                   <span dangerouslySetInnerHTML={{ __html: html }} />
                 </div>
 
