@@ -32,10 +32,12 @@ const ALLOWED: Record<string, string[]> = {
   div: [],
   span: [],
   input: ["type", "checked", "disabled"],
+  img: ["src", "alt", "title", "width", "height"],
 };
 
-const VOID_TAGS = new Set(["br", "input"]);
+const VOID_TAGS = new Set(["br", "input", "img"]);
 const BLOCK_TAGS = new Set(["p", "h1", "h2", "h3", "li", "blockquote", "pre", "div"]);
+
 
 function safeHref(value: string): string | null {
   const trimmed = value.trim();
