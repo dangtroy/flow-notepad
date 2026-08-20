@@ -186,7 +186,7 @@ function MessageRowBase({
       )}
     >
       <div className="flex gap-3 sm:gap-4">
-        {/* Left gutter: the completion checkbox, with the time quietly beneath. */}
+        {/* Left gutter: checkbox, status indicators, then time. */}
         <div className="hidden w-12 shrink-0 flex-col items-end gap-1 pt-[0.15rem] sm:flex">
           <button
             type="button"
@@ -208,6 +208,22 @@ function MessageRowBase({
           >
             <Check className="h-2.5 w-2.5" />
           </button>
+
+          {/* Top-left status indicators: diamond, pin, bell. */}
+          <div className="flex h-3.5 items-center justify-end gap-0.5">
+            {message.ai_cleaned && (
+              <CleanedMark
+                message={message}
+                onRestoreOriginal={onRestoreOriginal}
+                className="h-3.5 w-3.5 text-[0.65em]"
+              />
+            )}
+            {isPinnedNote && <Pin className="h-3 w-3 text-primary/70" aria-label="Pinned" />}
+            {message.remind_at && (
+              <Bell className="h-3 w-3 text-primary/70" aria-label="Reminder set" />
+            )}
+          </div>
+
           {keepGutter && withTime && (
             <div className="text-right text-[11px] leading-5 tracking-wide whitespace-nowrap text-muted-foreground/55">
               <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
