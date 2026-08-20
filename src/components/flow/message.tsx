@@ -186,7 +186,7 @@ function MessageRowBase({
         !isEditing && "cursor-text hover:bg-surface/55",
         isEditing && "bg-surface",
         isReplyTarget && "bg-surface/55",
-        message.is_pinned && "border-l-2 border-primary/45 pl-[calc(0.75rem-2px)]",
+        isPinnedNote && "border-l-2 border-primary/45 pl-[calc(0.75rem-2px)]",
       )}
     >
       <div className="flex gap-3 sm:gap-4">
@@ -200,12 +200,12 @@ function MessageRowBase({
               </>
             )}
             {/* A fixed marks row: same order, same place, never wraps the time. */}
-            {(message.ai_cleaned || message.is_pinned || message.remind_at) && (
+            {(message.ai_cleaned || isPinnedNote || message.remind_at) && (
               <span className="mt-0.5 flex items-center justify-end gap-1 leading-none">
                 {message.ai_cleaned && (
                   <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
                 )}
-                {message.is_pinned && (
+                {isPinnedNote && (
                   <Pin className="h-3 w-3 text-primary/70" aria-label="Pinned" />
                 )}
                 {message.remind_at && (
