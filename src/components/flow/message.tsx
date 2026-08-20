@@ -173,6 +173,26 @@ function MessageRowBase({
   const withTime = showTimestamps && (!isReply || showReplyTimestamps);
   const keepGutter = showTimestamps;
 
+  const metaBits = (
+    <>
+      {isPinnedNote && <Pin className="h-3 w-3 text-primary/70" aria-label="Pinned" />}
+      {message.remind_at && (
+        <ReminderPopover value={message.remind_at} onChange={onSetReminder}>
+          <button
+            type="button"
+            onClick={(event) => event.stopPropagation()}
+            aria-label={`Reminder ${reminderLabel(message.remind_at)}`}
+            title={`Reminder · ${reminderLabel(message.remind_at)}`}
+            className="inline-flex items-center gap-1 text-muted-foreground/60 transition-colors hover:text-primary"
+          >
+            <Bell className="h-3 w-3" />
+            {reminderLabel(message.remind_at)}
+          </button>
+        </ReminderPopover>
+      )}
+    </>
+  );
+
   return (
     <article
       data-message-id={message.id}
@@ -183,45 +203,38 @@ function MessageRowBase({
         !isEditing && "cursor-text hover:bg-surface/55",
         isEditing && "bg-surface",
         isReplyTarget && "bg-surface/55",
-        isPinnedNote && "border-l-2 border-primary/45 pl-[calc(0.75rem-2px)]",
       )}
     >
       <div className="flex gap-3 sm:gap-4">
-        {/* Time lives in a quiet left gutter, aligned across every depth. */}
-        {keepGutter && (
-          <div className="hidden w-12 shrink-0 pt-[0.15rem] text-right text-[11px] leading-5 tracking-wide whitespace-nowrap text-muted-foreground/55 sm:block">
-            {withTime && (
-              <>
-                <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
-                {message.edited_at && <div className="text-muted-foreground/40">edited</div>}
-              </>
+        {/* Left gutter: the completion checkbox, with the time quietly beneath. */}
+        <div className="hidden w-12 shrink-0 flex-col items-end gap-1 pt-[0.15rem] sm:flex">
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={message.is_completed}
+            onClick={(event) => {
+              event.stopPropagation();
+              event.currentTarget.blur();
+              onToggleComplete();
+            }}
+            aria-label={message.is_completed ? "Mark as not done" : "Mark as done"}
+            title={message.is_completed ? "Mark as not done" : "Mark as done"}
+            className={cn(
+              "inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded-sm border transition-colors duration-150",
+              message.is_completed
+                ? "border-primary/60 text-primary"
+                : "border-border text-transparent hover:border-muted-foreground/60",
             )}
-            {/* A fixed marks row: same order, same place, never wraps the time. */}
-            {(message.ai_cleaned || isPinnedNote || message.remind_at) && (
-              <span className="mt-0.5 flex items-center justify-end gap-1 leading-none">
-                {message.ai_cleaned && (
-                  <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
-                )}
-                {isPinnedNote && (
-                  <Pin className="h-3 w-3 text-primary/70" aria-label="Pinned" />
-                )}
-                {message.remind_at && (
-                  <ReminderPopover value={message.remind_at} onChange={onSetReminder}>
-                    <button
-                      type="button"
-                      onClick={(event) => event.stopPropagation()}
-                      aria-label={`Reminder ${reminderLabel(message.remind_at)}`}
-                      title={`Reminder · ${reminderLabel(message.remind_at)}`}
-                      className="text-muted-foreground/60 transition-colors hover:text-primary"
-                    >
-                      <Bell className="h-3 w-3" />
-                    </button>
-                  </ReminderPopover>
-                )}
-              </span>
-            )}
-          </div>
-        )}
+          >
+            <Check className="h-2.5 w-2.5" />
+          </button>
+          {keepGutter && withTime && (
+            <div className="text-right text-[11px] leading-5 tracking-wide whitespace-nowrap text-muted-foreground/55">
+              <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
+              {message.edited_at && <div className="text-muted-foreground/40">edited</div>}
+            </div>
+          )}
+        </div>
 
         <div
           className={cn("min-w-0 flex-1", isReply && "flow-reply-rail pl-3.5 sm:pl-4")}
@@ -233,9 +246,24 @@ function MessageRowBase({
             <>
               {/* Narrow screens have no gutter: a quiet meta line leads instead. */}
               <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] tracking-wide text-muted-foreground/55 sm:hidden">
-                {message.ai_cleaned && (
-                  <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
-                )}
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={message.is_completed}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggleComplete();
+                  }}
+                  aria-label={message.is_completed ? "Mark as not done" : "Mark as done"}
+                  className={cn(
+                    "inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded-sm border transition-colors",
+                    message.is_completed
+                      ? "border-primary/60 text-primary"
+                      : "border-border text-transparent",
+                  )}
+                >
+                  <Check className="h-2.5 w-2.5" />
+                </button>
                 {isPinnedNote && <Pin className="h-3 w-3 text-primary/70" />}
                 {message.remind_at && (
                   <span className="inline-flex items-center gap-1">
@@ -257,8 +285,16 @@ function MessageRowBase({
                     "flow-prose min-w-0 flex-1",
                     message.is_completed && "text-muted-foreground line-through decoration-1",
                   )}
-                  dangerouslySetInnerHTML={{ __html: html }}
-                />
+                >
+                  {message.ai_cleaned && (
+                    <CleanedMark
+                      message={message}
+                      onRestoreOriginal={onRestoreOriginal}
+                      className="float-left -ml-0.5 mr-0.5"
+                    />
+                  )}
+                  <span dangerouslySetInnerHTML={{ __html: html }} />
+                </div>
 
                 {/* Tags sit beside the text and step aside for the hover actions. */}
                 {tagPosition === "right" && tags.length > 0 && (
@@ -270,11 +306,14 @@ function MessageRowBase({
                 )}
               </div>
 
-              {tagPosition === "below" && tags.length > 0 && (
-                <div className="mt-1.5 hidden flex-wrap items-center gap-1.5 transition-opacity duration-150 group-focus-within:opacity-0 sm:flex">
-                  {tags.map((tag) => (
-                    <TagChip key={tag.id} tag={tag} style={tagStyle} />
-                  ))}
+              {/* One horizontal meta line: pin, reminder, then the tags. */}
+              {(isPinnedNote ||
+                message.remind_at ||
+                (tagPosition === "below" && tags.length > 0)) && (
+                <div className="mt-1.5 hidden flex-wrap items-center gap-2 text-[11px] leading-none tracking-wide text-muted-foreground/55 transition-opacity duration-150 group-focus-within:opacity-0 sm:flex">
+                  {metaBits}
+                  {tagPosition === "below" &&
+                    tags.map((tag) => <TagChip key={tag.id} tag={tag} style={tagStyle} />)}
                 </div>
               )}
 
@@ -290,6 +329,7 @@ function MessageRowBase({
         </div>
       </div>
 
+
       {/* Common actions stay one click away; destructive actions live in the menu. */}
       {!isEditing && (
         <div
@@ -298,22 +338,6 @@ function MessageRowBase({
             actionsOpen && "opacity-100",
           )}
         >
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              event.currentTarget.blur();
-              onToggleComplete();
-            }}
-            aria-label={message.is_completed ? "Mark as not done" : "Mark as done"}
-            title={message.is_completed ? "Mark as not done" : "Mark as done"}
-            className={cn(
-              "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 hover:bg-elevated hover:text-foreground",
-              message.is_completed ? "text-primary" : "text-muted-foreground",
-            )}
-          >
-            <Check className="h-3.5 w-3.5" />
-          </button>
           <button
             type="button"
             onClick={(event) => {
