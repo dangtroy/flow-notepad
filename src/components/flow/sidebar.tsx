@@ -78,7 +78,9 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const selected = tagIdsFrom(search.tags);
   const mode = search.mode === "and" ? "and" : "or";
   const list = tags.data ?? [];
-  const sections = buildTagSections(list, groups.data ?? [], sort);
+  // A tag with nothing in it is noise: it only appears once a note uses it.
+  const visible = list.filter((tag) => tag.message_count > 0);
+  const sections = buildTagSections(visible, groups.data ?? [], sort);
 
   async function signOut() {
     await supabase.auth.signOut();
