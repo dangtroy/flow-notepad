@@ -260,7 +260,14 @@ function MessageRowBase({
                 >
                   <Check className="h-2.5 w-2.5" />
                 </button>
-                {isPinnedNote && <Pin className="h-3 w-3 text-primary/70" />}
+                {message.ai_cleaned && (
+                  <CleanedMark
+                    message={message}
+                    onRestoreOriginal={onRestoreOriginal}
+                    className="h-3.5 w-3.5 text-[0.65em] opacity-100"
+                  />
+                )}
+                {isPinnedNote && <Pin className="h-3 w-3 text-primary/70" aria-label="Pinned" />}
                 {message.remind_at && (
                   <span className="inline-flex items-center gap-1">
                     <Bell className="h-3 w-3 text-muted-foreground/60" />
