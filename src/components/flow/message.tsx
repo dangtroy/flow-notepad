@@ -231,7 +231,7 @@ function MessageRowBase({
                   onClick={(event) => event.stopPropagation()}
                   aria-label="Save this"
                   title="Save this"
-                  className={cn(actionButton, message.type === "pinned" && "text-accent-strong")}
+                  className={cn(actionButton, message.type === "pinned" && "text-primary")}
                 >
                   <BookmarkPlus className={iconClass} />
                 </button>
@@ -281,7 +281,7 @@ function MessageRowBase({
               title={
                 message.remind_at ? `Reminder · ${reminderLabel(message.remind_at)}` : "Remind me"
               }
-              className={cn(actionButton, message.remind_at && "text-accent-strong")}
+              className={cn(actionButton, message.remind_at && "text-primary")}
             >
               <AlarmIcon />
             </button>
