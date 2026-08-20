@@ -217,7 +217,7 @@ function MessageRowBase({
             aria-label={message.is_completed ? "Mark as not done" : "Mark as done"}
             title={message.is_completed ? "Mark as not done" : "Mark as done"}
             className={cn(
-              "inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded border transition-colors duration-150",
+              "inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded-md border transition-colors duration-150",
               message.is_completed
                 ? "border-primary/60 text-primary"
                 : "border-border text-transparent hover:border-muted-foreground/60",
