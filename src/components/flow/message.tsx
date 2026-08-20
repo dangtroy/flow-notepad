@@ -1,8 +1,17 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Bell, BellOff, Check, MoreHorizontal, Pin, Reply, Trash2 } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  BookmarkPlus,
+  Check,
+  MoreHorizontal,
+  Pin,
+  Reply,
+  Trash2,
+} from "lucide-react";
 
 import type { TagPosition, TagStyle } from "@/lib/appearance";
-import type { FlowMessage } from "@/lib/flow.server";
+import type { FlowMessage, MessageType } from "@/lib/flow.server";
 import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -116,6 +125,7 @@ function MessageRowBase({
   onRestoreOriginal,
   onTogglePin,
   onSetReminder,
+  onSetType,
 }: {
   message: FlowMessage;
   isEditing: boolean;
@@ -135,6 +145,8 @@ function MessageRowBase({
   onRestoreOriginal?: () => void;
   onTogglePin: () => void;
   onSetReminder: (iso: string | null) => void;
+  /** Promotes the note between stream and pinned kinds, or out to Reference. */
+  onSetType?: (type: MessageType) => void;
 }) {
   const html = useMemo(
     () => sanitizeHtml(message.content_html ?? textToHtml(message.content)),
@@ -153,7 +165,11 @@ function MessageRowBase({
   // While a popup from the action bar is open, the bar must stay put.
   const [reminderOpen, setReminderOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const actionsOpen = reminderOpen || menuOpen;
+  const [saveOpen, setSaveOpen] = useState(false);
+  const actionsOpen = reminderOpen || menuOpen || saveOpen;
+  // Both the legacy pin flag and the "pinned" note kind read as pinned.
+  const isPinnedNote = message.is_pinned || message.type === "pinned";
+
 
   const isReply = depth > 0;
   const tags = showTags && message.tags.length > 0 ? message.tags : [];
@@ -170,7 +186,7 @@ function MessageRowBase({
         !isEditing && "cursor-text hover:bg-surface/55",
         isEditing && "bg-surface",
         isReplyTarget && "bg-surface/55",
-        message.is_pinned && "border-l-2 border-primary/45 pl-[calc(0.75rem-2px)]",
+        isPinnedNote && "border-l-2 border-primary/45 pl-[calc(0.75rem-2px)]",
       )}
     >
       <div className="flex gap-3 sm:gap-4">
@@ -184,12 +200,12 @@ function MessageRowBase({
               </>
             )}
             {/* A fixed marks row: same order, same place, never wraps the time. */}
-            {(message.ai_cleaned || message.is_pinned || message.remind_at) && (
+            {(message.ai_cleaned || isPinnedNote || message.remind_at) && (
               <span className="mt-0.5 flex items-center justify-end gap-1 leading-none">
                 {message.ai_cleaned && (
                   <CleanedMark message={message} onRestoreOriginal={onRestoreOriginal} />
                 )}
-                {message.is_pinned && (
+                {isPinnedNote && (
                   <Pin className="h-3 w-3 text-primary/70" aria-label="Pinned" />
                 )}
                 {message.remind_at && (
@@ -331,6 +347,55 @@ function MessageRowBase({
             <Pin className="h-3.5 w-3.5" />
           </button>
 
+          {onSetType && (
+            <Popover open={saveOpen} onOpenChange={setSaveOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(event) => event.stopPropagation()}
+                  aria-label="Save this"
+                  title="Save this"
+                  className={cn(
+                    "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 hover:bg-elevated hover:text-foreground",
+                    message.type === "pinned" ? "text-primary" : "text-muted-foreground",
+                  )}
+                >
+                  <BookmarkPlus className="h-3.5 w-3.5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                onClick={(event) => event.stopPropagation()}
+                className="w-44 p-1 text-[12.5px]"
+              >
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
+                  onClick={() => {
+                    setSaveOpen(false);
+                    onSetType(message.type === "pinned" ? "stream" : "pinned");
+                  }}
+                >
+                  <Pin className="h-3.5 w-3.5" />
+                  {message.type === "pinned" ? "Unpin" : "Pin"}
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
+                  onClick={() => {
+                    setSaveOpen(false);
+                    onSetType("reference");
+                  }}
+                >
+                  <BookmarkPlus className="h-3.5 w-3.5" />
+                  {message.type === "pinned" ? "Move to Reference" : "Reference"}
+                </button>
+              </PopoverContent>
+            </Popover>
+          )}
+
+
+
           <ReminderPopover
             value={message.remind_at}
             onChange={onSetReminder}
@@ -392,7 +457,7 @@ function MessageRowBase({
   );
 }
 
-function MessageEditor({
+export function MessageEditor({
   initialHtml,
   onSave,
   onCancel,

@@ -203,6 +203,7 @@ export type Database = {
           pinned_at: string | null
           remind_at: string | null
           reminder_dismissed_at: string | null
+          type: string
           updated_at: string
           user_id: string
         }
@@ -233,6 +234,7 @@ export type Database = {
           pinned_at?: string | null
           remind_at?: string | null
           reminder_dismissed_at?: string | null
+          type?: string
           updated_at?: string
           user_id: string
         }
@@ -263,6 +265,7 @@ export type Database = {
           pinned_at?: string | null
           remind_at?: string | null
           reminder_dismissed_at?: string | null
+          type?: string
           updated_at?: string
           user_id?: string
         }

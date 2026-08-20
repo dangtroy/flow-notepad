@@ -5,6 +5,7 @@ import {
   loadDueReminders,
   loadMessage,
   loadPinnedMessages,
+  loadReferenceNotes,
   loadStreamPage,
   loadTagGroups,
   loadTags,
@@ -72,12 +73,15 @@ export const sendMessage = createServerFn({ method: "POST" })
       /** Set only when AI writing cleanup produced the text being sent. */
       originalHtml?: string | null;
       cleanedHtml?: string | null;
+      /** Pinning is only ever a promotion afterwards, never a creation choice. */
+      type?: "stream" | "reference";
     }) => {
       const html = sanitizeHtml(input?.html ?? "");
       if (!html || isEmptyDocument(html)) throw new Error("A thought cannot be empty");
       const originalHtml = input?.originalHtml ? sanitizeHtml(input.originalHtml) : null;
       const cleanedHtml = input?.cleanedHtml ? sanitizeHtml(input.cleanedHtml) : null;
       return {
+        type: input?.type === "reference" ? ("reference" as const) : ("stream" as const),
         html: html.slice(0, 200000),
         text: htmlToText(html).slice(0, 20000),
         parentMessageId: input?.parentMessageId ?? null,
@@ -111,6 +115,7 @@ export const sendMessage = createServerFn({ method: "POST" })
       .insert({
         user_id: userId,
         conversation_id: conversationId,
+        type: data.type,
         content: data.text,
         content_html: data.html,
         parent_message_id: parentId,
@@ -1171,4 +1176,48 @@ export const getDueReminders = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const notepadId = await resolveNotepad(context.supabase, context.userId, data.notepadId);
     return { notepadId, messages: await loadDueReminders(context.supabase, context.userId, notepadId) };
+  });
+
+/* ---------- Note types (stream / pinned / reference) ---------- */
+
+/**
+ * Promotes or demotes a note between the three kinds. Reference notes can never
+ * hold a completed state, so moving to reference clears completion.
+ */
+export const setMessageType = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string; type: "stream" | "pinned" | "reference" }) => {
+    if (!input?.id) throw new Error("Missing message");
+    if (input.type !== "stream" && input.type !== "pinned" && input.type !== "reference") {
+      throw new Error("Unknown note type");
+    }
+    return { id: input.id, type: input.type };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: message, error } = await supabase
+      .from("messages")
+      .update({
+        type: data.type,
+        ...(data.type === "reference" ? { is_completed: false, completed_at: null } : {}),
+      } as never)
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .select(MESSAGE_SELECT)
+      .single();
+    if (error) throw error;
+    return mapMessage(message as never);
+  });
+
+export const listReferenceNotes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { notepadId?: string | null }) => ({
+    notepadId: input?.notepadId ?? null,
+  }))
+  .handler(async ({ data, context }) => {
+    const notepadId = await resolveNotepad(context.supabase, context.userId, data.notepadId);
+    return {
+      notepadId,
+      messages: await loadReferenceNotes(context.supabase, context.userId, notepadId),
+    };
   });

@@ -22,26 +22,33 @@ import {
   setMessageCompletion,
   setMessagePin,
   setMessageReminder,
+  setMessageType,
   updateMessage,
 } from "@/lib/flow.functions";
-import type { FlowMessage } from "@/lib/flow.server";
+import type { FlowMessage, MessageType } from "@/lib/flow.server";
 import { htmlToText } from "@/lib/rich-text";
 import { tagIdsFrom, type FilterMode } from "@/lib/tag-filter";
 import { useAppearance } from "@/lib/use-appearance";
-import { tagsKey } from "@/lib/use-tags";
+import { referenceKey, tagsKey, useReferenceNotes } from "@/lib/use-tags";
 import { useActiveNotepadId } from "@/lib/use-notepad";
 import { Composer, type CleanupMeta } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
 import { ContextBar } from "@/components/flow/context-bar";
+import { ReferenceList } from "@/components/flow/reference-list";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/")({
   validateSearch: (
     search: Record<string, unknown>,
-  ): { tags?: string | undefined; mode?: FilterMode | undefined } => ({
+  ): {
+    tags?: string | undefined;
+    mode?: FilterMode | undefined;
+    view?: "reference" | undefined;
+  } => ({
     tags:
       typeof search["tags"] === "string" && search["tags"] ? (search["tags"] as string) : undefined,
     mode: search["mode"] === "and" ? "and" : undefined,
+    view: search["view"] === "reference" ? "reference" : undefined,
   }),
   head: () => ({
     meta: [
@@ -99,12 +106,18 @@ function FlowPage() {
   const dismiss = useServerFn(dismissReminder);
   const fetchPinned = useServerFn(getPinnedMessages);
   const fetchDue = useServerFn(getDueReminders);
+  const changeType = useServerFn(setMessageType);
+  const navigate = Route.useNavigate();
   const { appearance } = useAppearance();
   const notepadId = useActiveNotepadId();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; preview: string } | null>(null);
   const [showPinnedContext, setShowPinnedContext] = useState(true);
+
+  // Reference notes are a separate, tag-grouped view over the same notepad.
+  const view: "stream" | "reference" = search.view === "reference" ? "reference" : "stream";
+  const reference = useReferenceNotes();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<number | null>(null);
@@ -296,6 +309,28 @@ function FlowPage() {
   }
 
   async function handleSend(html: string, cleanup: CleanupMeta) {
+    // Sending while the Reference view is open keeps the note there.
+    if (view === "reference") {
+      try {
+        const saved = await send({
+          data: {
+            html,
+            notepadId,
+            type: "reference",
+            originalHtml: cleanup?.originalHtml ?? null,
+            cleanedHtml: cleanup?.cleanedHtml ?? null,
+          },
+        });
+        void queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) });
+        void organizeInBackground(saved.id).then(() =>
+          queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) }),
+        );
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not save that thought");
+      }
+      return;
+    }
+
     const tempId = `temp-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
     const parentMessageId = replyTo?.id ?? null;
@@ -304,6 +339,7 @@ function FlowPage() {
       ...current,
       {
         id: tempId,
+        type: "stream",
         content: htmlToText(html),
         content_html: html,
         is_completed: false,
@@ -340,6 +376,60 @@ function FlowPage() {
     } catch (error) {
       patchStream((current) => current.filter((m) => m.id !== tempId));
       toast.error(error instanceof Error ? error.message : "Could not save that thought");
+    }
+  }
+
+  /** Reference notes live outside the stream cache, so they refetch on change. */
+  async function handleSaveReferenceEdit(id: string, html: string) {
+    try {
+      await edit({ data: { id, html } });
+      void queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) });
+      void organizeInBackground(id).then(() =>
+        queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) }),
+      );
+    } catch {
+      toast.error("Could not save that note");
+    }
+  }
+
+  async function handleReferenceType(id: string, type: MessageType) {
+    try {
+      await changeType({ data: { id, type } });
+      void queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) });
+      void queryClient.invalidateQueries({ queryKey: streamKey });
+      toast.success("Moved back to your stream");
+    } catch {
+      toast.error("Could not move that note");
+    }
+  }
+
+  async function handleReferenceDelete(id: string) {
+    try {
+      await destroy({ data: { id } });
+      void queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) });
+      void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
+    } catch {
+      toast.error("Could not remove that note");
+    }
+  }
+
+  /** Promotes a note between the stream, pinned, and reference kinds. */
+  async function handleSetType(message: FlowMessage, type: MessageType) {
+    const previous = message.type;
+    patchMessage(message.id, { type });
+    try {
+      const saved = await changeType({ data: { id: message.id, type } });
+      patchMessage(message.id, saved as FlowMessage);
+      if (type === "reference" || previous === "reference") {
+        void queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) });
+        void queryClient.invalidateQueries({ queryKey: streamKey });
+      }
+      toast.success(
+        type === "reference" ? "Kept as reference" : type === "pinned" ? "Pinned" : "Back in stream",
+      );
+    } catch {
+      patchMessage(message.id, { type: previous });
+      toast.error("Could not change that note");
     }
   }
 
@@ -526,12 +616,53 @@ function FlowPage() {
         onJump={jumpToMessage}
       />
 
+        <div className="flow-shell flex items-center gap-1 px-5 pt-5 sm:px-8">
+          {(["stream", "reference"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() =>
+                void navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    view: option === "reference" ? ("reference" as const) : undefined,
+                  }),
+                })
+              }
+              className={cn(
+                "rounded-md border px-2.5 py-1 text-[10.5px] uppercase tracking-[0.14em] transition-colors duration-150",
+                view === option
+                  ? "border-border bg-surface text-foreground"
+                  : "border-transparent text-muted-foreground/60 hover:text-foreground",
+              )}
+            >
+              {option === "stream" ? "Stream" : "Reference"}
+            </button>
+          ))}
+        </div>
+
       <div
         ref={scrollRef}
         onScroll={onScroll}
         className="flex-1 overflow-y-auto overscroll-contain"
       >
-        <div className="flow-shell flex min-h-full flex-col justify-end px-5 pb-8 pt-8 sm:px-8">
+        <div
+          className={cn(
+            "flow-shell flex min-h-full flex-col px-5 pb-8 pt-8 sm:px-8",
+            view === "reference" ? "justify-start" : "justify-end",
+          )}
+        >
+          {view === "reference" ? (
+            <ReferenceList
+              notes={reference.data?.messages ?? []}
+              isPending={reference.isPending}
+              tagStyle={appearance.tagStyle}
+              onSaveEdit={(id, html) => void handleSaveReferenceEdit(id, html)}
+              onMoveToStream={(id) => void handleReferenceType(id, "stream")}
+              onDelete={(id) => void handleReferenceDelete(id)}
+            />
+          ) : (
+          <>
           {hasNextPage && (
             <p className="pb-6 text-center text-[11px] uppercase tracking-[0.16em] text-muted-foreground/45">
               {isFetchingNextPage ? "Loading earlier thoughts…" : "Scroll up for earlier thoughts"}
@@ -606,6 +737,7 @@ function FlowPage() {
 
                             onTogglePin={() => void handleTogglePin(message)}
                             onSetReminder={(iso) => void handleSetReminder(message, iso)}
+                            onSetType={(type) => void handleSetType(message, type)}
                             onToggleComplete={() => void handleToggleComplete(message)}
                             onDeleteNow={() => void handleDeleteNow(message)}
                             onRestoreOriginal={() => void handleRestoreOriginal(message)}
@@ -623,6 +755,8 @@ function FlowPage() {
                 </section>
               );
             })
+          )}
+          </>
           )}
         </div>
       </div>

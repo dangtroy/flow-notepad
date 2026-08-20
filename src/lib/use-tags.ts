@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
-import { listTagGroups, listTags } from "./flow.functions";
+import { listReferenceNotes, listTagGroups, listTags } from "./flow.functions";
 import { useActiveNotepadId } from "./use-notepad";
 
 /** Tags and groups are per-notepad, so the notepad id is part of the cache key. */
@@ -27,6 +27,20 @@ export function useTagGroups() {
   return useQuery({
     queryKey: tagGroupsKey(notepadId),
     queryFn: () => fetchGroups({ data: { notepadId } }),
+    enabled: Boolean(notepadId),
+  });
+}
+
+/** Reference notes live in their own tag-grouped view, per notepad. */
+export const referenceKey = (notepadId: string | null) =>
+  ["reference", notepadId ?? "none"] as const;
+
+export function useReferenceNotes() {
+  const notepadId = useActiveNotepadId();
+  const fetchReference = useServerFn(listReferenceNotes);
+  return useQuery({
+    queryKey: referenceKey(notepadId),
+    queryFn: () => fetchReference({ data: { notepadId } }),
     enabled: Boolean(notepadId),
   });
 }

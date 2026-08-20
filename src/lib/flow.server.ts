@@ -5,8 +5,12 @@ type Client = SupabaseClient<Database>;
 
 export type FlowTag = { id: string; name: string; color: string | null };
 
+export type MessageType = "stream" | "pinned" | "reference";
+
 export type FlowMessage = {
   id: string;
+  /** stream = normal note, pinned = temporarily important, reference = permanent fact. */
+  type: MessageType;
   content: string;
   content_html: string | null;
   is_completed: boolean;
@@ -54,10 +58,11 @@ export async function ensurePreferences(supabase: Client, userId: string) {
 }
 
 export const MESSAGE_SELECT =
-  "id, content, content_html, is_completed, completed_at, ai_status, created_at, updated_at, edited_at, parent_message_id, ai_cleaned, original_content, original_content_html, is_pinned, pinned_at, remind_at, reminder_dismissed_at, message_tags(tag_id, tags(id, name, color))";
+  "id, type, content, content_html, is_completed, completed_at, ai_status, created_at, updated_at, edited_at, parent_message_id, ai_cleaned, original_content, original_content_html, is_pinned, pinned_at, remind_at, reminder_dismissed_at, message_tags(tag_id, tags(id, name, color))";
 
 type MessageRow = {
   id: string;
+  type?: string | null;
   content: string;
   content_html: string | null;
   is_completed: boolean;
@@ -81,6 +86,7 @@ export function mapMessage(row: MessageRow): FlowMessage {
   const links = (row.message_tags ?? []) as Array<{ tags: FlowTag | null }>;
   return {
     id: row.id,
+    type: (row.type as MessageType | null) ?? "stream",
     content: row.content,
     content_html: row.content_html,
     is_completed: row.is_completed,
@@ -177,6 +183,8 @@ export async function loadStreamPage(
     .select(MESSAGE_SELECT)
     .eq("user_id", userId)
     .eq("conversation_id", notepadId)
+    // Reference notes are permanent facts; they live only in the Reference view.
+    .in("type", ["stream", "pinned"])
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(options.limit + 1);
@@ -412,6 +420,27 @@ export async function loadDueReminders(
     .is("reminder_dismissed_at", null)
     .order("remind_at", { ascending: true })
     .limit(50);
+  if (error) throw error;
+  return ((data ?? []) as unknown as MessageRow[]).map(mapMessage);
+}
+
+/**
+ * Reference notes: permanently useful facts with no action expected. Small lists
+ * by nature, so no pagination — just a sane cap.
+ */
+export async function loadReferenceNotes(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+): Promise<FlowMessage[]> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select(MESSAGE_SELECT)
+    .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
+    .eq("type", "reference")
+    .order("updated_at", { ascending: false })
+    .limit(500);
   if (error) throw error;
   return ((data ?? []) as unknown as MessageRow[]).map(mapMessage);
 }
