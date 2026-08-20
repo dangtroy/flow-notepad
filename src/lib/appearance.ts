@@ -126,16 +126,11 @@ export function readAppearance(): Appearance {
   }
 }
 
-/** Earlier versions kept theme and tag visibility in their own keys. */
+/** Earlier versions kept theme in its own key. */
 function migrateLegacy(): Appearance {
   const next = { ...DEFAULT_APPEARANCE };
   const theme = window.localStorage.getItem("flow-theme");
   if (theme === "light" || theme === "dark") next.theme = theme;
-  const tags = window.localStorage.getItem("flow-show-tags");
-  if (tags === "hidden") {
-    next.showTags = false;
-    next.showTimestamps = false;
-  }
   return next;
 }
 
