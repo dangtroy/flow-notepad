@@ -150,6 +150,11 @@ function MessageRowBase({
     onStartEdit();
   }
 
+  // While a popup from the action bar is open, the bar must stay put.
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const actionsOpen = reminderOpen || menuOpen;
+
   const isReply = depth > 0;
   const tags = showTags && message.tags.length > 0 ? message.tags : [];
   const withTime = showTimestamps && (!isReply || showReplyTimestamps);
@@ -274,7 +279,12 @@ function MessageRowBase({
 
       {/* Common actions stay one click away; destructive actions live in the menu. */}
       {!isEditing && (
-        <div className="absolute right-2 top-1.5 flex items-center gap-0.5 rounded-md border border-border bg-popover/95 p-0.5 opacity-0 shadow-quiet backdrop-blur transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
+        <div
+          className={cn(
+            "absolute right-2 top-1.5 flex items-center gap-0.5 rounded-md border border-border bg-popover/95 p-0.5 opacity-0 shadow-quiet backdrop-blur transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100",
+            actionsOpen && "opacity-100",
+          )}
+        >
           <button
             type="button"
             onClick={(event) => {
@@ -321,7 +331,13 @@ function MessageRowBase({
             <Pin className="h-3.5 w-3.5" />
           </button>
 
-          <ReminderPopover value={message.remind_at} onChange={onSetReminder} align="end">
+          <ReminderPopover
+            value={message.remind_at}
+            onChange={onSetReminder}
+            align="end"
+            open={reminderOpen}
+            onOpenChange={setReminderOpen}
+          >
             <button
               type="button"
               onClick={(event) => event.stopPropagation()}
@@ -338,7 +354,7 @@ function MessageRowBase({
             </button>
           </ReminderPopover>
 
-          <DropdownMenu>
+          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
