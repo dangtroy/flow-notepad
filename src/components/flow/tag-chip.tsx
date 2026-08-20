@@ -1,7 +1,38 @@
+import { Link } from "@tanstack/react-router";
+
 import type { FlowTag } from "@/lib/flow.server";
 import type { TagStyle } from "@/lib/appearance";
 import { tagAccent } from "@/lib/tag-colors";
 import { cn } from "@/lib/utils";
+
+/**
+ * The canonical stream tag: a small entity dot, then the name in the entity's
+ * own colour. No pill, no border — and it links to that tag's filtered view.
+ */
+export function TagLink({ tag, className }: { tag: FlowTag; className?: string }) {
+  const accent = tagAccent(tag.color);
+
+  return (
+    <Link
+      to="/"
+      search={{ tags: tag.id }}
+      onClick={(event) => event.stopPropagation()}
+      title={`Show only ${tag.name}`}
+      className={cn(
+        "inline-flex items-center gap-1.5 font-mono text-[11px] leading-none tracking-tight transition-opacity hover:opacity-80",
+        className,
+      )}
+      style={{ color: accent }}
+    >
+      <span
+        aria-hidden
+        className="h-[5px] w-[5px] shrink-0 rounded-full"
+        style={{ backgroundColor: accent }}
+      />
+      {tag.name}
+    </Link>
+  );
+}
 
 /** Secondary to the message: the tag colour is a quiet accent, never a badge. */
 export function TagChip({
