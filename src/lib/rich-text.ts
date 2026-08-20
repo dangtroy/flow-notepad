@@ -119,6 +119,13 @@ export function sanitizeHtml(input: string): string {
         attrText += ` href="${escapeAttr(href)}"`;
         continue;
       }
+      if (name === "src") {
+        const src = safeImageSrc(value);
+        if (!src) continue;
+        attrText += ` src="${escapeAttr(src)}"`;
+        continue;
+      }
+
       attrText += value ? ` ${name}="${escapeAttr(value)}"` : ` ${name}`;
     }
 
