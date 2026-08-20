@@ -574,12 +574,36 @@ function FlowPage() {
     refetchOnWindowFocus: true,
   });
 
+  const countsKey = useMemo(
+    () => ["view-counts", notepadId ?? "none", todaySince] as const,
+    [notepadId, todaySince],
+  );
+  const { data: countsData } = useQuery({
+    queryKey: countsKey,
+    queryFn: () => fetchCounts({ data: { notepadId, since: todaySince } }),
+    enabled: Boolean(notepadId),
+  });
+  const { data: weekData } = useQuery({
+    queryKey: ["week-stats", notepadId ?? "none"] as const,
+    queryFn: () => fetchWeek({ data: { notepadId } }),
+    enabled: Boolean(notepadId),
+  });
+
+  const counts: Record<StreamView, number> = {
+    all: countsData?.all ?? 0,
+    today: countsData?.today ?? 0,
+    pinned: countsData?.pinned ?? 0,
+    reference: countsData?.reference ?? 0,
+  };
+
   const pinned = pinnedData?.messages ?? [];
   const dueReminders = dueData?.messages ?? [];
 
   const refreshPinsAndReminders = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: pinnedKey });
     void queryClient.invalidateQueries({ queryKey: remindersKey });
+    void queryClient.invalidateQueries({ queryKey: ["view-counts"] });
+    void queryClient.invalidateQueries({ queryKey: ["week-stats"] });
   }, [queryClient, pinnedKey, remindersKey]);
 
   /** Jumps to where a pinned or reminded thought actually lives in the stream. */
