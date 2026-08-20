@@ -71,7 +71,7 @@ export function NotepadSwitcher({ onNavigate }: { onNavigate?: (() => void) | un
       </button>
 
       {open && (
-        <div className="absolute left-0 z-40 mt-1 w-60 overflow-hidden rounded-lg border border-border bg-popover py-1 shadow-xl">
+        <div className="absolute left-0 z-40 mt-1 w-60 overflow-hidden rounded-lg border border-border bg-popover py-1">
           <div className="max-h-64 overflow-y-auto">
             {notepads.map((notepad) => (
               <button

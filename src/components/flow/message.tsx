@@ -294,7 +294,7 @@ function MessageRowBase({
       {!isEditing && (
         <div
           className={cn(
-            "absolute right-2 top-1.5 flex items-center gap-0.5 rounded-md border border-border bg-popover/95 p-0.5 opacity-0 shadow-quiet backdrop-blur transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100",
+            "absolute right-2 top-1.5 flex items-center gap-0.5 rounded-md border border-border bg-popover p-0.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100",
             actionsOpen && "opacity-100",
           )}
         >

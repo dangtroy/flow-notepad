@@ -64,8 +64,18 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --shadow-quiet: 0 1px 2px oklch(0 0 0 / 0.4);
-  --shadow-lifted: 0 8px 28px -12px oklch(0 0 0 / 0.6);
+  /* Flat by design: every shadow scale resolves to none. */
+  --shadow-quiet: none;
+  --shadow-lifted: none;
+  --shadow-2xs: none;
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-xl: none;
+  --shadow-2xl: none;
+
+
 }
 
 /* Light mode — warm paper, same restraint, same accent. */
