@@ -173,26 +173,6 @@ function MessageRowBase({
   const withTime = showTimestamps && (!isReply || showReplyTimestamps);
   const keepGutter = showTimestamps;
 
-  const metaBits = (
-    <>
-      {isPinnedNote && <Pin className="h-3 w-3 text-primary/70" aria-label="Pinned" />}
-      {message.remind_at && (
-        <ReminderPopover value={message.remind_at} onChange={onSetReminder}>
-          <button
-            type="button"
-            onClick={(event) => event.stopPropagation()}
-            aria-label={`Reminder ${reminderLabel(message.remind_at)}`}
-            title={`Reminder · ${reminderLabel(message.remind_at)}`}
-            className="inline-flex items-center gap-1 text-muted-foreground/60 transition-colors hover:text-primary"
-          >
-            <Bell className="h-3 w-3" />
-            {reminderLabel(message.remind_at)}
-          </button>
-        </ReminderPopover>
-      )}
-    </>
-  );
-
   return (
     <article
       data-message-id={message.id}
