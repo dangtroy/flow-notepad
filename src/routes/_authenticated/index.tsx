@@ -16,6 +16,8 @@ import {
   getDueReminders,
   getPinnedMessages,
   getStreamPage,
+  getViewCounts,
+  getWeekStats,
   organizeMessageFn,
   restoreOriginalMessage,
   sendMessage,
@@ -32,7 +34,12 @@ import { referenceKey, tagsKey, useReferenceNotes } from "@/lib/use-tags";
 import { useActiveNotepadId } from "@/lib/use-notepad";
 import { Composer, type CleanupMeta } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
-import { ContextBar } from "@/components/flow/context-bar";
+import { AttentionRail } from "@/components/flow/attention-rail";
+import {
+  STREAM_VIEWS,
+  StreamTopBar,
+  type StreamView,
+} from "@/components/flow/stream-top-bar";
 import { ReferenceList } from "@/components/flow/reference-list";
 import { cn } from "@/lib/utils";
 
@@ -42,12 +49,14 @@ export const Route = createFileRoute("/_authenticated/")({
   ): {
     tags?: string | undefined;
     mode?: FilterMode | undefined;
-    view?: "reference" | undefined;
+    view?: StreamView | undefined;
   } => ({
     tags:
       typeof search["tags"] === "string" && search["tags"] ? (search["tags"] as string) : undefined,
     mode: search["mode"] === "and" ? "and" : undefined,
-    view: search["view"] === "reference" ? "reference" : undefined,
+    view: STREAM_VIEWS.some((option) => option.value === search["view"])
+      ? (search["view"] as StreamView)
+      : undefined,
   }),
   head: () => ({
     meta: [
@@ -105,17 +114,34 @@ function FlowPage() {
   const fetchPinned = useServerFn(getPinnedMessages);
   const fetchDue = useServerFn(getDueReminders);
   const changeType = useServerFn(setMessageType);
+  const fetchCounts = useServerFn(getViewCounts);
+  const fetchWeek = useServerFn(getWeekStats);
   const navigate = Route.useNavigate();
   const { appearance } = useAppearance();
   const notepadId = useActiveNotepadId();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; preview: string } | null>(null);
-  const [showPinnedContext, setShowPinnedContext] = useState(true);
+  const [railOpen, setRailOpen] = useState(true);
+  const [queryInput, setQueryInput] = useState("");
+  const [query, setQuery] = useState("");
 
-  // Reference notes are a separate, tag-grouped view over the same notepad.
-  const view: "stream" | "reference" = search.view === "reference" ? "reference" : "stream";
+  // Debounced: typing never refetches on every keystroke.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setQuery(queryInput.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [queryInput]);
+
+  // Four views over the same notepad: All, Today, Pinned, and Reference.
+  const view: StreamView = search.view ?? "all";
   const reference = useReferenceNotes();
+
+  /** Local midnight, computed client-side: the server has no timezone. */
+  const todaySince = useMemo(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date.toISOString();
+  }, []);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<number | null>(null);
@@ -133,8 +159,10 @@ function FlowPage() {
         notepadId ?? "none",
         selectedTagIds.join(","),
         selectedTagIds.length > 1 ? mode : "or",
+        view,
+        query,
       ] as const,
-    [notepadId, selectedTagIds, mode],
+    [notepadId, selectedTagIds, mode, view, query],
   );
 
   const { data, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery<
@@ -148,10 +176,19 @@ function FlowPage() {
     initialPageParam: null,
     queryFn: ({ pageParam }) =>
       fetchPage({
-        data: { notepadId, before: pageParam, limit: PAGE_SIZE, tagIds: selectedTagIds, mode },
+        data: {
+          notepadId,
+          before: pageParam,
+          limit: PAGE_SIZE,
+          tagIds: selectedTagIds,
+          mode,
+          query: query || null,
+          since: view === "today" ? todaySince : null,
+          pinnedOnly: view === "pinned",
+        },
       }),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: Boolean(notepadId),
+    enabled: Boolean(notepadId) && view !== "reference",
   });
 
   // Pages arrive newest-first; render them oldest-first.
@@ -249,7 +286,6 @@ function FlowPage() {
   const onScroll = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return;
-    setShowPinnedContext(element.scrollTop <= 8);
     if (!hasNextPage || isFetchingNextPage) return;
     if (element.scrollTop < 240) {
       anchorRef.current = element.scrollHeight - element.scrollTop;
@@ -370,6 +406,7 @@ function FlowPage() {
         },
       });
       patchMessage(tempId, saved as FlowMessage);
+      refreshPinsAndReminders();
       void organizeInBackground(saved.id);
     } catch (error) {
       patchStream((current) => current.filter((m) => m.id !== tempId));
@@ -538,12 +575,36 @@ function FlowPage() {
     refetchOnWindowFocus: true,
   });
 
+  const countsKey = useMemo(
+    () => ["view-counts", notepadId ?? "none", todaySince] as const,
+    [notepadId, todaySince],
+  );
+  const { data: countsData } = useQuery({
+    queryKey: countsKey,
+    queryFn: () => fetchCounts({ data: { notepadId, since: todaySince } }),
+    enabled: Boolean(notepadId),
+  });
+  const { data: weekData } = useQuery({
+    queryKey: ["week-stats", notepadId ?? "none"] as const,
+    queryFn: () => fetchWeek({ data: { notepadId } }),
+    enabled: Boolean(notepadId),
+  });
+
+  const counts: Record<StreamView, number> = {
+    all: countsData?.all ?? 0,
+    today: countsData?.today ?? 0,
+    pinned: countsData?.pinned ?? 0,
+    reference: countsData?.reference ?? 0,
+  };
+
   const pinned = pinnedData?.messages ?? [];
   const dueReminders = dueData?.messages ?? [];
 
   const refreshPinsAndReminders = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: pinnedKey });
     void queryClient.invalidateQueries({ queryKey: remindersKey });
+    void queryClient.invalidateQueries({ queryKey: ["view-counts"] });
+    void queryClient.invalidateQueries({ queryKey: ["week-stats"] });
   }, [queryClient, pinnedKey, remindersKey]);
 
   /** Jumps to where a pinned or reminded thought actually lives in the stream. */
@@ -588,42 +649,33 @@ function FlowPage() {
     await handleDismissReminder(message);
   }
 
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <ContextBar
-        pinned={showPinnedContext ? pinned : []}
-        reminders={dueReminders}
-        onSnooze={(message, iso) => void handleSetReminder(message, iso)}
-        onComplete={(message) => void handleCompleteFromReminder(message)}
-        onDismiss={(message) => void handleDismissReminder(message)}
-        onUnpin={(message) => void handleSetType(message, "stream")}
-        onJump={jumpToMessage}
-      />
+  const referenceNotes = useMemo(() => {
+    const notes = reference.data?.messages ?? [];
+    if (!query) return notes;
+    const needle = query.toLowerCase();
+    return notes.filter(
+      (note) =>
+        note.content.toLowerCase().includes(needle) ||
+        note.tags.some((tag) => tag.name.toLowerCase().includes(needle)),
+    );
+  }, [reference.data, query]);
 
-        <div className="flow-shell flex items-center gap-1 px-5 pt-5 sm:px-8">
-          {(["stream", "reference"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() =>
-                void navigate({
-                  search: (prev) => ({
-                    ...prev,
-                    view: option === "reference" ? ("reference" as const) : undefined,
-                  }),
-                })
-              }
-              className={cn(
-                "rounded-md border px-2.5 py-1 text-[10.5px] uppercase tracking-[0.14em] transition-colors duration-150",
-                view === option
-                  ? "border-border bg-surface text-foreground"
-                  : "border-transparent text-muted-foreground/60 hover:text-foreground",
-              )}
-            >
-              {option === "stream" ? "Stream" : "Reference"}
-            </button>
-          ))}
-        </div>
+  return (
+    <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <StreamTopBar
+          view={view}
+          onViewChange={(next) =>
+            void navigate({
+              search: (prev) => ({ ...prev, view: next === "all" ? undefined : next }),
+            })
+          }
+          counts={counts}
+          query={queryInput}
+          onQueryChange={setQueryInput}
+          railOpen={railOpen}
+          onToggleRail={() => setRailOpen((value) => !value)}
+        />
 
       <div
         ref={scrollRef}
@@ -638,7 +690,7 @@ function FlowPage() {
         >
           {view === "reference" ? (
             <ReferenceList
-              notes={reference.data?.messages ?? []}
+              notes={referenceNotes}
               isPending={reference.isPending}
               tagStyle={appearance.tagStyle}
               onSaveEdit={(id, html) => void handleSaveReferenceEdit(id, html)}
@@ -658,7 +710,13 @@ function FlowPage() {
           ) : grouped.length === 0 ? (
             <div className="mt-24 text-center">
               <p className="flow-prose text-muted-foreground">
-                {isFiltered ? (
+                {query ? (
+                  <>No notes match &ldquo;{query}&rdquo; in this view.</>
+                ) : view === "today" ? (
+                  <>Nothing written today yet.</>
+                ) : view === "pinned" ? (
+                  <>Nothing pinned yet.</>
+                ) : isFiltered ? (
                   <>
                     Nothing tagged this way yet.
                     <br />
@@ -744,10 +802,28 @@ function FlowPage() {
         </div>
       </div>
 
-      <Composer
-        onSend={(html, cleanup) => void handleSend(html, cleanup)}
-        replyingTo={replyTo}
-        onCancelReply={() => setReplyTo(null)}
+        <Composer
+          onSend={(html, cleanup) => void handleSend(html, cleanup)}
+          replyingTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
+        />
+      </div>
+
+      <AttentionRail
+        open={railOpen}
+        onOpenChange={setRailOpen}
+        reminders={dueReminders}
+        pinned={pinned}
+        stats={{
+          captured: weekData?.captured ?? 0,
+          completed: weekData?.completed ?? 0,
+          references: counts.reference,
+        }}
+        onSnooze={(message, iso) => void handleSetReminder(message, iso)}
+        onComplete={(message) => void handleCompleteFromReminder(message)}
+        onDismiss={(message) => void handleDismissReminder(message)}
+        onUnpin={(message) => void handleSetType(message, "stream")}
+        onJump={jumpToMessage}
       />
     </div>
   );

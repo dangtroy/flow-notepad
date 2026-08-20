@@ -7,6 +7,9 @@ import {
   loadPinnedMessages,
   loadReferenceNotes,
   loadStreamPage,
+  loadViewCounts,
+  loadWeekStats,
+
   loadTagGroups,
   loadTags,
   MESSAGE_SELECT,
@@ -42,12 +45,21 @@ export const getStreamPage = createServerFn({ method: "GET" })
       limit?: number;
       tagIds?: string[];
       mode?: "or" | "and";
+      /** Free-text search within the active view. */
+      query?: string | null;
+      /** Lower bound on created_at — the client sends its own local midnight. */
+      since?: string | null;
+      /** Pinned tab narrows the stream to pinned notes only. */
+      pinnedOnly?: boolean;
     }) => ({
       notepadId: input?.notepadId ?? null,
       before: input?.before ?? null,
       limit: Math.min(Math.max(input?.limit ?? 40, 5), 100),
       tagIds: Array.isArray(input?.tagIds) ? input!.tagIds.filter(Boolean).slice(0, 20) : [],
       mode: input?.mode === "and" ? ("and" as const) : ("or" as const),
+      query: input?.query ? String(input.query).slice(0, 200) : null,
+      since: input?.since ?? null,
+      pinnedOnly: Boolean(input?.pinnedOnly),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -59,9 +71,40 @@ export const getStreamPage = createServerFn({ method: "GET" })
       before: data.before,
       tagIds: data.tagIds,
       mode: data.mode,
+      query: data.query,
+      since: data.since,
+      types: data.pinnedOnly ? ["pinned"] : ["stream", "pinned"],
     });
     return { notepadId, ...page };
   });
+
+/** Badge counts for the All / Today / Pinned / Reference tabs. */
+export const getViewCounts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { notepadId?: string | null; since?: string | null }) => ({
+    notepadId: input?.notepadId ?? null,
+    since: input?.since ?? null,
+  }))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const notepadId = await resolveNotepad(supabase, userId, data.notepadId);
+    const since = data.since ?? new Date(new Date().toDateString()).toISOString();
+    return { notepadId, ...(await loadViewCounts(supabase, userId, notepadId, since)) };
+  });
+
+/** Captured / completed over the last seven days for the attention rail. */
+export const getWeekStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { notepadId?: string | null }) => ({
+    notepadId: input?.notepadId ?? null,
+  }))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const notepadId = await resolveNotepad(supabase, userId, data.notepadId);
+    const since = new Date(Date.now() - 7 * 86400000).toISOString();
+    return { notepadId, ...(await loadWeekStats(supabase, userId, notepadId, since)) };
+  });
+
 
 export const sendMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
