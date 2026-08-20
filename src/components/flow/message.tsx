@@ -150,6 +150,11 @@ function MessageRowBase({
     onStartEdit();
   }
 
+  // While a popup from the action bar is open, the bar must stay put.
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const actionsOpen = reminderOpen || menuOpen;
+
   const isReply = depth > 0;
   const tags = showTags && message.tags.length > 0 ? message.tags : [];
   const withTime = showTimestamps && (!isReply || showReplyTimestamps);
