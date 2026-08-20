@@ -331,7 +331,13 @@ function MessageRowBase({
             <Pin className="h-3.5 w-3.5" />
           </button>
 
-          <ReminderPopover value={message.remind_at} onChange={onSetReminder} align="end">
+          <ReminderPopover
+            value={message.remind_at}
+            onChange={onSetReminder}
+            align="end"
+            open={reminderOpen}
+            onOpenChange={setReminderOpen}
+          >
             <button
               type="button"
               onClick={(event) => event.stopPropagation()}
@@ -348,7 +354,7 @@ function MessageRowBase({
             </button>
           </ReminderPopover>
 
-          <DropdownMenu>
+          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
