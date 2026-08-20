@@ -406,6 +406,7 @@ function FlowPage() {
         },
       });
       patchMessage(tempId, saved as FlowMessage);
+      refreshPinsAndReminders();
       void organizeInBackground(saved.id);
     } catch (error) {
       patchStream((current) => current.filter((m) => m.id !== tempId));
@@ -648,42 +649,33 @@ function FlowPage() {
     await handleDismissReminder(message);
   }
 
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <ContextBar
-        pinned={showPinnedContext ? pinned : []}
-        reminders={dueReminders}
-        onSnooze={(message, iso) => void handleSetReminder(message, iso)}
-        onComplete={(message) => void handleCompleteFromReminder(message)}
-        onDismiss={(message) => void handleDismissReminder(message)}
-        onUnpin={(message) => void handleSetType(message, "stream")}
-        onJump={jumpToMessage}
-      />
+  const referenceNotes = useMemo(() => {
+    const notes = reference.data?.messages ?? [];
+    if (!query) return notes;
+    const needle = query.toLowerCase();
+    return notes.filter(
+      (note) =>
+        note.content.toLowerCase().includes(needle) ||
+        note.tags.some((tag) => tag.name.toLowerCase().includes(needle)),
+    );
+  }, [reference.data, query]);
 
-        <div className="flow-shell flex items-center gap-1 px-5 pt-5 sm:px-8">
-          {(["stream", "reference"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() =>
-                void navigate({
-                  search: (prev) => ({
-                    ...prev,
-                    view: option === "reference" ? ("reference" as const) : undefined,
-                  }),
-                })
-              }
-              className={cn(
-                "rounded-md border px-2.5 py-1 text-[10.5px] uppercase tracking-[0.14em] transition-colors duration-150",
-                view === option
-                  ? "border-border bg-surface text-foreground"
-                  : "border-transparent text-muted-foreground/60 hover:text-foreground",
-              )}
-            >
-              {option === "stream" ? "Stream" : "Reference"}
-            </button>
-          ))}
-        </div>
+  return (
+    <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <StreamTopBar
+          view={view}
+          onViewChange={(next) =>
+            void navigate({
+              search: (prev) => ({ ...prev, view: next === "all" ? undefined : next }),
+            })
+          }
+          counts={counts}
+          query={queryInput}
+          onQueryChange={setQueryInput}
+          railOpen={railOpen}
+          onToggleRail={() => setRailOpen((value) => !value)}
+        />
 
       <div
         ref={scrollRef}
@@ -698,7 +690,7 @@ function FlowPage() {
         >
           {view === "reference" ? (
             <ReferenceList
-              notes={reference.data?.messages ?? []}
+              notes={referenceNotes}
               isPending={reference.isPending}
               tagStyle={appearance.tagStyle}
               onSaveEdit={(id, html) => void handleSaveReferenceEdit(id, html)}
@@ -804,10 +796,28 @@ function FlowPage() {
         </div>
       </div>
 
-      <Composer
-        onSend={(html, cleanup) => void handleSend(html, cleanup)}
-        replyingTo={replyTo}
-        onCancelReply={() => setReplyTo(null)}
+        <Composer
+          onSend={(html, cleanup) => void handleSend(html, cleanup)}
+          replyingTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
+        />
+      </div>
+
+      <AttentionRail
+        open={railOpen}
+        onOpenChange={setRailOpen}
+        reminders={dueReminders}
+        pinned={pinned}
+        stats={{
+          captured: weekData?.captured ?? 0,
+          completed: weekData?.completed ?? 0,
+          references: counts.reference,
+        }}
+        onSnooze={(message, iso) => void handleSetReminder(message, iso)}
+        onComplete={(message) => void handleCompleteFromReminder(message)}
+        onDismiss={(message) => void handleDismissReminder(message)}
+        onUnpin={(message) => void handleSetType(message, "stream")}
+        onJump={jumpToMessage}
       />
     </div>
   );
