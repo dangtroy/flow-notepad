@@ -811,22 +811,27 @@ function FlowPage() {
         />
       </div>
 
-      <AttentionRail
-        open={railOpen}
-        onOpenChange={setRailOpen}
-        reminders={dueReminders}
-        pinned={pinned}
-        stats={{
-          captured: weekData?.captured ?? 0,
-          completed: weekData?.completed ?? 0,
-          references: counts.reference,
-        }}
-        onSnooze={(message, iso) => void handleSetReminder(message, iso)}
-        onComplete={(message) => void handleCompleteFromReminder(message)}
-        onDismiss={(message) => void handleDismissReminder(message)}
-        onUnpin={(message) => void handleSetType(message, "stream")}
-        onJump={jumpToMessage}
-      />
+      <AttentionRail {...railProps} open={railOpen} onOpenChange={setRailOpen} />
+
+      {/* Same panel, reachable on phones and narrow windows. */}
+      <Sheet open={panelSheet} onOpenChange={setPanelSheet}>
+        <SheetContent
+          side="right"
+          className="w-[20rem] border-border bg-surface p-0 lg:hidden"
+        >
+          <SheetTitle className="sr-only">Needs attention</SheetTitle>
+          <AttentionRail
+            {...railProps}
+            embedded
+            open
+            onOpenChange={() => setPanelSheet(false)}
+            onJump={(id) => {
+              setPanelSheet(false);
+              jumpToMessage(id);
+            }}
+          />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
