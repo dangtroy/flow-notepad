@@ -165,7 +165,11 @@ function MessageRowBase({
   // While a popup from the action bar is open, the bar must stay put.
   const [reminderOpen, setReminderOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const actionsOpen = reminderOpen || menuOpen;
+  const [saveOpen, setSaveOpen] = useState(false);
+  const actionsOpen = reminderOpen || menuOpen || saveOpen;
+  // Both the legacy pin flag and the "pinned" note kind read as pinned.
+  const isPinnedNote = message.is_pinned || message.type === "pinned";
+
 
   const isReply = depth > 0;
   const tags = showTags && message.tags.length > 0 ? message.tags : [];
