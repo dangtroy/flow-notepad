@@ -33,7 +33,7 @@ import { useActiveNotepadId } from "@/lib/use-notepad";
 import { Composer, type CleanupMeta } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
 import { ContextBar } from "@/components/flow/context-bar";
-
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/")({
   validateSearch: (
@@ -102,10 +102,9 @@ function FlowPage() {
   const { appearance } = useAppearance();
   const notepadId = useActiveNotepadId();
 
-  
-
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; preview: string } | null>(null);
+  const [showPinnedContext, setShowPinnedContext] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<number | null>(null);
@@ -143,7 +142,6 @@ function FlowPage() {
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: Boolean(notepadId),
   });
-
 
   // Pages arrive newest-first; render them oldest-first.
   const messages = useMemo(() => {
@@ -205,8 +203,6 @@ function FlowPage() {
     return groups;
   }, [threaded]);
 
-
-
   useEffect(() => {
     // Retention pass on open: expired completed thoughts are removed for good.
     if (!notepadId) return;
@@ -241,7 +237,9 @@ function FlowPage() {
 
   const onScroll = useCallback(() => {
     const element = scrollRef.current;
-    if (!element || !hasNextPage || isFetchingNextPage) return;
+    if (!element) return;
+    setShowPinnedContext(element.scrollTop <= 8);
+    if (!hasNextPage || isFetchingNextPage) return;
     if (element.scrollTop < 240) {
       anchorRef.current = element.scrollHeight - element.scrollTop;
       void fetchNextPage();
@@ -354,8 +352,6 @@ function FlowPage() {
       toast.error("Could not restore the original text");
     }
   }
-
-
 
   async function handleToggleComplete(message: FlowMessage) {
     const next = !message.is_completed;
@@ -475,7 +471,10 @@ function FlowPage() {
 
   async function handleTogglePin(message: FlowMessage) {
     const next = !message.is_pinned;
-    patchMessage(message.id, { is_pinned: next, pinned_at: next ? new Date().toISOString() : null });
+    patchMessage(message.id, {
+      is_pinned: next,
+      pinned_at: next ? new Date().toISOString() : null,
+    });
     try {
       await pin({ data: { id: message.id, pinned: next } });
       refreshPinsAndReminders();
@@ -518,7 +517,7 @@ function FlowPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ContextBar
-        pinned={pinned}
+        pinned={showPinnedContext ? pinned : []}
         reminders={dueReminders}
         onSnooze={(message, iso) => void handleSetReminder(message, iso)}
         onComplete={(message) => void handleCompleteFromReminder(message)}
@@ -527,7 +526,11 @@ function FlowPage() {
         onJump={jumpToMessage}
       />
 
-      <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain">
+      <div
+        ref={scrollRef}
+        onScroll={onScroll}
+        className="flex-1 overflow-y-auto overscroll-contain"
+      >
         <div className="flow-shell flex min-h-full flex-col justify-end px-5 pb-8 pt-8 sm:px-8">
           {hasNextPage && (
             <p className="pb-6 text-center text-[11px] uppercase tracking-[0.16em] text-muted-foreground/45">
@@ -556,57 +559,70 @@ function FlowPage() {
               </p>
             </div>
           ) : (
-            grouped.map((group) => (
-              <section key={group.label} className="mb-8 last:mb-0">
-                <div className="mb-4 flex items-center gap-3">
-                  <span className="h-px flex-1 bg-border" />
-                  <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/50">
-                    {group.label}
-                  </span>
-                  <span className="h-px flex-1 bg-border" />
-                </div>
+            grouped.map((group) => {
+              const cleanNotepad = !appearance.showTags && !appearance.showTimestamps;
+              return (
+                <section
+                  key={group.label}
+                  className={cn(cleanNotepad ? "mb-2" : "mb-8", "last:mb-0")}
+                >
+                  <div className={cn("items-center gap-3", cleanNotepad ? "hidden" : "mb-4 flex")}>
+                    <span className="h-px flex-1 bg-border" />
+                    <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/50">
+                      {group.label}
+                    </span>
+                    <span className="h-px flex-1 bg-border" />
+                  </div>
 
-                <div className="flex flex-col">
-                  {group.threads.map((thread) => (
-                    <div
-                      key={thread.id}
-                      className="flow-row-stack flow-thread-divider pt-[var(--flow-thread-gap)] first:border-t-0 first:pt-0"
-                      style={{ paddingBottom: "var(--flow-thread-gap)" }}
-                    >
-                      {thread.entries.map(({ message, depth }) => (
-                        <MessageRow
-                          key={message.id}
-                          message={message}
-                          depth={depth}
-                          isReplyTarget={replyTo?.id === message.id}
-                          isEditing={editingId === message.id}
-                          onStartEdit={() => setEditingId(message.id)}
-                          onCancelEdit={() => setEditingId(null)}
-                          onSaveEdit={(html) => void handleSaveEdit(message, html)}
-                          showTags={appearance.showTags}
-                          showTimestamps={appearance.showTimestamps}
-                          showReplyTimestamps={appearance.showReplyTimestamps}
-                          tagStyle={appearance.tagStyle}
-                          tagPosition={appearance.tagPosition}
+                  <div className="flex flex-col">
+                    {group.threads.map((thread) => (
+                      <div
+                        key={thread.id}
+                        className={cn(
+                          "flow-row-stack first:border-t-0 first:pt-0",
+                          cleanNotepad
+                            ? "border-0 pt-1 [--flow-row-gap:0rem] [--flow-reply-gap:0.35rem]"
+                            : "flow-thread-divider pt-[var(--flow-thread-gap)]",
+                        )}
+                        style={{
+                          paddingBottom: cleanNotepad ? "0.15rem" : "var(--flow-thread-gap)",
+                        }}
+                      >
+                        {thread.entries.map(({ message, depth }) => (
+                          <MessageRow
+                            key={message.id}
+                            message={message}
+                            depth={depth}
+                            isReplyTarget={replyTo?.id === message.id}
+                            isEditing={editingId === message.id}
+                            onStartEdit={() => setEditingId(message.id)}
+                            onCancelEdit={() => setEditingId(null)}
+                            onSaveEdit={(html) => void handleSaveEdit(message, html)}
+                            showTags={appearance.showTags}
+                            showTimestamps={appearance.showTimestamps}
+                            showReplyTimestamps={appearance.showReplyTimestamps}
+                            tagStyle={appearance.tagStyle}
+                            tagPosition={appearance.tagPosition}
 
-                          onTogglePin={() => void handleTogglePin(message)}
-                          onSetReminder={(iso) => void handleSetReminder(message, iso)}
-                          onToggleComplete={() => void handleToggleComplete(message)}
-                          onDeleteNow={() => void handleDeleteNow(message)}
-                          onRestoreOriginal={() => void handleRestoreOriginal(message)}
-                          onReply={() =>
-                            setReplyTo({
-                              id: message.id,
-                              preview: message.content.slice(0, 120),
-                            })
-                          }
-                        />
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ))
+                            onTogglePin={() => void handleTogglePin(message)}
+                            onSetReminder={(iso) => void handleSetReminder(message, iso)}
+                            onToggleComplete={() => void handleToggleComplete(message)}
+                            onDeleteNow={() => void handleDeleteNow(message)}
+                            onRestoreOriginal={() => void handleRestoreOriginal(message)}
+                            onReply={() =>
+                              setReplyTo({
+                                id: message.id,
+                                preview: message.content.slice(0, 120),
+                              })
+                            }
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              );
+            })
           )}
         </div>
       </div>
@@ -616,7 +632,6 @@ function FlowPage() {
         replyingTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
       />
-
     </div>
   );
 }

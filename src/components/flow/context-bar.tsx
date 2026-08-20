@@ -50,18 +50,18 @@ export function ContextBar({
     <div
       className={cn(
         "border-b px-5 backdrop-blur sm:px-8",
-        alert ? "border-primary/25 bg-primary/[0.07]" : "border-border bg-surface/60",
+        alert ? "border-destructive/30 bg-destructive/[0.08]" : "border-border bg-surface/60",
       )}
     >
       <div className="flow-shell">
         <div className="flex h-9 items-center gap-2.5">
           {current ? (
             <>
-              <Bell className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <Bell className="h-3.5 w-3.5 shrink-0 text-destructive" />
               <button
                 type="button"
                 onClick={() => onJump(current.id)}
-                className="min-w-0 flex-1 truncate text-left text-[12.5px] text-foreground/90 transition-colors hover:text-foreground"
+                className="min-w-0 flex-1 truncate rounded px-1.5 py-1 text-left text-[12.5px] text-foreground/90 transition-colors hover:bg-destructive/10 hover:text-foreground"
               >
                 <span className="text-muted-foreground">
                   {reminderLabel(current.remind_at ?? current.created_at)} ·{" "}
@@ -78,7 +78,7 @@ export function ContextBar({
                       onSnooze(current, new Date(Date.now() + option.minutes * 60000).toISOString())
                     }
                     title={`Snooze ${option.label}`}
-                    className="hidden rounded px-1.5 py-1 transition-colors hover:bg-elevated hover:text-foreground sm:inline"
+                    className="hidden rounded px-1.5 py-1 transition-colors hover:bg-destructive/12 hover:text-foreground sm:inline"
                   >
                     {option.label}
                   </button>
@@ -88,7 +88,7 @@ export function ContextBar({
                   onClick={() => onComplete(current)}
                   aria-label="Mark as done"
                   title="Mark as done"
-                  className="rounded p-1 transition-colors hover:bg-elevated hover:text-foreground"
+                  className="rounded p-1 transition-colors hover:bg-destructive/12 hover:text-foreground"
                 >
                   <Check className="h-3.5 w-3.5" />
                 </button>
@@ -97,7 +97,7 @@ export function ContextBar({
                   onClick={() => onDismiss(current)}
                   aria-label="Dismiss reminder"
                   title="Dismiss"
-                  className="rounded p-1 transition-colors hover:bg-elevated hover:text-foreground"
+                  className="rounded p-1 transition-colors hover:bg-destructive/12 hover:text-foreground"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -134,7 +134,7 @@ export function ContextBar({
                     onClick={() => setPinsOpen((value) => !value)}
                     aria-label="Pinned thoughts"
                     title={`${pinned.length} pinned`}
-                    className="ml-1 flex items-center gap-1 rounded border-l border-border pl-2 tabular-nums transition-colors hover:text-foreground"
+                    className="ml-1 flex items-center gap-1 rounded px-1.5 py-1 tabular-nums transition-colors hover:bg-elevated hover:text-foreground"
                   >
                     <Pin className="h-3 w-3" />
                     {pinned.length}
@@ -146,7 +146,7 @@ export function ContextBar({
             <button
               type="button"
               onClick={() => setPinsOpen((value) => !value)}
-              className="flex w-full items-center gap-2 text-[11px] tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+              className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-[11px] tracking-wide text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
             >
               <Pin className="h-3 w-3" />
               <span>
@@ -175,7 +175,7 @@ export function ContextBar({
                   onClick={() => onUnpin(message)}
                   aria-label="Unpin"
                   title="Unpin"
-                  className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+                  className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-all hover:bg-elevated hover:text-foreground group-hover:opacity-100"
                 >
                   <PinOff className="h-3.5 w-3.5" />
                 </button>
