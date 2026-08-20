@@ -17,8 +17,6 @@ import { ReminderPopover, reminderLabel } from "./reminder-control";
 import { FlowEditorSurface, FlowToolbar, useFlowEditor } from "./rich-editor";
 import { TagChip } from "./tag-chip";
 
-
-
 function timeLabel(iso: string) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
@@ -64,7 +62,9 @@ function CleanedMark({
         onClick={(event) => event.stopPropagation()}
         className="w-[min(20rem,80vw)] p-3 text-[12px]"
       >
-        <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">AI cleaned</p>
+        <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">
+          AI cleaned
+        </p>
         <p className="mt-1.5 whitespace-pre-wrap text-muted-foreground">
           {original || "Original text unavailable"}
         </p>
@@ -95,7 +95,6 @@ function CleanedMark({
     </Popover>
   );
 }
-
 
 /** One thought in the stream: quiet text on the page, never a card. */
 function MessageRowBase({
@@ -136,7 +135,6 @@ function MessageRowBase({
   onRestoreOriginal?: () => void;
   onTogglePin: () => void;
   onSetReminder: (iso: string | null) => void;
-
 }) {
   const html = useMemo(
     () => sanitizeHtml(message.content_html ?? textToHtml(message.content)),
@@ -207,12 +205,8 @@ function MessageRowBase({
           </div>
         )}
 
-
         <div
-          className={cn(
-            "min-w-0 flex-1",
-            isReply && "flow-reply-rail pl-3.5 sm:pl-4",
-          )}
+          className={cn("min-w-0 flex-1", isReply && "flow-reply-rail pl-3.5 sm:pl-4")}
           style={depth > 1 ? { marginLeft: `${(depth - 1) * 1.1}rem` } : undefined}
         >
           {isEditing ? (
@@ -258,7 +252,6 @@ function MessageRowBase({
                 )}
               </div>
 
-
               {tagPosition === "below" && tags.length > 0 && (
                 <div className="mt-1.5 hidden flex-wrap items-center gap-1.5 transition-opacity duration-150 group-focus-within:opacity-0 sm:flex">
                   {tags.map((tag) => (
@@ -279,9 +272,9 @@ function MessageRowBase({
         </div>
       </div>
 
-       {/* Common actions stay one click away; destructive actions live in the menu. */}
+      {/* Common actions stay one click away; destructive actions live in the menu. */}
       {!isEditing && (
-         <div className="absolute right-2 top-1.5 flex items-center gap-0.5 rounded-md border border-border bg-popover/95 p-0.5 opacity-0 shadow-quiet backdrop-blur transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
+        <div className="absolute right-2 top-1.5 flex items-center gap-0.5 rounded-md border border-border bg-popover/95 p-0.5 opacity-0 shadow-quiet backdrop-blur transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
           <button
             type="button"
             onClick={(event) => {
@@ -325,19 +318,21 @@ function MessageRowBase({
             <Pin className="h-3.5 w-3.5" />
           </button>
 
-           <ReminderPopover value={message.remind_at} onChange={onSetReminder} align="end">
-             <button
-               type="button"
-               onClick={(event) => event.stopPropagation()}
-               aria-label={message.remind_at ? "Change reminder" : "Set reminder"}
-               title={message.remind_at ? `Reminder · ${reminderLabel(message.remind_at)}` : "Remind me"}
-               className={cn(
-                 "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 hover:bg-elevated hover:text-foreground",
-                 message.remind_at ? "text-primary" : "text-muted-foreground",
-               )}
-             >
-               <Bell className="h-3.5 w-3.5" />
-             </button>
+          <ReminderPopover value={message.remind_at} onChange={onSetReminder} align="end">
+            <button
+              type="button"
+              onClick={(event) => event.stopPropagation()}
+              aria-label={message.remind_at ? "Change reminder" : "Set reminder"}
+              title={
+                message.remind_at ? `Reminder · ${reminderLabel(message.remind_at)}` : "Remind me"
+              }
+              className={cn(
+                "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 hover:bg-elevated hover:text-foreground",
+                message.remind_at ? "text-primary" : "text-muted-foreground",
+              )}
+            >
+              <Bell className="h-3.5 w-3.5" />
+            </button>
           </ReminderPopover>
 
           <DropdownMenu>
@@ -362,8 +357,11 @@ function MessageRowBase({
                   Clear reminder
                 </DropdownMenuItem>
               )}
-               {message.remind_at && <DropdownMenuSeparator />}
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDeleteNow()}>
+              {message.remind_at && <DropdownMenuSeparator />}
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onSelect={() => onDeleteNow()}
+              >
                 <Trash2 className="h-3.5 w-3.5" />
                 Delete thread
               </DropdownMenuItem>
@@ -374,7 +372,6 @@ function MessageRowBase({
     </article>
   );
 }
-
 
 function MessageEditor({
   initialHtml,
@@ -421,7 +418,11 @@ function MessageEditor({
       <div className="mt-2.5 flex items-center justify-between gap-3">
         <FlowToolbar editor={editor} />
         <div className="flex shrink-0 items-center gap-3 text-[11px] text-muted-foreground">
-          <button type="button" onClick={onCancel} className="transition-colors hover:text-foreground">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="transition-colors hover:text-foreground"
+          >
             Cancel
           </button>
           <button
