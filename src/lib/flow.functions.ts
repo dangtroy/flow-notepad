@@ -5,6 +5,7 @@ import {
   loadDueReminders,
   loadMessage,
   loadPinnedMessages,
+  loadReferenceNotes,
   loadStreamPage,
   loadTagGroups,
   loadTags,
