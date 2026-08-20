@@ -343,22 +343,6 @@ function MessageRowBase({
             onClick={(event) => {
               event.stopPropagation();
               event.currentTarget.blur();
-              onToggleComplete();
-            }}
-            aria-label={message.is_completed ? "Mark as not done" : "Mark as done"}
-            title={message.is_completed ? "Mark as not done" : "Mark as done"}
-            className={cn(
-              "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 hover:bg-elevated hover:text-foreground",
-              message.is_completed ? "text-primary" : "text-muted-foreground",
-            )}
-          >
-            <Check className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              event.currentTarget.blur();
               onReply();
             }}
             aria-label="Reply"
