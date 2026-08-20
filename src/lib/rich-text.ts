@@ -47,6 +47,17 @@ function safeHref(value: string): string | null {
   return `https://${trimmed}`;
 }
 
+/** Inline images are either an https link or a base64 image the editor made. */
+function safeImageSrc(value: string): string | null {
+  const trimmed = value.trim();
+  if (/^data:image\/(png|jpeg|jpg|gif|webp|avif);base64,[a-z0-9+/=\s]+$/i.test(trimmed)) {
+    return trimmed.replace(/\s+/g, "");
+  }
+  if (/^https:\/\//i.test(trimmed)) return trimmed;
+  return null;
+}
+
+
 function escapeText(value: string): string {
   return value.replace(/&(?!(?:#\d+|#x[0-9a-f]+|[a-z]+);)/gi, "&amp;").replace(/</g, "&lt;");
 }
