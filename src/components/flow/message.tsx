@@ -125,6 +125,7 @@ function MessageRowBase({
   onRestoreOriginal,
   onTogglePin,
   onSetReminder,
+  onSetType,
 }: {
   message: FlowMessage;
   isEditing: boolean;
