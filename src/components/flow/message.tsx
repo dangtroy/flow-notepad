@@ -7,6 +7,7 @@ import {
   MoreHorizontal,
   Pin,
   Reply,
+  RotateCcw,
   Trash2,
 } from "lucide-react";
 
@@ -28,81 +29,6 @@ import { TagChip } from "./tag-chip";
 
 function timeLabel(iso: string) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-}
-
-/**
- * The ✦ that quietly marks an AI-cleaned note. Lives in the gutter so the note
- * text stays perfectly left-aligned; click to see the original and restore it.
- */
-function CleanedMark({
-  message,
-  onRestoreOriginal,
-  className,
-}: {
-  message: FlowMessage;
-  onRestoreOriginal?: (() => void) | undefined;
-  className?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const original = message.original_content ?? "";
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label="Cleaned up by AI — show original"
-          onClick={(event) => {
-            event.stopPropagation();
-            setOpen((value) => !value);
-          }}
-          className={cn(
-            "inline-flex h-5 w-5 items-center justify-center rounded text-[0.75em] leading-none text-muted-foreground/50 opacity-0 transition-all duration-150 hover:text-ai focus-visible:opacity-100 group-hover:opacity-100",
-            open && "text-ai opacity-100",
-            className,
-          )}
-        >
-          ✦
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        side="top"
-        onClick={(event) => event.stopPropagation()}
-        className="w-[min(20rem,80vw)] p-3 text-[12px]"
-      >
-        <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">
-          AI cleaned
-        </p>
-        <p className="mt-1.5 whitespace-pre-wrap text-muted-foreground">
-          {original || "Original text unavailable"}
-        </p>
-        <div className="mt-2.5 flex items-center gap-3 text-[11px]">
-          {onRestoreOriginal && original && (
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                onRestoreOriginal();
-              }}
-              className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Restore original
-            </button>
-          )}
-          {original && (
-            <button
-              type="button"
-              onClick={() => void navigator.clipboard?.writeText(original)}
-              className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Copy original
-            </button>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
 }
 
 /** One thought in the stream: quiet text on the page, never a card. */
@@ -167,7 +93,6 @@ function MessageRowBase({
   const actionsOpen = reminderOpen || menuOpen || saveOpen;
   const isPinnedNote = message.type === "pinned";
 
-
   const isReply = depth > 0;
   const tags = showTags && message.tags.length > 0 ? message.tags : [];
   const withTime = showTimestamps && (!isReply || showReplyTimestamps);
@@ -186,25 +111,14 @@ function MessageRowBase({
       )}
     >
       <div className="flex gap-3 sm:gap-4">
-        {/* Left gutter: status indicators, checkbox, then time. */}
-        <div className="hidden w-12 shrink-0 flex-col items-end gap-1 pt-[0.15rem] sm:flex">
-          {/* Top-left status indicators: diamond, pin, bell. */}
-          {(message.ai_cleaned || isPinnedNote || message.remind_at) && (
-            <div className="flex h-3.5 items-center justify-end gap-0.5">
-              {message.ai_cleaned && (
-                <CleanedMark
-                  message={message}
-                  onRestoreOriginal={onRestoreOriginal}
-                  className="h-3.5 w-3.5 text-[0.65em]"
-                />
-              )}
-              {isPinnedNote && <Pin className="h-3 w-3 text-primary/70" aria-label="Pinned" />}
-              {message.remind_at && (
-                <Bell className="h-3 w-3 text-primary/70" aria-label="Reminder set" />
-              )}
-            </div>
+        {/* Left gutter: checkbox + time inline on one row. */}
+        <div
+          className={cn(
+            "hidden shrink-0 flex-row items-start gap-2 pt-[0.15rem] sm:flex",
+            keepGutter ? "w-28" : "w-8",
           )}
-
+          style={depth > 1 ? { marginLeft: `${(depth - 1) * 1.1}rem` } : undefined}
+        >
           <button
             type="button"
             role="checkbox"
@@ -217,7 +131,7 @@ function MessageRowBase({
             aria-label={message.is_completed ? "Mark as not done" : "Mark as done"}
             title={message.is_completed ? "Mark as not done" : "Mark as done"}
             className={cn(
-              "inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded-md border transition-colors duration-150",
+              "inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center border transition-colors duration-150",
               message.is_completed
                 ? "border-primary/60 text-primary"
                 : "border-border text-transparent hover:border-muted-foreground/60",
@@ -227,17 +141,14 @@ function MessageRowBase({
           </button>
 
           {keepGutter && withTime && (
-            <div className="text-right text-[11px] leading-5 tracking-wide whitespace-nowrap text-muted-foreground/55">
+            <div className="text-[11px] leading-5 tracking-wide whitespace-nowrap text-muted-foreground/55">
               <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
-              {message.edited_at && <div className="text-muted-foreground/40">edited</div>}
+              {message.edited_at && <span className="text-muted-foreground/40"> · edited</span>}
             </div>
           )}
         </div>
 
-        <div
-          className={cn("min-w-0 flex-1", isReply && "flow-reply-rail pl-3.5 sm:pl-4")}
-          style={depth > 1 ? { marginLeft: `${(depth - 1) * 1.1}rem` } : undefined}
-        >
+        <div className={cn("min-w-0 flex-1", isReply && "flow-reply-rail pl-3.5 sm:pl-4")}>
           {isEditing ? (
             <MessageEditor initialHtml={html} onCancel={onCancelEdit} onSave={onSaveEdit} />
           ) : (
@@ -254,7 +165,7 @@ function MessageRowBase({
                   }}
                   aria-label={message.is_completed ? "Mark as not done" : "Mark as done"}
                   className={cn(
-                    "inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded-md border transition-colors",
+                    "inline-flex h-[14px] w-[14px] shrink-0 items-center justify-center border transition-colors",
                     message.is_completed
                       ? "border-primary/60 text-primary"
                       : "border-border text-transparent",
@@ -262,24 +173,10 @@ function MessageRowBase({
                 >
                   <Check className="h-2.5 w-2.5" />
                 </button>
-                {message.ai_cleaned && (
-                  <CleanedMark
-                    message={message}
-                    onRestoreOriginal={onRestoreOriginal}
-                    className="h-3.5 w-3.5 text-[0.65em] opacity-100"
-                  />
-                )}
-                {isPinnedNote && <Pin className="h-3 w-3 text-primary/70" aria-label="Pinned" />}
-                {message.remind_at && (
-                  <span className="inline-flex items-center gap-1">
-                    <Bell className="h-3 w-3 text-muted-foreground/60" />
-                    {reminderLabel(message.remind_at)}
-                  </span>
-                )}
                 {withTime && (
                   <>
                     <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
-                    {message.edited_at && <span>edited</span>}
+                    {message.edited_at && <span> · edited</span>}
                   </>
                 )}
               </div>
@@ -304,7 +201,7 @@ function MessageRowBase({
                 )}
               </div>
 
-              {/* One horizontal meta line: tags only (pin/bell/diamond now live in the gutter). */}
+              {/* One horizontal meta line: tags only. */}
               {tagPosition === "below" && tags.length > 0 && (
                 <div className="mt-1.5 hidden flex-wrap items-center gap-2 text-[11px] leading-none tracking-wide text-muted-foreground/55 transition-opacity duration-150 group-focus-within:opacity-0 sm:flex">
                   {tags.map((tag) => (
@@ -324,7 +221,6 @@ function MessageRowBase({
           )}
         </div>
       </div>
-
 
       {/* Common actions stay one click away; destructive actions live in the menu. */}
       {!isEditing && (
@@ -394,8 +290,6 @@ function MessageRowBase({
             </Popover>
           )}
 
-
-
           <ReminderPopover
             value={message.remind_at}
             onChange={onSetReminder}
@@ -435,6 +329,15 @@ function MessageRowBase({
               onClick={(event) => event.stopPropagation()}
               className="w-44 text-[12.5px]"
             >
+              {message.ai_cleaned && onRestoreOriginal && (
+                <>
+                  <DropdownMenuItem onSelect={() => onRestoreOriginal()}>
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Restore original
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               {message.remind_at && (
                 <DropdownMenuItem onSelect={() => onSetReminder(null)}>
                   <BellOff className="h-3.5 w-3.5" />
