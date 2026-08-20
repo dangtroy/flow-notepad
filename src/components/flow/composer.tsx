@@ -34,6 +34,8 @@ export function Composer({
   const [isEmpty, setIsEmpty] = useState(true);
   const [focused, setFocused] = useState(false);
   const [pinnedToolbar, setPinnedToolbar] = useState(false);
+  const [dropping, setDropping] = useState(false);
+
 
   const queryClient = useQueryClient();
   const clean = useServerFn(cleanUpNote);
