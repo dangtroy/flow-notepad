@@ -251,6 +251,13 @@ function FlowPage() {
     return groups;
   }, [threaded]);
 
+  /** Lets a reply show how long after its parent it actually landed. */
+  const createdAtById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const message of messages) map.set(message.id, message.created_at);
+    return map;
+  }, [messages]);
+
   useEffect(() => {
     // Retention pass on open: expired completed thoughts are removed for good.
     if (!notepadId) return;
