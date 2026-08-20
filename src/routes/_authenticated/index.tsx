@@ -16,6 +16,8 @@ import {
   getDueReminders,
   getPinnedMessages,
   getStreamPage,
+  getViewCounts,
+  getWeekStats,
   organizeMessageFn,
   restoreOriginalMessage,
   sendMessage,
@@ -32,7 +34,12 @@ import { referenceKey, tagsKey, useReferenceNotes } from "@/lib/use-tags";
 import { useActiveNotepadId } from "@/lib/use-notepad";
 import { Composer, type CleanupMeta } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
-import { ContextBar } from "@/components/flow/context-bar";
+import { AttentionRail } from "@/components/flow/attention-rail";
+import {
+  STREAM_VIEWS,
+  StreamTopBar,
+  type StreamView,
+} from "@/components/flow/stream-top-bar";
 import { ReferenceList } from "@/components/flow/reference-list";
 import { cn } from "@/lib/utils";
 
@@ -42,12 +49,14 @@ export const Route = createFileRoute("/_authenticated/")({
   ): {
     tags?: string | undefined;
     mode?: FilterMode | undefined;
-    view?: "reference" | undefined;
+    view?: StreamView | undefined;
   } => ({
     tags:
       typeof search["tags"] === "string" && search["tags"] ? (search["tags"] as string) : undefined,
     mode: search["mode"] === "and" ? "and" : undefined,
-    view: search["view"] === "reference" ? "reference" : undefined,
+    view: STREAM_VIEWS.some((option) => option.value === search["view"])
+      ? (search["view"] as StreamView)
+      : undefined,
   }),
   head: () => ({
     meta: [
@@ -105,17 +114,34 @@ function FlowPage() {
   const fetchPinned = useServerFn(getPinnedMessages);
   const fetchDue = useServerFn(getDueReminders);
   const changeType = useServerFn(setMessageType);
+  const fetchCounts = useServerFn(getViewCounts);
+  const fetchWeek = useServerFn(getWeekStats);
   const navigate = Route.useNavigate();
   const { appearance } = useAppearance();
   const notepadId = useActiveNotepadId();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; preview: string } | null>(null);
-  const [showPinnedContext, setShowPinnedContext] = useState(true);
+  const [railOpen, setRailOpen] = useState(true);
+  const [queryInput, setQueryInput] = useState("");
+  const [query, setQuery] = useState("");
 
-  // Reference notes are a separate, tag-grouped view over the same notepad.
-  const view: "stream" | "reference" = search.view === "reference" ? "reference" : "stream";
+  // Debounced: typing never refetches on every keystroke.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setQuery(queryInput.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [queryInput]);
+
+  // Four views over the same notepad: All, Today, Pinned, and Reference.
+  const view: StreamView = search.view ?? "all";
   const reference = useReferenceNotes();
+
+  /** Local midnight, computed client-side: the server has no timezone. */
+  const todaySince = useMemo(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date.toISOString();
+  }, []);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<number | null>(null);
@@ -133,8 +159,10 @@ function FlowPage() {
         notepadId ?? "none",
         selectedTagIds.join(","),
         selectedTagIds.length > 1 ? mode : "or",
+        view,
+        query,
       ] as const,
-    [notepadId, selectedTagIds, mode],
+    [notepadId, selectedTagIds, mode, view, query],
   );
 
   const { data, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useInfiniteQuery<
@@ -148,10 +176,19 @@ function FlowPage() {
     initialPageParam: null,
     queryFn: ({ pageParam }) =>
       fetchPage({
-        data: { notepadId, before: pageParam, limit: PAGE_SIZE, tagIds: selectedTagIds, mode },
+        data: {
+          notepadId,
+          before: pageParam,
+          limit: PAGE_SIZE,
+          tagIds: selectedTagIds,
+          mode,
+          query: query || null,
+          since: view === "today" ? todaySince : null,
+          pinnedOnly: view === "pinned",
+        },
       }),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: Boolean(notepadId),
+    enabled: Boolean(notepadId) && view !== "reference",
   });
 
   // Pages arrive newest-first; render them oldest-first.
@@ -249,7 +286,6 @@ function FlowPage() {
   const onScroll = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return;
-    setShowPinnedContext(element.scrollTop <= 8);
     if (!hasNextPage || isFetchingNextPage) return;
     if (element.scrollTop < 240) {
       anchorRef.current = element.scrollHeight - element.scrollTop;
