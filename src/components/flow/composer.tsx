@@ -196,13 +196,14 @@ export function Composer({
               </button>
               <button
                 type="button"
-                disabled
-                aria-label="Attach (coming soon)"
-                title="Attachments coming soon"
-                className="inline-flex h-7 w-7 cursor-not-allowed items-center justify-center rounded-md text-muted-foreground/45"
+                aria-label="Add image"
+                title="Add an image — or drop one in"
+                onClick={() => editor && pickImages(editor)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-foreground"
               >
-                <Paperclip className="h-3.5 w-3.5" />
+                <ImagePlus className="h-3.5 w-3.5" />
               </button>
+
             </div>
 
             <div className="flex shrink-0 items-center gap-2.5">
