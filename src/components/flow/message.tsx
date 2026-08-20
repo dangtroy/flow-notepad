@@ -347,6 +347,55 @@ function MessageRowBase({
             <Pin className="h-3.5 w-3.5" />
           </button>
 
+          {onSetType && (
+            <Popover open={saveOpen} onOpenChange={setSaveOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(event) => event.stopPropagation()}
+                  aria-label="Save this"
+                  title="Save this"
+                  className={cn(
+                    "inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-150 hover:bg-elevated hover:text-foreground",
+                    message.type === "pinned" ? "text-primary" : "text-muted-foreground",
+                  )}
+                >
+                  <BookmarkPlus className="h-3.5 w-3.5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                onClick={(event) => event.stopPropagation()}
+                className="w-44 p-1 text-[12.5px]"
+              >
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
+                  onClick={() => {
+                    setSaveOpen(false);
+                    onSetType(message.type === "pinned" ? "stream" : "pinned");
+                  }}
+                >
+                  <Pin className="h-3.5 w-3.5" />
+                  {message.type === "pinned" ? "Unpin" : "Pin"}
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
+                  onClick={() => {
+                    setSaveOpen(false);
+                    onSetType("reference");
+                  }}
+                >
+                  <BookmarkPlus className="h-3.5 w-3.5" />
+                  {message.type === "pinned" ? "Move to Reference" : "Reference"}
+                </button>
+              </PopoverContent>
+            </Popover>
+          )}
+
+
+
           <ReminderPopover
             value={message.remind_at}
             onChange={onSetReminder}
