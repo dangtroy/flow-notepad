@@ -23,11 +23,8 @@ export type Appearance = {
   textSize: TextSize;
   density: Density;
   contentWidth: ContentWidth;
-  tagStyle: TagStyle;
-  tagPosition: TagPosition;
-  showTimestamps: boolean;
-  showReplyTimestamps: boolean;
-  showTags: boolean;
+  /** When on, row details stay revealed instead of waiting for hover. */
+  alwaysShowDetails: boolean;
   sidebarWidth: SidebarWidth;
   replySpacing: ReplySpacing;
   borderTone: BorderTone;
@@ -41,11 +38,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   textSize: "default",
   density: "comfortable",
   contentWidth: "default",
-  tagStyle: "pill",
-  tagPosition: "right",
-  showTimestamps: true,
-  showReplyTimestamps: true,
-  showTags: true,
+  alwaysShowDetails: false,
   sidebarWidth: "default",
   replySpacing: "comfortable",
   borderTone: "subtle",
