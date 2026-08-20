@@ -110,7 +110,7 @@ function MessageRowBase({
         isReplyTarget && "bg-surface/55",
       )}
     >
-      <div className="flex items-start gap-2 sm:gap-3">
+      <div className="flex items-start gap-1.5 sm:gap-2">
         {/* Left gutter: checkbox + time inline on one row, timestamp flushed right. */}
         <div
           className={cn(
