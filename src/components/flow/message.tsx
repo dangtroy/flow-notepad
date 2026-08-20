@@ -1,8 +1,17 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Bell, BellOff, Check, MoreHorizontal, Pin, Reply, Trash2 } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  BookmarkPlus,
+  Check,
+  MoreHorizontal,
+  Pin,
+  Reply,
+  Trash2,
+} from "lucide-react";
 
 import type { TagPosition, TagStyle } from "@/lib/appearance";
-import type { FlowMessage } from "@/lib/flow.server";
+import type { FlowMessage, MessageType } from "@/lib/flow.server";
 import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
