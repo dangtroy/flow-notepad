@@ -168,7 +168,13 @@ function decodeEntities(value: string): string {
 export function htmlToText(html: string): string {
   if (!html) return "";
   const text = html
+    // An image is content: it must survive as text so the note is never "empty".
+    .replace(/<img\b[^>]*alt="([^"]*)"[^>]*>/gi, (_whole, alt: string) =>
+      alt.trim() ? `\n[image: ${alt.trim()}]` : "\n[image]",
+    )
+    .replace(/<img\b[^>]*>/gi, "\n[image]")
     .replace(/<\/?(ul|ol)\b[^>]*>/gi, "\n")
+
     .replace(/<li\b[^>]*>/gi, "\n• ")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(new RegExp(`</(${[...BLOCK_TAGS].join("|")})\\s*>`, "gi"), "\n")
