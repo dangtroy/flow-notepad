@@ -207,8 +207,11 @@ function MessageRowBase({
       {/* Right margin: the four actions, no card, no border, no shadow. */}
       {!isEditing && (
         <div
-          className="flow-acts absolute right-1 flex items-center gap-2"
-          style={{ top: "var(--flow-row-pad, 0.55rem)", height: "26.4px" }}
+          className={cn(
+            "flow-acts flow-acts-anchor flex w-full items-center gap-1",
+            isReply && "pl-3.5 sm:pl-0",
+            "sm:absolute sm:right-1 sm:w-auto sm:gap-2",
+          )}
         >
           <button
             type="button"
