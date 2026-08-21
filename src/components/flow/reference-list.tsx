@@ -145,7 +145,7 @@ function ReferenceRow({
     <article
       onClick={handleSurfaceClick}
       className={cn(
-        "flow-row group relative flex gap-3 rounded-md transition-colors duration-200 flow-row-pad sm:gap-4",
+        "flow-row group relative flex flex-wrap gap-3 rounded-md transition-colors duration-200 flow-row-pad sm:flex-nowrap sm:gap-4",
         !isEditing && "cursor-text",
         isEditing && "bg-surface",
       )}
