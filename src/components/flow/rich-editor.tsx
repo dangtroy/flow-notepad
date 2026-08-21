@@ -276,6 +276,12 @@ export function FlowToolbar({ editor, className }: { editor: Editor; className?:
   );
 }
 
+/** Coarse pointer: no hover controls, and no keyboard until the user taps. */
+function isTouchDevice() {
+  return typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
+}
+
+
 export type UseFlowEditorOptions = {
   initialHtml?: string;
   autoFocus?: boolean;
