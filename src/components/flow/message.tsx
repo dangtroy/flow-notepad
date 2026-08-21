@@ -44,8 +44,9 @@ function offsetLabel(iso: string, parentIso: string | undefined) {
 }
 
 const iconClass = "h-4 w-4 [stroke-width:1.3]";
+/** Touch needs a real tap target; pointer devices keep the quiet 24px box. */
 const actionButton =
-  "inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground";
+  "inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground sm:h-6 sm:w-6";
 
 /** One thought in the stream: quiet text on the page, never a card. */
 function MessageRowBase({
