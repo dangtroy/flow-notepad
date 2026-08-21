@@ -262,7 +262,7 @@ export function FlowToolbar({ editor, className }: { editor: Editor; className?:
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => action.run(editor)}
               className={cn(
-                "inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150",
+                "inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 sm:h-7 sm:w-7",
                 "hover:bg-elevated hover:text-foreground",
                 isActive && "bg-elevated text-foreground",
               )}
