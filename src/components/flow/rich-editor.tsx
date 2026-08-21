@@ -344,10 +344,13 @@ export function useFlowEditor({
           return true;
         }
         if (event.shiftKey) return false;
+        // Inside a structured block Enter keeps its native meaning, so a
+        // heading or a list can be followed by ordinary text in the same note.
         const inStructuredBlock =
           instance.isActive("listItem") ||
           instance.isActive("taskItem") ||
           instance.isActive("codeBlock") ||
+          instance.isActive("heading") ||
           instance.isActive("blockquote");
         if (inStructuredBlock) return false;
         event.preventDefault();
