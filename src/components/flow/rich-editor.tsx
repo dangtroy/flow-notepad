@@ -314,7 +314,8 @@ export function useFlowEditor({
     extensions: editorExtensions,
     content: initialHtml ?? "",
     immediatelyRender: false,
-    autofocus: autoFocus ? "end" : false,
+    // On touch, autofocus would throw up the keyboard before the user asked.
+    autofocus: autoFocus && !isTouchDevice() ? "end" : false,
     editorProps: {
       attributes: { class: "flow-prose focus:outline-none", spellcheck: "true" },
       // Dropping or pasting an image writes it into the note in place.
