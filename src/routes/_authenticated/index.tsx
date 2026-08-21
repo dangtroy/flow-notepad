@@ -688,8 +688,10 @@ function FlowPage() {
 
 
   return (
-    <div className="flex min-h-0 flex-1">
-      <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1">
+      {/* min-w-0 keeps a long note from widening the column past the screen. */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+
         <StreamTopBar
           view={view}
           onViewChange={(next) =>
