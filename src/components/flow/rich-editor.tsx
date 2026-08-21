@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { EditorContent, useEditor, type Editor } from "@tiptap/react";
+import { EditorContent, useEditor, type ChainedCommands, type Editor } from "@tiptap/react";
+import { TextSelection } from "@tiptap/pm/state";
+
 import StarterKit from "@tiptap/starter-kit";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import Image from "@tiptap/extension-image";
@@ -65,6 +67,39 @@ export function pickImages(editor: Editor) {
   input.click();
 }
 
+/**
+ * Block formatting acts on lines, not on the whole paragraph.
+ *
+ * Because Shift+Enter writes a line break inside one paragraph, a note often
+ * looks like several lines while being a single block. Toggling a list or a
+ * heading would then swallow every line into one item. So each line break in
+ * range is first turned into its own block, then the format is applied.
+ */
+function perLine(editor: Editor, apply: (chain: ChainedCommands) => ChainedCommands) {
+  const chain = editor.chain().focus().command(({ tr, state, dispatch }) => {
+    const { $from, $to } = state.selection;
+    const start = $from.depth > 0 ? $from.start($from.depth) : 0;
+    const end = $to.depth > 0 ? $to.end($to.depth) : state.doc.content.size;
+
+    const breaks: number[] = [];
+    state.doc.nodesBetween(start, end, (node, pos) => {
+      if (node.type.name === "hardBreak") breaks.push(pos);
+    });
+    if (!breaks.length || !dispatch) return true;
+
+    for (const pos of [...breaks].reverse()) {
+      const mapped = tr.mapping.map(pos);
+      tr.delete(mapped, mapped + 1);
+      tr.split(mapped);
+    }
+    tr.setSelection(
+      TextSelection.create(tr.doc, tr.mapping.map(start), Math.min(tr.mapping.map(end), tr.doc.content.size - 1)),
+    );
+    return true;
+  });
+  apply(chain).run();
+}
+
 
 type ToolbarAction = {
   key: string;
@@ -109,28 +144,28 @@ const ACTIONS: ToolbarAction[] = [
     label: "Heading",
     icon: Heading2,
     group: true,
-    run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run(),
+    run: (e) => perLine(e, (chain) => chain.toggleHeading({ level: 2 })),
     active: (e) => e.isActive("heading"),
   },
   {
     key: "bullet",
     label: "Bulleted list",
     icon: List,
-    run: (e) => e.chain().focus().toggleBulletList().run(),
+    run: (e) => perLine(e, (chain) => chain.toggleBulletList()),
     active: (e) => e.isActive("bulletList"),
   },
   {
     key: "ordered",
     label: "Numbered list",
     icon: ListOrdered,
-    run: (e) => e.chain().focus().toggleOrderedList().run(),
+    run: (e) => perLine(e, (chain) => chain.toggleOrderedList()),
     active: (e) => e.isActive("orderedList"),
   },
   {
     key: "task",
     label: "Checklist",
     icon: ListTodo,
-    run: (e) => e.chain().focus().toggleTaskList().run(),
+    run: (e) => perLine(e, (chain) => chain.toggleTaskList()),
     active: (e) => e.isActive("taskList"),
   },
   {
@@ -141,6 +176,7 @@ const ACTIONS: ToolbarAction[] = [
     run: (e) => e.chain().focus().toggleBlockquote().run(),
     active: (e) => e.isActive("blockquote"),
   },
+
   {
     key: "code",
     label: "Code",
@@ -308,10 +344,13 @@ export function useFlowEditor({
           return true;
         }
         if (event.shiftKey) return false;
+        // Inside a structured block Enter keeps its native meaning, so a
+        // heading or a list can be followed by ordinary text in the same note.
         const inStructuredBlock =
           instance.isActive("listItem") ||
           instance.isActive("taskItem") ||
           instance.isActive("codeBlock") ||
+          instance.isActive("heading") ||
           instance.isActive("blockquote");
         if (inStructuredBlock) return false;
         event.preventDefault();
