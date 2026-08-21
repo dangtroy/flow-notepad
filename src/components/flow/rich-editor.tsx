@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { EditorContent, useEditor, type Editor } from "@tiptap/react";
+import { EditorContent, useEditor, type ChainedCommands, type Editor } from "@tiptap/react";
+import { TextSelection } from "@tiptap/pm/state";
+
 import StarterKit from "@tiptap/starter-kit";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import Image from "@tiptap/extension-image";
