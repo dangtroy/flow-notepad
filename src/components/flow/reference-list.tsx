@@ -187,10 +187,8 @@ function ReferenceRow({
       </div>
 
       {!isEditing && (
-        <div
-          className="flow-acts absolute right-1 flex items-center gap-2"
-          style={{ top: "var(--flow-row-pad, 0.55rem)", height: "26.4px" }}
-        >
+        <div className="flow-acts flow-acts-anchor flex w-full items-center gap-1 sm:absolute sm:right-1 sm:w-auto sm:gap-2">
+
           <button
             type="button"
             onClick={(event) => {
