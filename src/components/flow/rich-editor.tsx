@@ -242,13 +242,18 @@ export function FlowToolbar({ editor, className }: { editor: Editor; className?:
   }, [editor]);
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-0.5", className)}>
+    <div
+      className={cn(
+        "flow-scroll-x flex items-center gap-0.5 overflow-x-auto sm:flex-wrap sm:overflow-x-visible",
+        className,
+      )}
+    >
       {ACTIONS.map((action) => {
         const Icon = action.icon;
         const isActive = action.active?.(editor) ?? false;
         return (
-          <span key={action.key} className="flex items-center">
-            {action.group && <span className="mx-1.5 h-4 w-px bg-border" aria-hidden />}
+          <span key={action.key} className="flex shrink-0 items-center">
+            {action.group && <span className="mx-1.5 h-4 w-px shrink-0 bg-border" aria-hidden />}
             <button
               type="button"
               title={action.label}
