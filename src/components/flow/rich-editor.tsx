@@ -109,28 +109,28 @@ const ACTIONS: ToolbarAction[] = [
     label: "Heading",
     icon: Heading2,
     group: true,
-    run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run(),
+    run: (e) => perLine(e, (chain) => chain.toggleHeading({ level: 2 })),
     active: (e) => e.isActive("heading"),
   },
   {
     key: "bullet",
     label: "Bulleted list",
     icon: List,
-    run: (e) => e.chain().focus().toggleBulletList().run(),
+    run: (e) => perLine(e, (chain) => chain.toggleBulletList()),
     active: (e) => e.isActive("bulletList"),
   },
   {
     key: "ordered",
     label: "Numbered list",
     icon: ListOrdered,
-    run: (e) => e.chain().focus().toggleOrderedList().run(),
+    run: (e) => perLine(e, (chain) => chain.toggleOrderedList()),
     active: (e) => e.isActive("orderedList"),
   },
   {
     key: "task",
     label: "Checklist",
     icon: ListTodo,
-    run: (e) => e.chain().focus().toggleTaskList().run(),
+    run: (e) => perLine(e, (chain) => chain.toggleTaskList()),
     active: (e) => e.isActive("taskList"),
   },
   {
@@ -141,6 +141,7 @@ const ACTIONS: ToolbarAction[] = [
     run: (e) => e.chain().focus().toggleBlockquote().run(),
     active: (e) => e.isActive("blockquote"),
   },
+
   {
     key: "code",
     label: "Code",
