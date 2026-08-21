@@ -65,6 +65,39 @@ export function pickImages(editor: Editor) {
   input.click();
 }
 
+/**
+ * Block formatting acts on lines, not on the whole paragraph.
+ *
+ * Because Shift+Enter writes a line break inside one paragraph, a note often
+ * looks like several lines while being a single block. Toggling a list or a
+ * heading would then swallow every line into one item. So each line break in
+ * range is first turned into its own block, then the format is applied.
+ */
+function perLine(editor: Editor, apply: (chain: ChainedCommands) => ChainedCommands) {
+  const chain = editor.chain().focus().command(({ tr, state, dispatch }) => {
+    const { $from, $to } = state.selection;
+    const start = $from.depth > 0 ? $from.start($from.depth) : 0;
+    const end = $to.depth > 0 ? $to.end($to.depth) : state.doc.content.size;
+
+    const breaks: number[] = [];
+    state.doc.nodesBetween(start, end, (node, pos) => {
+      if (node.type.name === "hardBreak") breaks.push(pos);
+    });
+    if (!breaks.length || !dispatch) return true;
+
+    for (const pos of [...breaks].reverse()) {
+      const mapped = tr.mapping.map(pos);
+      tr.delete(mapped, mapped + 1);
+      tr.split(mapped);
+    }
+    tr.setSelection(
+      TextSelection.create(tr.doc, tr.mapping.map(start), Math.min(tr.mapping.map(end), tr.doc.content.size - 1)),
+    );
+    return true;
+  });
+  apply(chain).run();
+}
+
 
 type ToolbarAction = {
   key: string;
