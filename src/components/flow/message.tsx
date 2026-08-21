@@ -44,8 +44,9 @@ function offsetLabel(iso: string, parentIso: string | undefined) {
 }
 
 const iconClass = "h-4 w-4 [stroke-width:1.3]";
+/** Touch needs a real tap target; pointer devices keep the quiet 24px box. */
 const actionButton =
-  "inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground";
+  "inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground sm:h-6 sm:w-6";
 
 /** One thought in the stream: quiet text on the page, never a card. */
 function MessageRowBase({
@@ -111,7 +112,7 @@ function MessageRowBase({
       data-reply={isReply ? "true" : undefined}
       onClick={handleSurfaceClick}
       className={cn(
-        "flow-row group relative flex gap-3 rounded-md transition-colors duration-200 flow-row-pad sm:gap-4",
+        "flow-row group relative flex flex-wrap gap-3 rounded-md transition-colors duration-200 flow-row-pad sm:flex-nowrap sm:gap-4",
         actionsOpen && "flow-row-open",
         !isEditing && "cursor-text",
         isEditing && "bg-surface",
@@ -206,8 +207,11 @@ function MessageRowBase({
       {/* Right margin: the four actions, no card, no border, no shadow. */}
       {!isEditing && (
         <div
-          className="flow-acts absolute right-1 flex items-center gap-2"
-          style={{ top: "var(--flow-row-pad, 0.55rem)", height: "26.4px" }}
+          className={cn(
+            "flow-acts flow-acts-anchor flex w-full items-center gap-1",
+            isReply && "pl-3.5 sm:pl-0",
+            "sm:absolute sm:right-1 sm:w-auto sm:gap-2",
+          )}
         >
           <button
             type="button"

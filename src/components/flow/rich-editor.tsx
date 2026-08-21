@@ -242,13 +242,18 @@ export function FlowToolbar({ editor, className }: { editor: Editor; className?:
   }, [editor]);
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-0.5", className)}>
+    <div
+      className={cn(
+        "flow-scroll-x flex items-center gap-0.5 overflow-x-auto sm:flex-wrap sm:overflow-x-visible",
+        className,
+      )}
+    >
       {ACTIONS.map((action) => {
         const Icon = action.icon;
         const isActive = action.active?.(editor) ?? false;
         return (
-          <span key={action.key} className="flex items-center">
-            {action.group && <span className="mx-1.5 h-4 w-px bg-border" aria-hidden />}
+          <span key={action.key} className="flex shrink-0 items-center">
+            {action.group && <span className="mx-1.5 h-4 w-px shrink-0 bg-border" aria-hidden />}
             <button
               type="button"
               title={action.label}
@@ -257,7 +262,7 @@ export function FlowToolbar({ editor, className }: { editor: Editor; className?:
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => action.run(editor)}
               className={cn(
-                "inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150",
+                "inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 sm:h-7 sm:w-7",
                 "hover:bg-elevated hover:text-foreground",
                 isActive && "bg-elevated text-foreground",
               )}
@@ -270,6 +275,12 @@ export function FlowToolbar({ editor, className }: { editor: Editor; className?:
     </div>
   );
 }
+
+/** Coarse pointer: no hover controls, and no keyboard until the user taps. */
+function isTouchDevice() {
+  return typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
+}
+
 
 export type UseFlowEditorOptions = {
   initialHtml?: string;
@@ -309,7 +320,8 @@ export function useFlowEditor({
     extensions: editorExtensions,
     content: initialHtml ?? "",
     immediatelyRender: false,
-    autofocus: autoFocus ? "end" : false,
+    // On touch, autofocus would throw up the keyboard before the user asked.
+    autofocus: autoFocus && !isTouchDevice() ? "end" : false,
     editorProps: {
       attributes: { class: "flow-prose focus:outline-none", spellcheck: "true" },
       // Dropping or pasting an image writes it into the note in place.

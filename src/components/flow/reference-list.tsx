@@ -109,7 +109,7 @@ export function ReferenceList({
 
 const iconClass = "h-4 w-4 [stroke-width:1.3]";
 const actionButton =
-  "inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground";
+  "inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground sm:h-6 sm:w-6";
 
 function ReferenceRow({
   note,
@@ -145,7 +145,7 @@ function ReferenceRow({
     <article
       onClick={handleSurfaceClick}
       className={cn(
-        "flow-row group relative flex gap-3 rounded-md transition-colors duration-200 flow-row-pad sm:gap-4",
+        "flow-row group relative flex flex-wrap gap-3 rounded-md transition-colors duration-200 flow-row-pad sm:flex-nowrap sm:gap-4",
         !isEditing && "cursor-text",
         isEditing && "bg-surface",
       )}
@@ -187,10 +187,8 @@ function ReferenceRow({
       </div>
 
       {!isEditing && (
-        <div
-          className="flow-acts absolute right-1 flex items-center gap-2"
-          style={{ top: "var(--flow-row-pad, 0.55rem)", height: "26.4px" }}
-        >
+        <div className="flow-acts flow-acts-anchor flex w-full items-center gap-1 sm:absolute sm:right-1 sm:w-auto sm:gap-2">
+
           <button
             type="button"
             onClick={(event) => {

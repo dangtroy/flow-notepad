@@ -480,6 +480,14 @@
     opacity: 1;
   }
 
+  /* From sm up the action cluster is anchored to the first line box. */
+  @media (min-width: 640px) {
+    .flow-acts-anchor {
+      top: var(--flow-row-pad, 0.55rem);
+      height: 26.4px;
+    }
+  }
+
   /* No hover on touch, and no room for margins on narrow screens. */
   @media (max-width: 939px), (hover: none) {
     .flow-meta,
@@ -487,16 +495,21 @@
       opacity: 1;
     }
 
-    .flow-acts {
-      position: static;
-      align-self: flex-start;
-    }
-
     .flow-tagwrap {
       grid-template-rows: 1fr;
       opacity: 1;
     }
   }
+
+  /* Toolbars scroll sideways instead of clipping on narrow screens. */
+  .flow-scroll-x {
+    scrollbar-width: none;
+  }
+
+  .flow-scroll-x::-webkit-scrollbar {
+    display: none;
+  }
+
 
   @media (prefers-reduced-motion: reduce) {
     .flow-meta,
