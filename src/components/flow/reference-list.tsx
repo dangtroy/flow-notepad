@@ -109,7 +109,7 @@ export function ReferenceList({
 
 const iconClass = "h-4 w-4 [stroke-width:1.3]";
 const actionButton =
-  "inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground";
+  "inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground sm:h-6 sm:w-6";
 
 function ReferenceRow({
   note,
