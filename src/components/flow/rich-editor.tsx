@@ -409,3 +409,31 @@ export function FlowEditorSurface({
     </div>
   );
 }
+
+/** The `#word` the caret currently sits in, if any — drives tag autocomplete. */
+export type TagToken = { query: string; from: number; to: number };
+
+export function readTagToken(editor: Editor): TagToken | null {
+  const { selection } = editor.state;
+  if (!selection.empty) return null;
+  const { $from } = selection;
+  const start = $from.start();
+  const before = $from.parent.textBetween(0, $from.parentOffset, undefined, "\uFFFC");
+  const match = /(^|\s)#([\p{L}\p{N}_-]*)$/u.exec(before);
+  if (!match) return null;
+  const token = `#${match[2]}`;
+  return {
+    query: match[2] ?? "",
+    from: start + before.length - token.length,
+    to: start + before.length,
+  };
+}
+
+/** Removes the typed `#token` so it never lands in the saved note body. */
+export function stripTagToken(editor: Editor, token: TagToken) {
+  editor
+    .chain()
+    .focus()
+    .insertContentAt({ from: token.from, to: token.to }, "")
+    .run();
+}
