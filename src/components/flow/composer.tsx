@@ -261,6 +261,39 @@ export function Composer({
             </button>
           </div>
         )}
+        {pendingTagIds.length > 0 && (
+          <div className="mb-2 flex flex-wrap items-center gap-3">
+            {pendingTagIds.map((tagId) => {
+              const tag = allTags.find((item) => item.id === tagId);
+              if (!tag) return null;
+              return (
+                <span key={tagId} className="group/pending inline-flex items-center gap-1.5">
+                  <span
+                    aria-hidden
+                    className="h-[5px] w-[5px] rounded-full"
+                    style={{ backgroundColor: tagAccent(tag.color) }}
+                  />
+                  <span
+                    className="font-mono text-[11px] leading-none"
+                    style={{ color: tagAccent(tag.color) }}
+                  >
+                    {tag.name}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${tag.name}`}
+                    onClick={() =>
+                      setPendingTagIds((ids) => ids.filter((id) => id !== tagId))
+                    }
+                    className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-muted-foreground/50 transition-colors hover:text-foreground"
+                  >
+                    <X className="h-2.5 w-2.5 [stroke-width:1.6]" />
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        )}
         <div
           onDragOver={(event) => {
             if (!dragHasFiles(event.dataTransfer)) return;
