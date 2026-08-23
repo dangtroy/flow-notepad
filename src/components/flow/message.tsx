@@ -189,13 +189,39 @@ function MessageRowBase({
             </div>
 
             {/* Tags live under the text and expand with the row. */}
-            {tags.length > 0 && (
+            {(tags.length > 0 || onAddTag) && (
               <div className="flow-tagwrap">
                 <div>
                   <div className="flex flex-wrap items-center gap-3 pt-1.5">
                     {tags.map((tag) => (
-                      <TagLink key={tag.id} tag={tag} />
+                      <span key={tag.id} className="group/tag inline-flex items-center gap-1">
+                        <TagLink tag={tag} />
+                        {onRemoveTag && (
+                          <button
+                            type="button"
+                            aria-label={`Remove ${tag.name}`}
+                            title={`Remove ${tag.name}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              event.currentTarget.blur();
+                              onRemoveTag(tag.id);
+                            }}
+                            className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-muted-foreground/50 opacity-0 transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/tag:opacity-100 max-[939px]:opacity-100 [@media(hover:none)]:opacity-100"
+                          >
+                            <X className="h-2.5 w-2.5 [stroke-width:1.6]" />
+                          </button>
+                        )}
+                      </span>
                     ))}
+
+                    {onAddTag && (
+                      <TagPicker
+                        appliedIds={tags.map((tag) => tag.id)}
+                        onPick={onAddTag}
+                        onOpenChange={setTagPickerOpen}
+                        open={tagPickerOpen}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
