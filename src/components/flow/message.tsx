@@ -5,15 +5,27 @@ import {
   Check,
   MoreHorizontal,
   Pin,
+  Plus,
   Reply,
   RotateCcw,
   Trash2,
+  X,
 } from "lucide-react";
 
 import type { FlowMessage, MessageType } from "@/lib/flow.server";
 import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
+import { tagAccent } from "@/lib/tag-colors";
+import { useTags } from "@/lib/use-tags";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +36,75 @@ import {
 import { ReminderPopover, reminderLabel } from "./reminder-control";
 import { FlowEditorSurface, FlowToolbar, useFlowEditor } from "./rich-editor";
 import { TagLink } from "./tag-chip";
+
+/** Quiet "+" at the end of a note's tag row: search the notepad's own tags. */
+function TagPicker({
+  appliedIds,
+  onPick,
+  open,
+  onOpenChange,
+}: {
+  appliedIds: string[];
+  onPick: (tagId: string) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const tags = useTags();
+  const available = (tags.data ?? []).filter((tag) => !appliedIds.includes(tag.id));
+
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(event) => event.stopPropagation()}
+          aria-label="Add a tag"
+          title="Add a tag"
+          className={cn(
+            "inline-flex h-3.5 items-center gap-1 font-mono text-[11px] leading-none text-muted-foreground/45 transition-colors duration-150 hover:text-foreground",
+            open && "text-foreground",
+          )}
+        >
+          <Plus className="h-3 w-3 [stroke-width:1.4]" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        onClick={(event) => event.stopPropagation()}
+        className="w-56 p-0"
+      >
+        <Command>
+          <CommandInput placeholder="Find a tag…" className="text-[12.5px]" />
+          <CommandList>
+            <CommandEmpty className="px-3 py-3 text-[12px] text-muted-foreground">
+              No tag by that name
+            </CommandEmpty>
+            <CommandGroup>
+              {available.map((tag) => (
+                <CommandItem
+                  key={tag.id}
+                  value={tag.name}
+                  onSelect={() => {
+                    onOpenChange(false);
+                    onPick(tag.id);
+                  }}
+                  className="gap-2 font-mono text-[11.5px]"
+                >
+                  <span
+                    aria-hidden
+                    className="h-[5px] w-[5px] shrink-0 rounded-full"
+                    style={{ backgroundColor: tagAccent(tag.color) }}
+                  />
+                  {tag.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function timeLabel(iso: string) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
