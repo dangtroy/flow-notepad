@@ -186,7 +186,8 @@ function MessageRowBase({
   const [reminderOpen, setReminderOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
-  const actionsOpen = reminderOpen || menuOpen || saveOpen;
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const actionsOpen = reminderOpen || menuOpen || saveOpen || tagPickerOpen;
 
   const isReply = depth > 0;
   const tags = message.tags;
