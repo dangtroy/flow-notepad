@@ -298,6 +298,57 @@ export function Composer({
             </div>
           )}
 
+          {/* #hashtag autocomplete over this notepad's own tags. */}
+          {menuOpen && (
+            <div className="absolute bottom-full left-3 z-20 mb-2 w-56 overflow-hidden rounded-lg border border-border bg-popover py-1 shadow-md">
+              {suggestions.map((tag, index) => (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    chooseOption(index);
+                  }}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-1.5 text-left font-mono text-[11.5px] transition-colors",
+                    index === activeIndex ? "bg-accent text-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  <span
+                    aria-hidden
+                    className="h-[5px] w-[5px] shrink-0 rounded-full"
+                    style={{ backgroundColor: tagAccent(tag.color) }}
+                  />
+                  <span className="truncate">{tag.name}</span>
+                </button>
+              ))}
+              {canCreate && (
+                <button
+                  type="button"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    chooseOption(suggestions.length);
+                  }}
+                  onMouseEnter={() => setActiveIndex(suggestions.length)}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-1.5 text-left text-[11.5px] transition-colors",
+                    activeIndex === suggestions.length
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  <Plus className="h-3 w-3 shrink-0 [stroke-width:1.4]" />
+                  <span className="truncate">
+                    Create tag <span className="font-mono">{query.trim()}</span>
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
+
+
+
 
           <div
             className={cn(
