@@ -164,6 +164,9 @@ function MessageRowBase({
   onSetReminder: (iso: string | null) => void;
   /** Promotes the note between stream and pinned kinds, or out to Reference. */
   onSetType?: (type: MessageType) => void;
+  /** Manual tagging: both applied as source 'user', never touched by AI passes. */
+  onAddTag?: (tagId: string) => void;
+  onRemoveTag?: (tagId: string) => void;
 }) {
   const html = useMemo(
     () => sanitizeHtml(message.content_html ?? textToHtml(message.content)),
