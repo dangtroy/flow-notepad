@@ -450,6 +450,70 @@ export const clearCompleted = createServerFn({ method: "POST" })
   });
 
 /**
+ * Manual tagging. source: 'user' is load-bearing — organizeMessage only clears
+ * source: 'ai' rows before re-applying, so a hand-applied tag survives every
+ * later AI pass.
+ */
+export const addMessageTag = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { messageId: string; tagId: string }) => {
+    if (!input?.messageId) throw new Error("Missing note");
+    if (!input?.tagId) throw new Error("Missing tag");
+    return { messageId: input.messageId, tagId: input.tagId };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const message = await supabase
+      .from("messages")
+      .select("id")
+      .eq("id", data.messageId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (message.error) throw message.error;
+    if (!message.data) throw new Error("That note no longer exists");
+
+    const tag = await supabase
+      .from("tags")
+      .select("id, name, color")
+      .eq("id", data.tagId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (tag.error) throw tag.error;
+    if (!tag.data) throw new Error("That tag no longer exists");
+
+    const { error } = await supabase.from("message_tags").upsert(
+      {
+        user_id: userId,
+        message_id: data.messageId,
+        tag_id: data.tagId,
+        source: "user",
+      },
+      { onConflict: "message_id,tag_id" },
+    );
+    if (error) throw error;
+    return { messageId: data.messageId, tag: tag.data };
+  });
+
+export const removeMessageTag = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { messageId: string; tagId: string }) => {
+    if (!input?.messageId) throw new Error("Missing note");
+    if (!input?.tagId) throw new Error("Missing tag");
+    return { messageId: input.messageId, tagId: input.tagId };
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("message_tags")
+      .delete()
+      .eq("user_id", context.userId)
+      .eq("message_id", data.messageId)
+      .eq("tag_id", data.tagId);
+    if (error) throw error;
+    return { messageId: data.messageId, tagId: data.tagId };
+  });
+
+
+/**
  * Tags are reusable entities: name, colour, plain-English context, enabled state,
  * plus a derived count. Default tags are ordinary rows, so they behave identically.
  */
