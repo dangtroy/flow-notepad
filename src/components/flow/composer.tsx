@@ -1,18 +1,30 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowUp, ImagePlus, Sparkles, Type, X } from "lucide-react";
+import { ArrowUp, ImagePlus, Plus, Sparkles, Type, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { cleanUpNote, getCleanupPreference, setCleanupPreference } from "@/lib/flow.functions";
+import {
+  cleanUpNote,
+  getCleanupPreference,
+  saveTag,
+  setCleanupPreference,
+} from "@/lib/flow.functions";
 import { dragHasFiles, imageFilesFrom } from "@/lib/images";
+import { normalizeTag } from "@/lib/tag-normalize";
+import { tagAccent } from "@/lib/tag-colors";
+import { tagsKey, useTags } from "@/lib/use-tags";
+import { useActiveNotepadId } from "@/lib/use-notepads";
 import { cn } from "@/lib/utils";
 import {
   FlowEditorSurface,
   FlowToolbar,
   insertImageFiles,
   pickImages,
+  readTagToken,
+  stripTagToken,
   useFlowEditor,
+  type TagToken,
 } from "./rich-editor";
 
 
@@ -27,7 +39,7 @@ export function Composer({
   replyingTo,
   onCancelReply,
 }: {
-  onSend: (html: string, cleanup: CleanupMeta) => void;
+  onSend: (html: string, cleanup: CleanupMeta, tagIds: string[]) => void;
   replyingTo?: { id: string; preview: string } | null;
   onCancelReply?: () => void;
 }) {
