@@ -145,6 +145,8 @@ function MessageRowBase({
   onRestoreOriginal,
   onSetReminder,
   onSetType,
+  onAddTag,
+  onRemoveTag,
 }: {
   message: FlowMessage;
   isEditing: boolean;
