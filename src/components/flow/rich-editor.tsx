@@ -347,6 +347,11 @@ export function useFlowEditor({
 
       handleKeyDown: (_view, event) => {
         const instance = editorRef.current;
+        // An open autocomplete owns the arrows, Enter, Tab, and Escape first.
+        if (handlers.current.onKeyDown?.(event)) {
+          event.preventDefault();
+          return true;
+        }
         if (event.key === "Escape" && handlers.current.onCancel) {
           event.preventDefault();
           handlers.current.onCancel();
