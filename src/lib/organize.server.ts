@@ -18,7 +18,7 @@ type Client = SupabaseClient<Database>;
 const MAX_AI_CANDIDATES = 12;
 const MAX_CONTENT_CHARS = 1800;
 const MAX_PARENT_CHARS = 400;
-const AUTO_CONFIDENCE = 0.75;
+const AUTO_CONFIDENCE = 0.65;
 const SUGGEST_CONFIDENCE = 0.45;
 
 type TagRow = {
@@ -323,7 +323,7 @@ export async function organizeMessage(
     let suggested = 0;
 
     // Tier 3: one small AI call, and only when there is genuine doubt left.
-    const worthAi = content.length >= 12 && candidates.length > 0;
+    const worthAi = content.length >= 12 && (candidates.length > 0 || tags.length === 0);
     if (worthAi) {
       let parentExcerpt: string | null = null;
       if (message.data.parent_message_id) {
