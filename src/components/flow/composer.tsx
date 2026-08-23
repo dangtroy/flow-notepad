@@ -14,7 +14,7 @@ import { dragHasFiles, imageFilesFrom } from "@/lib/images";
 import { normalizeTag } from "@/lib/tag-normalize";
 import { tagAccent } from "@/lib/tag-colors";
 import { tagsKey, useTags } from "@/lib/use-tags";
-import { useActiveNotepadId } from "@/lib/use-notepads";
+import { useActiveNotepadId } from "@/lib/use-notepad";
 import { cn } from "@/lib/utils";
 import {
   FlowEditorSurface,
