@@ -20,6 +20,8 @@ import {
   getWeekStats,
   organizeMessageFn,
   restoreOriginalMessage,
+  addMessageTag,
+  removeMessageTag,
   sendMessage,
   setMessageCompletion,
   setMessageReminder,
@@ -117,6 +119,8 @@ function FlowPage() {
   const changeType = useServerFn(setMessageType);
   const fetchCounts = useServerFn(getViewCounts);
   const fetchWeek = useServerFn(getWeekStats);
+  const addTag = useServerFn(addMessageTag);
+  const dropTag = useServerFn(removeMessageTag);
   const navigate = Route.useNavigate();
   const { appearance } = useAppearance();
   const notepadId = useActiveNotepadId();
