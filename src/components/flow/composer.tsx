@@ -72,10 +72,20 @@ export function Composer({
   const [cleaning, setCleaning] = useState(false);
   const cleanupRef = useRef<CleanupMeta>(null);
 
+  // Tags typed as #hashtags: collected while writing, applied when the note saves.
+  const notepadId = useActiveNotepadId();
+  const tags = useTags();
+  const createTag = useServerFn(saveTag);
+  const [pendingTagIds, setPendingTagIds] = useState<string[]>([]);
+  const [token, setToken] = useState<TagToken | null>(null);
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
   const editor = useFlowEditor({
     autoFocus: true,
     onEmptyChange: setIsEmpty,
     onSubmit: () => void submit(),
+    onKeyDown: (event) => handleAutocompleteKey(event),
   });
 
   // Choosing Reply hands the cursor straight to the composer.
@@ -84,6 +94,91 @@ export function Composer({
     if (replyId && editor) editor.commands.focus("end");
   }, [replyId, editor]);
 
+  // The caret decides whether the autocomplete is open, so follow every change.
+  useEffect(() => {
+    if (!editor) return;
+    const sync = () => setToken(readTagToken(editor));
+    editor.on("transaction", sync);
+    return () => {
+      editor.off("transaction", sync);
+    };
+  }, [editor]);
+
+  const allTags = tags.data ?? [];
+  const query = token?.query ?? "";
+  const suggestions = useMemo(() => {
+    const normalized = normalizeTag(query);
+    return allTags
+      .filter((tag) => !pendingTagIds.includes(tag.id))
+      .filter((tag) => !normalized || normalizeTag(tag.name).includes(normalized))
+      .slice(0, 6);
+  }, [allTags, pendingTagIds, query]);
+
+  const exactMatch = allTags.some((tag) => normalizeTag(tag.name) === normalizeTag(query));
+  const canCreate = query.trim().length > 0 && !exactMatch;
+  const optionCount = suggestions.length + (canCreate ? 1 : 0);
+  const menuOpen =
+    Boolean(token) && dismissed !== `${token?.from}:${query}` && optionCount > 0;
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query, token?.from]);
+
+  /** Applies an existing tag and drops the typed #token from the note body. */
+  function applyTag(tagId: string) {
+    if (!editor || !token) return;
+    stripTagToken(editor, token);
+    setToken(null);
+    setPendingTagIds((current) => (current.includes(tagId) ? current : [...current, tagId]));
+  }
+
+  /** Creates the tag with empty context, then applies it like any other. */
+  async function createAndApply(name: string) {
+    if (!notepadId || !editor || !token) return;
+    const current = token;
+    stripTagToken(editor, current);
+    setToken(null);
+    try {
+      const next = await createTag({ data: { notepadId, name: name.trim(), context: "" } });
+      queryClient.setQueryData(tagsKey(notepadId), next);
+      const created = next.find((tag) => normalizeTag(tag.name) === normalizeTag(name));
+      if (created) setPendingTagIds((ids) => [...ids, created.id]);
+    } catch {
+      toast.error("Couldn’t create that tag");
+    }
+  }
+
+  function chooseOption(index: number) {
+    if (index < suggestions.length) {
+      const tag = suggestions[index];
+      if (tag) applyTag(tag.id);
+      return;
+    }
+    if (canCreate) void createAndApply(query);
+  }
+
+  /** Arrows / Enter / Tab belong to the autocomplete while it's open. */
+  function handleAutocompleteKey(event: KeyboardEvent): boolean {
+    if (!menuOpen) return false;
+    if (event.key === "ArrowDown") {
+      setActiveIndex((index) => (index + 1) % optionCount);
+      return true;
+    }
+    if (event.key === "ArrowUp") {
+      setActiveIndex((index) => (index - 1 + optionCount) % optionCount);
+      return true;
+    }
+    if (event.key === "Enter" || event.key === "Tab") {
+      chooseOption(activeIndex);
+      return true;
+    }
+    if (event.key === "Escape") {
+      setDismissed(`${token?.from}:${query}`);
+      return true;
+    }
+    return false;
+  }
+
   const showToolbar = pinnedToolbar || focused || !isEmpty;
 
   function reset() {
@@ -91,6 +186,8 @@ export function Composer({
     editor.commands.clearContent(true);
     setIsEmpty(true);
     cleanupRef.current = null;
+    setPendingTagIds([]);
+    setToken(null);
     editor.commands.focus("end");
   }
 
