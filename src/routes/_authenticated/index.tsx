@@ -352,7 +352,17 @@ function FlowPage() {
     }
   }
 
-  async function handleSend(html: string, cleanup: CleanupMeta) {
+  /** Applies composer #tags as source 'user' so later AI passes leave them alone. */
+  async function applyComposerTags(messageId: string, tagIds: string[]) {
+    if (!tagIds.length) return;
+    try {
+      for (const tagId of tagIds) await addTag({ data: { messageId, tagId } });
+    } catch {
+      toast.error("Couldn’t apply one of those tags");
+    }
+  }
+
+  async function handleSend(html: string, cleanup: CleanupMeta, tagIds: string[] = []) {
     // Sending while the Reference view is open keeps the note there.
     if (view === "reference") {
       try {
