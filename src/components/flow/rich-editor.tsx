@@ -288,6 +288,8 @@ export type UseFlowEditorOptions = {
   onSubmit?: (html: string) => void;
   onCancel?: () => void;
   onEmptyChange?: (isEmpty: boolean) => void;
+  /** Return true to swallow the key — used by the composer's # autocomplete. */
+  onKeyDown?: (event: KeyboardEvent) => boolean;
 };
 
 /**
@@ -304,10 +306,11 @@ export function useFlowEditor({
   onSubmit,
   onCancel,
   onEmptyChange,
+  onKeyDown,
 }: UseFlowEditorOptions) {
   const editorRef = useRef<Editor | null>(null);
-  const handlers = useRef({ onSubmit, onCancel, onEmptyChange });
-  handlers.current = { onSubmit, onCancel, onEmptyChange };
+  const handlers = useRef({ onSubmit, onCancel, onEmptyChange, onKeyDown });
+  handlers.current = { onSubmit, onCancel, onEmptyChange, onKeyDown };
 
   function submitFromEditor() {
     const instance = editorRef.current;
