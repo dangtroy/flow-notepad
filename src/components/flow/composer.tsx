@@ -216,7 +216,11 @@ export function Composer({
   function save(state: CleanupMeta) {
     if (!editor || editor.isEmpty) return;
     const html = editor.getHTML();
-    onSend(html, state ? { originalHtml: state.originalHtml, cleanedHtml: state.cleanedHtml } : null);
+    onSend(
+      html,
+      state ? { originalHtml: state.originalHtml, cleanedHtml: state.cleanedHtml } : null,
+      pendingTagIds,
+    );
     reset();
   }
 
