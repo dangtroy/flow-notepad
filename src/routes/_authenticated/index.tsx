@@ -20,6 +20,8 @@ import {
   getWeekStats,
   organizeMessageFn,
   restoreOriginalMessage,
+  addMessageTag,
+  removeMessageTag,
   sendMessage,
   setMessageCompletion,
   setMessageReminder,
@@ -117,6 +119,8 @@ function FlowPage() {
   const changeType = useServerFn(setMessageType);
   const fetchCounts = useServerFn(getViewCounts);
   const fetchWeek = useServerFn(getWeekStats);
+  const addTag = useServerFn(addMessageTag);
+  const dropTag = useServerFn(removeMessageTag);
   const navigate = Route.useNavigate();
   const { appearance } = useAppearance();
   const notepadId = useActiveNotepadId();
@@ -352,7 +356,43 @@ function FlowPage() {
     }
   }
 
-  async function handleSend(html: string, cleanup: CleanupMeta) {
+  /** Applies composer #tags as source 'user' so later AI passes leave them alone. */
+  async function applyComposerTags(messageId: string, tagIds: string[]) {
+    if (!tagIds.length) return;
+    try {
+      for (const tagId of tagIds) await addTag({ data: { messageId, tagId } });
+    } catch {
+      toast.error("Couldn’t apply one of those tags");
+    }
+  }
+
+  /** Manual tagging from a note's tag row. */
+  async function handleAddTag(message: FlowMessage, tagId: string) {
+    if (message.tags.some((tag) => tag.id === tagId)) return;
+    try {
+      const { tag } = await addTag({ data: { messageId: message.id, tagId } });
+      patchMessage(message.id, { tags: [...message.tags, tag] });
+      void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
+      void queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn’t add that tag");
+    }
+  }
+
+  async function handleRemoveTag(message: FlowMessage, tagId: string) {
+    const previous = message.tags;
+    patchMessage(message.id, { tags: previous.filter((tag) => tag.id !== tagId) });
+    try {
+      await dropTag({ data: { messageId: message.id, tagId } });
+      void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
+      void queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) });
+    } catch (error) {
+      patchMessage(message.id, { tags: previous });
+      toast.error(error instanceof Error ? error.message : "Couldn’t remove that tag");
+    }
+  }
+
+  async function handleSend(html: string, cleanup: CleanupMeta, tagIds: string[] = []) {
     // Sending while the Reference view is open keeps the note there.
     if (view === "reference") {
       try {
@@ -365,6 +405,7 @@ function FlowPage() {
             cleanedHtml: cleanup?.cleanedHtml ?? null,
           },
         });
+        await applyComposerTags(saved.id, tagIds);
         void queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) });
         void organizeInBackground(saved.id).then(() =>
           queryClient.invalidateQueries({ queryKey: referenceKey(notepadId) }),
@@ -417,6 +458,7 @@ function FlowPage() {
       });
       patchMessage(tempId, saved as FlowMessage);
       refreshPinsAndReminders();
+      await applyComposerTags(saved.id, tagIds);
       void organizeInBackground(saved.id);
     } catch (error) {
       patchStream((current) => current.filter((m) => m.id !== tempId));
@@ -799,6 +841,8 @@ function FlowPage() {
                                 : undefined
                             }
 
+                            onAddTag={(tagId) => void handleAddTag(message, tagId)}
+                            onRemoveTag={(tagId) => void handleRemoveTag(message, tagId)}
                             onSetReminder={(iso) => void handleSetReminder(message, iso)}
                             onSetType={(type) => void handleSetType(message, type)}
                             onToggleComplete={() => void handleToggleComplete(message)}
@@ -825,7 +869,7 @@ function FlowPage() {
       </div>
 
         <Composer
-          onSend={(html, cleanup) => void handleSend(html, cleanup)}
+          onSend={(html, cleanup, tagIds) => void handleSend(html, cleanup, tagIds)}
           replyingTo={replyTo}
           onCancelReply={() => setReplyTo(null)}
         />

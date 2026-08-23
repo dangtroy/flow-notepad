@@ -288,6 +288,8 @@ export type UseFlowEditorOptions = {
   onSubmit?: (html: string) => void;
   onCancel?: () => void;
   onEmptyChange?: (isEmpty: boolean) => void;
+  /** Return true to swallow the key — used by the composer's # autocomplete. */
+  onKeyDown?: (event: KeyboardEvent) => boolean;
 };
 
 /**
@@ -304,10 +306,11 @@ export function useFlowEditor({
   onSubmit,
   onCancel,
   onEmptyChange,
+  onKeyDown,
 }: UseFlowEditorOptions) {
   const editorRef = useRef<Editor | null>(null);
-  const handlers = useRef({ onSubmit, onCancel, onEmptyChange });
-  handlers.current = { onSubmit, onCancel, onEmptyChange };
+  const handlers = useRef({ onSubmit, onCancel, onEmptyChange, onKeyDown });
+  handlers.current = { onSubmit, onCancel, onEmptyChange, onKeyDown };
 
   function submitFromEditor() {
     const instance = editorRef.current;
@@ -344,6 +347,11 @@ export function useFlowEditor({
 
       handleKeyDown: (_view, event) => {
         const instance = editorRef.current;
+        // An open autocomplete owns the arrows, Enter, Tab, and Escape first.
+        if (handlers.current.onKeyDown?.(event)) {
+          event.preventDefault();
+          return true;
+        }
         if (event.key === "Escape" && handlers.current.onCancel) {
           event.preventDefault();
           handlers.current.onCancel();
@@ -400,4 +408,32 @@ export function FlowEditorSurface({
       <EditorContent editor={editor} />
     </div>
   );
+}
+
+/** The `#word` the caret currently sits in, if any — drives tag autocomplete. */
+export type TagToken = { query: string; from: number; to: number };
+
+export function readTagToken(editor: Editor): TagToken | null {
+  const { selection } = editor.state;
+  if (!selection.empty) return null;
+  const { $from } = selection;
+  const start = $from.start();
+  const before = $from.parent.textBetween(0, $from.parentOffset, undefined, "\uFFFC");
+  const match = /(^|\s)#([\p{L}\p{N}_-]*)$/u.exec(before);
+  if (!match) return null;
+  const token = `#${match[2]}`;
+  return {
+    query: match[2] ?? "",
+    from: start + before.length - token.length,
+    to: start + before.length,
+  };
+}
+
+/** Removes the typed `#token` so it never lands in the saved note body. */
+export function stripTagToken(editor: Editor, token: TagToken) {
+  editor
+    .chain()
+    .focus()
+    .insertContentAt({ from: token.from, to: token.to }, "")
+    .run();
 }

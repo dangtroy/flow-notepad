@@ -1,18 +1,30 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowUp, ImagePlus, Sparkles, Type, X } from "lucide-react";
+import { ArrowUp, ImagePlus, Plus, Sparkles, Type, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { cleanUpNote, getCleanupPreference, setCleanupPreference } from "@/lib/flow.functions";
+import {
+  cleanUpNote,
+  getCleanupPreference,
+  saveTag,
+  setCleanupPreference,
+} from "@/lib/flow.functions";
 import { dragHasFiles, imageFilesFrom } from "@/lib/images";
+import { normalizeTag } from "@/lib/tag-normalize";
+import { tagAccent } from "@/lib/tag-colors";
+import { tagsKey, useTags } from "@/lib/use-tags";
+import { useActiveNotepadId } from "@/lib/use-notepad";
 import { cn } from "@/lib/utils";
 import {
   FlowEditorSurface,
   FlowToolbar,
   insertImageFiles,
   pickImages,
+  readTagToken,
+  stripTagToken,
   useFlowEditor,
+  type TagToken,
 } from "./rich-editor";
 
 
@@ -27,7 +39,7 @@ export function Composer({
   replyingTo,
   onCancelReply,
 }: {
-  onSend: (html: string, cleanup: CleanupMeta) => void;
+  onSend: (html: string, cleanup: CleanupMeta, tagIds: string[]) => void;
   replyingTo?: { id: string; preview: string } | null;
   onCancelReply?: () => void;
 }) {
@@ -60,10 +72,20 @@ export function Composer({
   const [cleaning, setCleaning] = useState(false);
   const cleanupRef = useRef<CleanupMeta>(null);
 
+  // Tags typed as #hashtags: collected while writing, applied when the note saves.
+  const notepadId = useActiveNotepadId();
+  const tags = useTags();
+  const createTag = useServerFn(saveTag);
+  const [pendingTagIds, setPendingTagIds] = useState<string[]>([]);
+  const [token, setToken] = useState<TagToken | null>(null);
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
   const editor = useFlowEditor({
     autoFocus: true,
     onEmptyChange: setIsEmpty,
     onSubmit: () => void submit(),
+    onKeyDown: (event) => handleAutocompleteKey(event),
   });
 
   // Choosing Reply hands the cursor straight to the composer.
@@ -72,6 +94,91 @@ export function Composer({
     if (replyId && editor) editor.commands.focus("end");
   }, [replyId, editor]);
 
+  // The caret decides whether the autocomplete is open, so follow every change.
+  useEffect(() => {
+    if (!editor) return;
+    const sync = () => setToken(readTagToken(editor));
+    editor.on("transaction", sync);
+    return () => {
+      editor.off("transaction", sync);
+    };
+  }, [editor]);
+
+  const allTags = tags.data ?? [];
+  const query = token?.query ?? "";
+  const suggestions = useMemo(() => {
+    const normalized = normalizeTag(query);
+    return allTags
+      .filter((tag) => !pendingTagIds.includes(tag.id))
+      .filter((tag) => !normalized || normalizeTag(tag.name).includes(normalized))
+      .slice(0, 6);
+  }, [allTags, pendingTagIds, query]);
+
+  const exactMatch = allTags.some((tag) => normalizeTag(tag.name) === normalizeTag(query));
+  const canCreate = query.trim().length > 0 && !exactMatch;
+  const optionCount = suggestions.length + (canCreate ? 1 : 0);
+  const menuOpen =
+    Boolean(token) && dismissed !== `${token?.from}:${query}` && optionCount > 0;
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query, token?.from]);
+
+  /** Applies an existing tag and drops the typed #token from the note body. */
+  function applyTag(tagId: string) {
+    if (!editor || !token) return;
+    stripTagToken(editor, token);
+    setToken(null);
+    setPendingTagIds((current) => (current.includes(tagId) ? current : [...current, tagId]));
+  }
+
+  /** Creates the tag with empty context, then applies it like any other. */
+  async function createAndApply(name: string) {
+    if (!notepadId || !editor || !token) return;
+    const current = token;
+    stripTagToken(editor, current);
+    setToken(null);
+    try {
+      const next = await createTag({ data: { notepadId, name: name.trim(), context: "" } });
+      queryClient.setQueryData(tagsKey(notepadId), next);
+      const created = next.find((tag) => normalizeTag(tag.name) === normalizeTag(name));
+      if (created) setPendingTagIds((ids) => [...ids, created.id]);
+    } catch {
+      toast.error("Couldn’t create that tag");
+    }
+  }
+
+  function chooseOption(index: number) {
+    if (index < suggestions.length) {
+      const tag = suggestions[index];
+      if (tag) applyTag(tag.id);
+      return;
+    }
+    if (canCreate) void createAndApply(query);
+  }
+
+  /** Arrows / Enter / Tab belong to the autocomplete while it's open. */
+  function handleAutocompleteKey(event: KeyboardEvent): boolean {
+    if (!menuOpen) return false;
+    if (event.key === "ArrowDown") {
+      setActiveIndex((index) => (index + 1) % optionCount);
+      return true;
+    }
+    if (event.key === "ArrowUp") {
+      setActiveIndex((index) => (index - 1 + optionCount) % optionCount);
+      return true;
+    }
+    if (event.key === "Enter" || event.key === "Tab") {
+      chooseOption(activeIndex);
+      return true;
+    }
+    if (event.key === "Escape") {
+      setDismissed(`${token?.from}:${query}`);
+      return true;
+    }
+    return false;
+  }
+
   const showToolbar = pinnedToolbar || focused || !isEmpty;
 
   function reset() {
@@ -79,6 +186,8 @@ export function Composer({
     editor.commands.clearContent(true);
     setIsEmpty(true);
     cleanupRef.current = null;
+    setPendingTagIds([]);
+    setToken(null);
     editor.commands.focus("end");
   }
 
@@ -107,7 +216,11 @@ export function Composer({
   function save(state: CleanupMeta) {
     if (!editor || editor.isEmpty) return;
     const html = editor.getHTML();
-    onSend(html, state ? { originalHtml: state.originalHtml, cleanedHtml: state.cleanedHtml } : null);
+    onSend(
+      html,
+      state ? { originalHtml: state.originalHtml, cleanedHtml: state.cleanedHtml } : null,
+      pendingTagIds,
+    );
     reset();
   }
 
@@ -148,6 +261,39 @@ export function Composer({
             </button>
           </div>
         )}
+        {pendingTagIds.length > 0 && (
+          <div className="mb-2 flex flex-wrap items-center gap-3">
+            {pendingTagIds.map((tagId) => {
+              const tag = allTags.find((item) => item.id === tagId);
+              if (!tag) return null;
+              return (
+                <span key={tagId} className="group/pending inline-flex items-center gap-1.5">
+                  <span
+                    aria-hidden
+                    className="h-[5px] w-[5px] rounded-full"
+                    style={{ backgroundColor: tagAccent(tag.color) }}
+                  />
+                  <span
+                    className="font-mono text-[11px] leading-none"
+                    style={{ color: tagAccent(tag.color) }}
+                  >
+                    {tag.name}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${tag.name}`}
+                    onClick={() =>
+                      setPendingTagIds((ids) => ids.filter((id) => id !== tagId))
+                    }
+                    className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-muted-foreground/50 transition-colors hover:text-foreground"
+                  >
+                    <X className="h-2.5 w-2.5 [stroke-width:1.6]" />
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        )}
         <div
           onDragOver={(event) => {
             if (!dragHasFiles(event.dataTransfer)) return;
@@ -184,6 +330,57 @@ export function Composer({
               </span>
             </div>
           )}
+
+          {/* #hashtag autocomplete over this notepad's own tags. */}
+          {menuOpen && (
+            <div className="absolute bottom-full left-3 z-20 mb-2 w-56 overflow-hidden rounded-lg border border-border bg-popover py-1 shadow-md">
+              {suggestions.map((tag, index) => (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    chooseOption(index);
+                  }}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-1.5 text-left font-mono text-[11.5px] transition-colors",
+                    index === activeIndex ? "bg-accent text-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  <span
+                    aria-hidden
+                    className="h-[5px] w-[5px] shrink-0 rounded-full"
+                    style={{ backgroundColor: tagAccent(tag.color) }}
+                  />
+                  <span className="truncate">{tag.name}</span>
+                </button>
+              ))}
+              {canCreate && (
+                <button
+                  type="button"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    chooseOption(suggestions.length);
+                  }}
+                  onMouseEnter={() => setActiveIndex(suggestions.length)}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-1.5 text-left text-[11.5px] transition-colors",
+                    activeIndex === suggestions.length
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  <Plus className="h-3 w-3 shrink-0 [stroke-width:1.4]" />
+                  <span className="truncate">
+                    Create tag <span className="font-mono">{query.trim()}</span>
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
+
+
 
 
           <div

@@ -5,15 +5,27 @@ import {
   Check,
   MoreHorizontal,
   Pin,
+  Plus,
   Reply,
   RotateCcw,
   Trash2,
+  X,
 } from "lucide-react";
 
 import type { FlowMessage, MessageType } from "@/lib/flow.server";
 import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
+import { tagAccent } from "@/lib/tag-colors";
+import { useTags } from "@/lib/use-tags";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +36,75 @@ import {
 import { ReminderPopover, reminderLabel } from "./reminder-control";
 import { FlowEditorSurface, FlowToolbar, useFlowEditor } from "./rich-editor";
 import { TagLink } from "./tag-chip";
+
+/** Quiet "+" at the end of a note's tag row: search the notepad's own tags. */
+function TagPicker({
+  appliedIds,
+  onPick,
+  open,
+  onOpenChange,
+}: {
+  appliedIds: string[];
+  onPick: (tagId: string) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const tags = useTags();
+  const available = (tags.data ?? []).filter((tag) => !appliedIds.includes(tag.id));
+
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(event) => event.stopPropagation()}
+          aria-label="Add a tag"
+          title="Add a tag"
+          className={cn(
+            "inline-flex h-3.5 items-center gap-1 font-mono text-[11px] leading-none text-muted-foreground/45 transition-colors duration-150 hover:text-foreground",
+            open && "text-foreground",
+          )}
+        >
+          <Plus className="h-3 w-3 [stroke-width:1.4]" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        onClick={(event) => event.stopPropagation()}
+        className="w-56 p-0"
+      >
+        <Command>
+          <CommandInput placeholder="Find a tag…" className="text-[12.5px]" />
+          <CommandList>
+            <CommandEmpty className="px-3 py-3 text-[12px] text-muted-foreground">
+              No tag by that name
+            </CommandEmpty>
+            <CommandGroup>
+              {available.map((tag) => (
+                <CommandItem
+                  key={tag.id}
+                  value={tag.name}
+                  onSelect={() => {
+                    onOpenChange(false);
+                    onPick(tag.id);
+                  }}
+                  className="gap-2 font-mono text-[11.5px]"
+                >
+                  <span
+                    aria-hidden
+                    className="h-[5px] w-[5px] shrink-0 rounded-full"
+                    style={{ backgroundColor: tagAccent(tag.color) }}
+                  />
+                  {tag.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function timeLabel(iso: string) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
@@ -64,6 +145,8 @@ function MessageRowBase({
   onRestoreOriginal,
   onSetReminder,
   onSetType,
+  onAddTag,
+  onRemoveTag,
 }: {
   message: FlowMessage;
   isEditing: boolean;
@@ -81,6 +164,9 @@ function MessageRowBase({
   onSetReminder: (iso: string | null) => void;
   /** Promotes the note between stream and pinned kinds, or out to Reference. */
   onSetType?: (type: MessageType) => void;
+  /** Manual tagging: both applied as source 'user', never touched by AI passes. */
+  onAddTag?: (tagId: string) => void;
+  onRemoveTag?: (tagId: string) => void;
 }) {
   const html = useMemo(
     () => sanitizeHtml(message.content_html ?? textToHtml(message.content)),
@@ -100,7 +186,8 @@ function MessageRowBase({
   const [reminderOpen, setReminderOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
-  const actionsOpen = reminderOpen || menuOpen || saveOpen;
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const actionsOpen = reminderOpen || menuOpen || saveOpen || tagPickerOpen;
 
   const isReply = depth > 0;
   const tags = message.tags;
@@ -189,13 +276,39 @@ function MessageRowBase({
             </div>
 
             {/* Tags live under the text and expand with the row. */}
-            {tags.length > 0 && (
+            {(tags.length > 0 || onAddTag) && (
               <div className="flow-tagwrap">
                 <div>
                   <div className="flex flex-wrap items-center gap-3 pt-1.5">
                     {tags.map((tag) => (
-                      <TagLink key={tag.id} tag={tag} />
+                      <span key={tag.id} className="group/tag inline-flex items-center gap-1">
+                        <TagLink tag={tag} />
+                        {onRemoveTag && (
+                          <button
+                            type="button"
+                            aria-label={`Remove ${tag.name}`}
+                            title={`Remove ${tag.name}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              event.currentTarget.blur();
+                              onRemoveTag(tag.id);
+                            }}
+                            className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-muted-foreground/50 opacity-0 transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/tag:opacity-100 max-[939px]:opacity-100 [@media(hover:none)]:opacity-100"
+                          >
+                            <X className="h-2.5 w-2.5 [stroke-width:1.6]" />
+                          </button>
+                        )}
+                      </span>
                     ))}
+
+                    {onAddTag && (
+                      <TagPicker
+                        appliedIds={tags.map((tag) => tag.id)}
+                        onPick={onAddTag}
+                        onOpenChange={setTagPickerOpen}
+                        open={tagPickerOpen}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
