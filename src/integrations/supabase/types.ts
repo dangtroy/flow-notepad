@@ -14,50 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      context_rules: {
-        Row: {
-          context: string
-          conversation_id: string
-          created_at: string
-          id: string
-          is_enabled: boolean
-          priority: number
-          tag_name: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          context?: string
-          conversation_id: string
-          created_at?: string
-          id?: string
-          is_enabled?: boolean
-          priority?: number
-          tag_name: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          context?: string
-          conversation_id?: string
-          created_at?: string
-          id?: string
-          is_enabled?: boolean
-          priority?: number
-          tag_name?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "context_rules_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "conversations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       conversations: {
         Row: {
           accent: string
