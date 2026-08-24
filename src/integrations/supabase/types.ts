@@ -86,6 +86,57 @@ export type Database = {
         }
         Relationships: []
       }
+      message_revisions: {
+        Row: {
+          change_reason: string
+          changed_by: string
+          content: string
+          content_html: string | null
+          created_at: string
+          id: string
+          message_id: string
+          revision_number: number
+          user_id: string
+        }
+        Insert: {
+          change_reason?: string
+          changed_by?: string
+          content: string
+          content_html?: string | null
+          created_at?: string
+          id?: string
+          message_id: string
+          revision_number: number
+          user_id: string
+        }
+        Update: {
+          change_reason?: string
+          changed_by?: string
+          content?: string
+          content_html?: string | null
+          created_at?: string
+          id?: string
+          message_id?: string
+          revision_number?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_revisions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_revisions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "task_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_tags: {
         Row: {
           confidence: number | null
@@ -594,6 +645,10 @@ export type Database = {
           group_id: string
           message_count: number
         }[]
+      }
+      revert_message: {
+        Args: { p_message_id: string; p_revision: number }
+        Returns: undefined
       }
       tag_message_counts: {
         Args: { p_conversation_id: string }
