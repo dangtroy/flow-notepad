@@ -255,7 +255,7 @@ async function classifyWithAi(input: {
   const jsonText = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
   const parsed = JSON.parse(jsonText) as {
     tags?: Array<{ name?: unknown; confidence?: unknown }>;
-    concepts?: Array<{ name?: unknown; reason?: unknown; group?: unknown }>;
+    concepts?: Array<{ name?: unknown; reason?: unknown; group?: unknown; kind?: unknown }>;
     summary?: unknown;
     task?: unknown;
   };
@@ -270,11 +270,14 @@ async function classifyWithAi(input: {
       })),
     concepts: (parsed.concepts ?? [])
       .filter((concept) => typeof concept?.name === "string")
-      .slice(0, 2)
+      .slice(0, 3)
       .map((concept) => ({
         name: String(concept.name).trim().slice(0, 60),
         reason: typeof concept.reason === "string" ? concept.reason.slice(0, 400) : "",
         group: typeof concept.group === "string" ? concept.group : null,
+        kind: CONCEPT_KINDS.includes(String(concept.kind).toLowerCase() as ConceptKind)
+          ? (String(concept.kind).toLowerCase() as ConceptKind)
+          : "other",
       })),
     summary: typeof parsed.summary === "string" ? parsed.summary.slice(0, 400) : "",
     task: parseTask(parsed.task),
