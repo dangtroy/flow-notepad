@@ -123,6 +123,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "message_tags_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "task_messages"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "message_tags_tag_id_fkey"
             columns: ["tag_id"]
             isOneToOne: false
@@ -148,6 +155,8 @@ export type Database = {
           conversation_id: string
           created_at: string
           deleted_at: string | null
+          due_at: string | null
+          due_is_fuzzy: boolean
           edited_at: string | null
           id: string
           is_completed: boolean
@@ -159,6 +168,7 @@ export type Database = {
           pinned_at: string | null
           remind_at: string | null
           reminder_dismissed_at: string | null
+          task_priority: string | null
           type: string
           updated_at: string
           user_id: string
@@ -179,6 +189,8 @@ export type Database = {
           conversation_id: string
           created_at?: string
           deleted_at?: string | null
+          due_at?: string | null
+          due_is_fuzzy?: boolean
           edited_at?: string | null
           id?: string
           is_completed?: boolean
@@ -190,6 +202,7 @@ export type Database = {
           pinned_at?: string | null
           remind_at?: string | null
           reminder_dismissed_at?: string | null
+          task_priority?: string | null
           type?: string
           updated_at?: string
           user_id: string
@@ -210,6 +223,8 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           deleted_at?: string | null
+          due_at?: string | null
+          due_is_fuzzy?: boolean
           edited_at?: string | null
           id?: string
           is_completed?: boolean
@@ -221,6 +236,7 @@ export type Database = {
           pinned_at?: string | null
           remind_at?: string | null
           reminder_dismissed_at?: string | null
+          task_priority?: string | null
           type?: string
           updated_at?: string
           user_id?: string
@@ -238,6 +254,13 @@ export type Database = {
             columns: ["parent_message_id"]
             isOneToOne: false
             referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_parent_message_id_fkey"
+            columns: ["parent_message_id"]
+            isOneToOne: false
+            referencedRelation: "task_messages"
             referencedColumns: ["id"]
           },
         ]
@@ -484,7 +507,85 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      task_messages: {
+        Row: {
+          completed_at: string | null
+          content: string | null
+          content_html: string | null
+          conversation_id: string | null
+          created_at: string | null
+          due_at: string | null
+          due_is_fuzzy: boolean | null
+          id: string | null
+          is_completed: boolean | null
+          is_overdue: boolean | null
+          is_pinned: boolean | null
+          metadata: Json | null
+          parent_message_id: string | null
+          task_priority: string | null
+          type: string | null
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          content?: string | null
+          content_html?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          due_at?: string | null
+          due_is_fuzzy?: boolean | null
+          id?: string | null
+          is_completed?: boolean | null
+          is_overdue?: never
+          is_pinned?: boolean | null
+          metadata?: Json | null
+          parent_message_id?: string | null
+          task_priority?: string | null
+          type?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          content?: string | null
+          content_html?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          due_at?: string | null
+          due_is_fuzzy?: boolean | null
+          id?: string | null
+          is_completed?: boolean | null
+          is_overdue?: never
+          is_pinned?: boolean | null
+          metadata?: Json | null
+          parent_message_id?: string | null
+          task_priority?: string | null
+          type?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_parent_message_id_fkey"
+            columns: ["parent_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_parent_message_id_fkey"
+            columns: ["parent_message_id"]
+            isOneToOne: false
+            referencedRelation: "task_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       group_message_counts: {
