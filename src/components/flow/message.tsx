@@ -390,6 +390,46 @@ function MessageRowBase({
                     )}
                   </div>
 
+                  {/* Optional: say why that suggestion was wrong. */}
+                  {dismissed && (
+                    <form
+                      onClick={(event) => event.stopPropagation()}
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const text = reason.trim();
+                        closeReason();
+                        if (text) {
+                          void saveExclusion({ data: { tagId: dismissed.id, reason: text } }).catch(
+                            () => undefined,
+                          );
+                        }
+                      }}
+                      className="flex items-center gap-2 pt-1.5"
+                    >
+                      <input
+                        autoFocus
+                        value={reason}
+                        onChange={(event) => setReason(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape") {
+                            event.stopPropagation();
+                            closeReason();
+                          }
+                        }}
+                        placeholder={`Why not ${dismissed.name}? (optional)`}
+                        className="w-full max-w-xs border-b border-border bg-transparent pb-0.5 text-[11.5px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={closeReason}
+                        aria-label="Skip"
+                        className="text-[11px] text-muted-foreground/60 hover:text-foreground"
+                      >
+                        Skip
+                      </button>
+                    </form>
+                  )}
+
                   {/* Shown once, the moment a tag has earned its automation. */}
                   {graduatedTag && (
                     <div className="flex items-center gap-2 pt-1.5 text-[11px] text-muted-foreground/70">
