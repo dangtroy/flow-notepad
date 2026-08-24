@@ -450,6 +450,44 @@ export const clearCompleted = createServerFn({ method: "POST" })
   });
 
 /**
+ * The Tasks view: every note in this notepad carrying a tag in the Tasks group.
+ * Task-ness lives in the tag graph only, so this is a read over that graph.
+ */
+export const getTasks = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { notepadId?: string | null }) => ({
+    notepadId: input?.notepadId ?? null,
+  }))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const notepadId = await resolveNotepad(supabase, userId, data.notepadId);
+    return { notepadId, tasks: await loadTasks(supabase, userId, notepadId) };
+  });
+
+/** A date the user chose is never fuzzy, whatever the AI had inferred. */
+export const setTaskDue = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string; dueAt: string | null }) => {
+    if (!input?.id) throw new Error("Missing note");
+    const dueAt = input.dueAt ? new Date(input.dueAt) : null;
+    if (dueAt && Number.isNaN(dueAt.getTime())) throw new Error("That date is not valid");
+    return { id: input.id, dueAt: dueAt ? dueAt.toISOString() : null };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: row, error } = await supabase
+      .from("messages")
+      .update({ due_at: data.dueAt, due_is_fuzzy: false })
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .select("id, due_at, due_is_fuzzy")
+      .single();
+    if (error) throw error;
+    return row;
+  });
+
+
+/**
  * Manual tagging. source: 'user' is load-bearing — organizeMessage only clears
  * source: 'ai' rows before re-applying, so a hand-applied tag survives every
  * later AI pass.
