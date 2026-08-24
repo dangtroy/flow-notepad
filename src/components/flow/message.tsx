@@ -362,6 +362,11 @@ function MessageRowBase({
                                 event.stopPropagation();
                                 event.currentTarget.blur();
                                 onRemoveTag(tag.id);
+                                // Never blocks the dismiss — just offers to learn.
+                                if (isSuggested) {
+                                  setReason("");
+                                  setDismissed({ id: tag.id, name: tag.name });
+                                }
                               }}
                               className={cn(
                                 "inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-muted-foreground/50 transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/tag:opacity-100 max-[939px]:opacity-100 [@media(hover:none)]:opacity-100",
