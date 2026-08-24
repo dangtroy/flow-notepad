@@ -773,7 +773,7 @@ export async function loadSuggestions(
   const { data, error } = await supabase
     .from("tag_suggestions")
     .select(
-      "id, kind, tag_id, name, reason, message_ids, evidence_count, suggested_group_id, suggested_group_name",
+      "id, kind, concept_kind, tag_id, name, reason, message_ids, evidence_count, suggested_group_id, suggested_group_name",
     )
     .eq("user_id", userId)
     .eq("conversation_id", notepadId)
@@ -786,6 +786,9 @@ export async function loadSuggestions(
     .map((row) => ({
       id: row.id,
       kind: (row.kind === "existing_tag" ? "existing_tag" : "new_tag") as SuggestionKind,
+      concept_kind: (CONCEPT_KINDS.includes(row.concept_kind as ConceptKind)
+        ? row.concept_kind
+        : "other") as ConceptKind,
       tag_id: row.tag_id,
       name: row.name,
       reason: row.reason,
