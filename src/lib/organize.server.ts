@@ -336,6 +336,66 @@ async function recordTaskSuggestion(
   });
 }
 
+/**
+ * The Tasks group is the only tag structure Flow will create on its own: the
+ * Tasks view is unusable without it, and a detected task with nowhere to land
+ * would just disappear. Existing "task" tags are adopted rather than duplicated.
+ */
+async function ensureTaskTag(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+  existingGroupId: string | null,
+): Promise<TagRow | null> {
+  let groupId = existingGroupId;
+  if (!groupId) {
+    const group = await supabase
+      .from("tag_groups")
+      .insert({ user_id: userId, conversation_id: notepadId, name: "Tasks", color: "amber" })
+      .select("id")
+      .maybeSingle();
+    groupId = group.data?.id ?? null;
+    if (!groupId) return null;
+  }
+
+  const existing = await supabase
+    .from("tags")
+    .select("id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id")
+    .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
+    .eq("normalized_name", "task")
+    .maybeSingle();
+
+  if (existing.data) {
+    if (existing.data.group_id === groupId) return existing.data as TagRow;
+    const moved = await supabase
+      .from("tags")
+      .update({ group_id: groupId, is_enabled: true })
+      .eq("id", existing.data.id)
+      .eq("user_id", userId)
+      .select("id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id")
+      .maybeSingle();
+    return (moved.data ?? { ...existing.data, group_id: groupId }) as TagRow;
+  }
+
+  const created = await supabase
+    .from("tags")
+    .insert({
+      user_id: userId,
+      conversation_id: notepadId,
+      name: "Task",
+      normalized_name: "task",
+      color: "amber",
+      group_id: groupId,
+      context: "Open loops the writer still needs to close.",
+    })
+    .select("id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id")
+    .maybeSingle();
+
+  return (created.data as TagRow | null) ?? null;
+}
+
+
 
 
 export type OrganizeResult = {
@@ -504,8 +564,15 @@ export async function organizeMessage(
     const taskGroupIds = new Set(
       groups.filter((group) => group.name.trim().toLowerCase() === "tasks").map((group) => group.id),
     );
-    const taskTag = tags.find((tag) => tag.group_id && taskGroupIds.has(tag.group_id));
+    let taskTag = tags.find((tag) => tag.group_id && taskGroupIds.has(tag.group_id)) ?? null;
     let taskTagConfidence: number | null = null;
+
+    // A notepad that has never seen a task has no Tasks group yet. Rather than
+    // silently dropping the detection, Flow provisions the group and its tag the
+    // first time one is needed.
+    if (task && !taskTag && task.confidence >= TASK_SUGGEST_CONFIDENCE) {
+      taskTag = await ensureTaskTag(supabase, userId, notepadId, [...taskGroupIds][0] ?? null);
+    }
 
     if (task && taskTag) {
       if (task.confidence >= TASK_APPLY_CONFIDENCE) {
@@ -519,6 +586,7 @@ export async function organizeMessage(
         await recordTaskSuggestion(supabase, userId, notepadId, messageId, taskTag);
       }
     }
+
 
     // AI-applied links are replaced; anything the user applied stays put.
     await supabase.from("message_tags").delete().eq("message_id", messageId).eq("source", "ai");
