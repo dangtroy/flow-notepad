@@ -106,6 +106,8 @@ export type AiTask = {
   due_is_fuzzy: boolean;
   priority: "low" | "normal" | "high" | null;
   label: string | null;
+  /** How sure the model is that this is an open loop. Drives how it is applied. */
+  confidence: number;
 };
 
 const PRIORITY_VALUES = new Set(["low", "normal", "high"]);
@@ -118,6 +120,7 @@ function parseTask(raw: unknown): AiTask | null {
   const due = typeof value["due_at"] === "string" ? new Date(value["due_at"]) : null;
   const priority = typeof value["priority"] === "string" ? value["priority"].toLowerCase() : "";
   const label = typeof value["label"] === "string" ? value["label"].trim().slice(0, 80) : "";
+  const confidence = Math.max(0, Math.min(1, Number(value["confidence"] ?? 0.6) || 0.6));
 
   return {
     is_actionable: true,
@@ -125,8 +128,10 @@ function parseTask(raw: unknown): AiTask | null {
     due_is_fuzzy: value["due_is_fuzzy"] === true,
     priority: PRIORITY_VALUES.has(priority) ? (priority as AiTask["priority"]) : null,
     label: label || null,
+    confidence,
   };
 }
+
 
 async function classifyWithAi(input: {
   content: string;
