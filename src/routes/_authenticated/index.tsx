@@ -25,7 +25,6 @@ import {
   removeMessageTag,
   confirmMessageTag,
   acknowledgeTagGraduation,
-
   sendMessage,
   setMessageCompletion,
   setMessageReminder,
@@ -43,11 +42,7 @@ import { useActiveNotepadId } from "@/lib/use-notepad";
 import { Composer, type CleanupMeta } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
 import { AttentionRail } from "@/components/flow/attention-rail";
-import {
-  STREAM_VIEWS,
-  StreamTopBar,
-  type StreamView,
-} from "@/components/flow/stream-top-bar";
+import { STREAM_VIEWS, StreamTopBar, type StreamView } from "@/components/flow/stream-top-bar";
 import { ReferenceList } from "@/components/flow/reference-list";
 import { TaskList } from "@/components/flow/task-list";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -425,7 +420,6 @@ function FlowPage() {
     }
   }
 
-
   async function handleSend(html: string, cleanup: CleanupMeta, tagIds: string[] = []) {
     // Sending while the Reference view is open keeps the note there.
     if (view === "reference") {
@@ -478,7 +472,6 @@ function FlowPage() {
         tags: [],
         tentativeTagIds: [],
         suggestedTagIds: [],
-
       },
     ]);
     requestAnimationFrame(scrollToBottom);
@@ -550,7 +543,11 @@ function FlowPage() {
         void queryClient.invalidateQueries({ queryKey: streamKey });
       }
       toast.success(
-        type === "reference" ? "Kept as reference" : type === "pinned" ? "Pinned" : "Back in stream",
+        type === "reference"
+          ? "Kept as reference"
+          : type === "pinned"
+            ? "Pinned"
+            : "Back in stream",
       );
     } catch {
       patchMessage(message.id, { type: previous });
@@ -824,12 +821,10 @@ function FlowPage() {
     onJump: jumpToMessage,
   };
 
-
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
       {/* min-w-0 keeps a long note from widening the column past the screen. */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-
         <StreamTopBar
           view={view}
           onViewChange={(next) =>
@@ -844,138 +839,137 @@ function FlowPage() {
           onOpenPanel={() => setPanelSheet(true)}
         />
 
-      <div
-        ref={scrollRef}
-        onScroll={onScroll}
-        className="flex-1 overflow-y-auto overscroll-contain"
-      >
         <div
-          className={cn(
-            "flow-stream flow-shell flex min-h-full flex-col px-5 pb-8 pt-8 sm:px-8",
-            appearance.alwaysShowDetails && "always-show",
-            // Only the live stream reads bottom-up; the saved views are lists.
-            view === "all" || view === "today" ? "justify-end" : "justify-start",
-          )}
+          ref={scrollRef}
+          onScroll={onScroll}
+          className="flex-1 overflow-y-auto overscroll-contain"
         >
-          {view === "tasks" ? (
-            <TaskList
-              tasks={tasks}
-              isPending={tasksQuery.isPending}
-              onToggleComplete={(task) => void handleTaskComplete(task)}
-              onSetDue={(task, iso) => void handleTaskDue(task, iso)}
-              onRemoveTask={(task) => void handleRemoveTask(task)}
-            />
-          ) : view === "reference" ? (
-            <ReferenceList
-              notes={referenceNotes}
-              isPending={reference.isPending}
-              onSaveEdit={(id, html) => void handleSaveReferenceEdit(id, html)}
-              onMoveToStream={(id) => void handleReferenceType(id, "stream")}
-              onDelete={(id) => void handleReferenceDelete(id)}
-            />
-          ) : (
-          <>
-          {hasNextPage && (
-            <p className="pb-6 text-center text-[11px] uppercase tracking-[0.16em] text-muted-foreground/45">
-              {isFetchingNextPage ? "Loading earlier thoughts…" : "Scroll up for earlier thoughts"}
-            </p>
-          )}
-
-          {isPending ? (
-            <p className="text-[13px] text-muted-foreground">Opening your Flow…</p>
-          ) : grouped.length === 0 ? (
-            <div className="mt-24 text-center">
-              <p className="flow-prose text-muted-foreground">
-                {query ? (
-                  <>No notes match &ldquo;{query}&rdquo; in this view.</>
-                ) : view === "today" ? (
-                  <>Nothing written today yet.</>
-                ) : view === "pinned" ? (
-                  <>Nothing pinned yet.</>
-                ) : isFiltered ? (
-                  <>
-                    Nothing tagged this way yet.
-                    <br />
-                    Choose All in the sidebar to see your whole stream.
-                  </>
-                ) : (
-                  <>
-                    This is your one continuous conversation.
-                    <br />
-                    Write your first thought below — it stays here.
-                  </>
+          <div
+            className={cn(
+              "flow-stream flow-shell flex min-h-full flex-col px-5 pb-8 pt-8 sm:px-8",
+              appearance.alwaysShowDetails && "always-show",
+              // Only the live stream reads bottom-up; the saved views are lists.
+              view === "all" || view === "today" ? "justify-end" : "justify-start",
+            )}
+          >
+            {view === "tasks" ? (
+              <TaskList
+                tasks={tasks}
+                isPending={tasksQuery.isPending}
+                onToggleComplete={(task) => void handleTaskComplete(task)}
+                onSetDue={(task, iso) => void handleTaskDue(task, iso)}
+                onRemoveTask={(task) => void handleRemoveTask(task)}
+              />
+            ) : view === "reference" ? (
+              <ReferenceList
+                notes={referenceNotes}
+                isPending={reference.isPending}
+                onSaveEdit={(id, html) => void handleSaveReferenceEdit(id, html)}
+                onMoveToStream={(id) => void handleReferenceType(id, "stream")}
+                onDelete={(id) => void handleReferenceDelete(id)}
+              />
+            ) : (
+              <>
+                {hasNextPage && (
+                  <p className="pb-6 text-center text-[11px] uppercase tracking-[0.16em] text-muted-foreground/45">
+                    {isFetchingNextPage
+                      ? "Loading earlier thoughts…"
+                      : "Scroll up for earlier thoughts"}
+                  </p>
                 )}
-              </p>
-            </div>
-          ) : (
-            grouped.map((group) => {
-              return (
-                <section
-                  key={group.label}
-                  className={cn("mb-8", "last:mb-0")}
-                >
-                  <div className={"mb-4 flex items-center gap-3"}>
-                    <span className="h-px flex-1 bg-border" />
-                    <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/50">
-                      {group.label}
-                    </span>
-                    <span className="h-px flex-1 bg-border" />
+
+                {isPending ? (
+                  <p className="text-[13px] text-muted-foreground">Opening your Flow…</p>
+                ) : grouped.length === 0 ? (
+                  <div className="mt-24 text-center">
+                    <p className="flow-prose text-muted-foreground">
+                      {query ? (
+                        <>No notes match &ldquo;{query}&rdquo; in this view.</>
+                      ) : view === "today" ? (
+                        <>Nothing written today yet.</>
+                      ) : view === "pinned" ? (
+                        <>Nothing pinned yet.</>
+                      ) : isFiltered ? (
+                        <>
+                          Nothing tagged this way yet.
+                          <br />
+                          Choose All in the sidebar to see your whole stream.
+                        </>
+                      ) : (
+                        <>
+                          This is your one continuous conversation.
+                          <br />
+                          Write your first thought below — it stays here.
+                        </>
+                      )}
+                    </p>
                   </div>
+                ) : (
+                  grouped.map((group) => {
+                    return (
+                      <section key={group.label} className={cn("mb-8", "last:mb-0")}>
+                        <div className={"mb-4 flex items-center gap-3"}>
+                          <span className="h-px flex-1 bg-border" />
+                          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/50">
+                            {group.label}
+                          </span>
+                          <span className="h-px flex-1 bg-border" />
+                        </div>
 
-                  <div className="flex flex-col">
-                    {group.threads.map((thread) => (
-                      <div
-                        key={thread.id}
-                        className="flow-row-stack flow-thread-divider pt-[var(--flow-thread-gap)] first:border-t-0 first:pt-0"
-                        style={{ paddingBottom: "var(--flow-thread-gap)" }}
-                      >
-                        {thread.entries.map(({ message, depth }) => (
-                          <MessageRow
-                            key={message.id}
-                            message={message}
-                            depth={depth}
-                            isReplyTarget={replyTo?.id === message.id}
-                            isEditing={editingId === message.id}
-                            onStartEdit={() => setEditingId(message.id)}
-                            onCancelEdit={() => setEditingId(null)}
-                            onSaveEdit={(html) => void handleSaveEdit(message, html)}
-                            parentCreatedAt={
-                              message.parent_message_id
-                                ? createdAtById.get(message.parent_message_id)
-                                : undefined
-                            }
+                        <div className="flex flex-col">
+                          {group.threads.map((thread) => (
+                            <div
+                              key={thread.id}
+                              className="flow-row-stack flow-thread-divider pt-[var(--flow-thread-gap)] first:border-t-0 first:pt-0"
+                              style={{ paddingBottom: "var(--flow-thread-gap)" }}
+                            >
+                              {thread.entries.map(({ message, depth }) => (
+                                <MessageRow
+                                  key={message.id}
+                                  message={message}
+                                  depth={depth}
+                                  isReplyTarget={replyTo?.id === message.id}
+                                  isEditing={editingId === message.id}
+                                  onStartEdit={() => setEditingId(message.id)}
+                                  onCancelEdit={() => setEditingId(null)}
+                                  onSaveEdit={(html) => void handleSaveEdit(message, html)}
+                                  parentCreatedAt={
+                                    message.parent_message_id
+                                      ? createdAtById.get(message.parent_message_id)
+                                      : undefined
+                                  }
 
-                            onAddTag={(tagId) => void handleAddTag(message, tagId)}
-                            onConfirmTag={(tagId) => void handleConfirmTag(message, tagId)}
-                            onAcknowledgeGraduation={(tagId) =>
-                              void handleAcknowledgeGraduation(tagId)
-                            }
+                                  onAddTag={(tagId) => void handleAddTag(message, tagId)}
+                                  onConfirmTag={(tagId) => void handleConfirmTag(message, tagId)}
+                                  onAcknowledgeGraduation={(tagId) =>
+                                    void handleAcknowledgeGraduation(tagId)
+                                  }
 
-                            onRemoveTag={(tagId) => void handleRemoveTag(message, tagId)}
-                            onSetReminder={(iso) => void handleSetReminder(message, iso)}
-                            onSetType={(type) => void handleSetType(message, type)}
-                            onToggleComplete={() => void handleToggleComplete(message)}
-                            onDeleteNow={() => void handleDeleteNow(message)}
-                            onRestoreOriginal={() => void handleRestoreOriginal(message)}
-                            onReply={() =>
-                              setReplyTo({
-                                id: message.id,
-                                preview: message.content.slice(0, 120),
-                              })
-                            }
-                          />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              );
-            })
-          )}
-          </>
-          )}
+                                  onRemoveTag={(tagId) => void handleRemoveTag(message, tagId)}
+                                  onSetReminder={(iso) => void handleSetReminder(message, iso)}
+                                  onSetType={(type) => void handleSetType(message, type)}
+                                  onToggleComplete={() => void handleToggleComplete(message)}
+                                  onDeleteNow={() => void handleDeleteNow(message)}
+                                  onRestoreOriginal={() => void handleRestoreOriginal(message)}
+                                  onReply={() =>
+                                    setReplyTo({
+                                      id: message.id,
+                                      preview: message.content.slice(0, 120),
+                                    })
+                                  }
+                                />
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    );
+                  })
+                )}
+              </>
+            )}
+          </div>
         </div>
-      </div>
 
         <Composer
           onSend={(html, cleanup, tagIds) => void handleSend(html, cleanup, tagIds)}
@@ -988,10 +982,7 @@ function FlowPage() {
 
       {/* Same panel, reachable on phones and narrow windows. */}
       <Sheet open={panelSheet} onOpenChange={setPanelSheet}>
-        <SheetContent
-          side="right"
-          className="w-[20rem] border-border bg-surface p-0 lg:hidden"
-        >
+        <SheetContent side="right" className="w-[20rem] border-border bg-surface p-0 lg:hidden">
           <SheetTitle className="sr-only">Needs attention</SheetTitle>
           <AttentionRail
             {...railProps}

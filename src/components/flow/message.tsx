@@ -150,7 +150,6 @@ function MessageRowBase({
   onRemoveTag,
   onConfirmTag,
   onAcknowledgeGraduation,
-
 }: {
   message: FlowMessage;
   isEditing: boolean;
@@ -174,7 +173,6 @@ function MessageRowBase({
   /** ✓ on a suggested tag: keeps it, and teaches Flow the tag is worth trusting. */
   onConfirmTag?: (tagId: string) => void;
   onAcknowledgeGraduation?: (tagId: string) => void;
-
 }) {
   const html = useMemo(
     () => sanitizeHtml(message.content_html ?? textToHtml(message.content)),
@@ -206,9 +204,7 @@ function MessageRowBase({
   const graduatedTag =
     (allTags.data ?? []).find(
       (tag) =>
-        tag.graduated_at &&
-        !tag.graduation_ack_at &&
-        tags.some((applied) => applied.id === tag.id),
+        tag.graduated_at && !tag.graduation_ack_at && tags.some((applied) => applied.id === tag.id),
     ) ?? null;
 
   const offset = isReply ? offsetLabel(message.created_at, parentCreatedAt) : null;
@@ -339,7 +335,9 @@ function MessageRowBase({
                           {onRemoveTag && (
                             <button
                               type="button"
-                              aria-label={isSuggested ? `Dismiss ${tag.name}` : `Remove ${tag.name}`}
+                              aria-label={
+                                isSuggested ? `Dismiss ${tag.name}` : `Remove ${tag.name}`
+                              }
                               title={isSuggested ? `Dismiss ${tag.name}` : `Remove ${tag.name}`}
                               onClick={(event) => {
                                 event.stopPropagation();
@@ -389,7 +387,6 @@ function MessageRowBase({
                 </div>
               </div>
             )}
-
           </>
         )}
       </div>

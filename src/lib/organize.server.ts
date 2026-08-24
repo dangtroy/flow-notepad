@@ -47,7 +47,6 @@ function isTrusted(tag: TagRow): boolean {
   return tag.maturity === "trusted" || tag.auto_apply === true;
 }
 
-
 type GroupRow = { id: string; name: string };
 
 /** Stable, cheap content fingerprint so unchanged notes are skipped entirely. */
@@ -147,7 +146,6 @@ function parseTask(raw: unknown): AiTask | null {
   };
 }
 
-
 async function classifyWithAi(input: {
   content: string;
   parent: string | null;
@@ -178,7 +176,7 @@ async function classifyWithAi(input: {
             'Also read the note and return "task" (null only when there is no open loop at all).',
             "A task is anything the writer needs to do, follow up on, decide, confirm, find, or resolve — an open loop only they can close. Judge by intent, not grammar. Tasks rarely look like commands; people write them as worries, observations, and half-thoughts.",
             'These are ALL tasks: "jared needs the pricing but I think we changed it" (get Jared pricing) / "I haven\'t followed up with the artist yet" (overdue follow-up) / "maybe make a separate collection for the tour stuff" (tentative build) / "I think Sarah sent me something about this somewhere" (find it) / "OTL needs more kith/dime energy" (direction to execute) / "don\'t forget to ask about shipping rates" (reminder) / "check whether we can automate this in Shopify Flow" (investigation) / "creeptee launch maybe friday? need to confirm products and photos" (confirm, with a fuzzy Friday due date).',
-            'Task signal words: need to, should, should probably, have to, gotta, haven\'t yet, still need to, forgot to, don\'t forget, figure out, confirm, check, decide, look into, follow up; someone else needing/wanting/asking something from the writer; a prescriptive "X needs more Y"; an unanswered question the writer must resolve.',
+            "Task signal words: need to, should, should probably, have to, gotta, haven't yet, still need to, forgot to, don't forget, figure out, confirm, check, decide, look into, follow up; someone else needing/wanting/asking something from the writer; a prescriptive \"X needs more Y\"; an unanswered question the writer must resolve.",
             'NOT tasks: pure observations with no action ("the pack shots look great"), things already done, and reference facts. Do not assume "most notes are not tasks" — many are.',
             'task.confidence (0-1): explicit action or reminder → 0.85+. Clear obligation ("need to confirm products") → 0.80+. Hedged or implied ("maybe make a collection", "probably need to ask") → 0.55–0.75. Ambiguous between a musing and a task → 0.45–0.60. Not a task → return task: null.',
             "task.due_at: an ISO 8601 instant, only when the note itself contains a time reference. Never invent a deadline.",
@@ -187,13 +185,14 @@ async function classifyWithAi(input: {
             "task.label: an imperative-form restatement of the action, at most 60 characters.",
             `Today is ${new Date().toISOString()}.`,
             'Respond ONLY with JSON: {"tags":[{"name":"...","confidence":0.0}],"concepts":[{"name":"...","reason":"...","group":"..."}],"summary":"...","task":{"is_actionable":true,"confidence":0.0,"due_at":null,"due_is_fuzzy":false,"priority":null,"label":"..."}}',
-
           ].join("\n"),
         },
         {
           role: "user",
           content: [
-            tagLines ? `Existing tags and their context rules:\n${tagLines}` : "Existing tags: none",
+            tagLines
+              ? `Existing tags and their context rules:\n${tagLines}`
+              : "Existing tags: none",
             input.parent ? `This note replies to: ${input.parent}` : "",
             `Note: ${input.content}`,
           ]
@@ -206,7 +205,9 @@ async function classifyWithAi(input: {
 
   if (!response.ok) throw new Error(`AI gateway error ${response.status}`);
 
-  const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const payload = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
   const raw = payload.choices?.[0]?.message?.content ?? "";
   const jsonText = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
   const parsed = JSON.parse(jsonText) as {
@@ -327,7 +328,10 @@ async function recordTaskSuggestion(
     ids.add(messageId);
     await supabase
       .from("tag_suggestions")
-      .update({ message_ids: [...ids], evidence_count: Math.max(ids.size, MIN_EVIDENCE.existing_tag) })
+      .update({
+        message_ids: [...ids],
+        evidence_count: Math.max(ids.size, MIN_EVIDENCE.existing_tag),
+      })
       .eq("id", existing.data.id)
       .eq("user_id", userId);
     return;
@@ -371,7 +375,9 @@ async function ensureTaskTag(
 
   const existing = await supabase
     .from("tags")
-    .select("id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id")
+    .select(
+      "id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id",
+    )
     .eq("user_id", userId)
     .eq("conversation_id", notepadId)
     .eq("normalized_name", "task")
@@ -384,7 +390,9 @@ async function ensureTaskTag(
       .update({ group_id: groupId, is_enabled: true })
       .eq("id", existing.data.id)
       .eq("user_id", userId)
-      .select("id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id")
+      .select(
+        "id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id",
+      )
       .maybeSingle();
     return (moved.data ?? { ...existing.data, group_id: groupId }) as TagRow;
   }
@@ -400,14 +408,13 @@ async function ensureTaskTag(
       group_id: groupId,
       context: "Open loops the writer still needs to close.",
     })
-    .select("id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id")
+    .select(
+      "id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id",
+    )
     .maybeSingle();
 
   return (created.data as TagRow | null) ?? null;
 }
-
-
-
 
 export type OrganizeResult = {
   ok: boolean;
@@ -441,7 +448,11 @@ export async function organizeMessage(
   const stamp = fingerprint(content);
 
   // Tier 0: nothing changed since the last pass — no work, no AI.
-  if (!options.force && message.data.ai_status === "done" && message.data.ai_fingerprint === stamp) {
+  if (
+    !options.force &&
+    message.data.ai_status === "done" &&
+    message.data.ai_fingerprint === stamp
+  ) {
     return { ok: true, skipped: true };
   }
 
@@ -449,7 +460,9 @@ export async function organizeMessage(
     const [tagRows, groupRows] = await Promise.all([
       supabase
         .from("tags")
-        .select("id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id, maturity")
+        .select(
+          "id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id, maturity",
+        )
 
         .eq("user_id", userId)
         .eq("conversation_id", notepadId),
@@ -477,7 +490,6 @@ export async function organizeMessage(
       if (isTrusted(tag)) autoTagIds.add(tag.id);
       else suggestTagIds.add(tag.id);
     }
-
 
     // Tier 2: only the tags whose written context could plausibly relate, and
     // only their rules — never the conversation, never the whole tag table.
@@ -537,7 +549,6 @@ export async function organizeMessage(
         }
       }
 
-
       // New concepts are only ever proposals: Flow never creates a tag itself.
       for (const concept of result.concepts) {
         const normalized = normalizeTag(concept.name);
@@ -562,7 +573,9 @@ export async function organizeMessage(
     // sure things land silently, hedged ones land tentative (lighter chip), and
     // genuinely ambiguous notes only ever become a question the user can dismiss.
     const taskGroupIds = new Set(
-      groups.filter((group) => group.name.trim().toLowerCase() === "tasks").map((group) => group.id),
+      groups
+        .filter((group) => group.name.trim().toLowerCase() === "tasks")
+        .map((group) => group.id),
     );
     let taskTag = tags.find((tag) => tag.group_id && taskGroupIds.has(tag.group_id)) ?? null;
     let taskTagConfidence: number | null = null;
@@ -586,7 +599,6 @@ export async function organizeMessage(
         await recordTaskSuggestion(supabase, userId, notepadId, messageId, taskTag);
       }
     }
-
 
     // AI-applied links are replaced; anything the user applied stays put.
     await supabase.from("message_tags").delete().eq("message_id", messageId).eq("source", "ai");
@@ -614,8 +626,6 @@ export async function organizeMessage(
     if (links.length) {
       await supabase.from("message_tags").upsert(links, { onConflict: "message_id,tag_id" });
     }
-
-
 
     // Task fields are written alongside the AI status. The user's own words stay
     // in `content`: the imperative rewrite only ever lands in metadata, and a
