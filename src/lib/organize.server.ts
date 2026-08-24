@@ -187,6 +187,7 @@ async function classifyWithAi(input: {
     tags?: Array<{ name?: unknown; confidence?: unknown }>;
     concepts?: Array<{ name?: unknown; reason?: unknown; group?: unknown }>;
     summary?: unknown;
+    task?: unknown;
   };
 
   return {
@@ -206,6 +207,7 @@ async function classifyWithAi(input: {
         group: typeof concept.group === "string" ? concept.group : null,
       })),
     summary: typeof parsed.summary === "string" ? parsed.summary.slice(0, 400) : "",
+    task: parseTask(parsed.task),
   };
 }
 
