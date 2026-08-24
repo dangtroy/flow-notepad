@@ -12,7 +12,10 @@ import {
   X,
 } from "lucide-react";
 
+import { useServerFn } from "@tanstack/react-start";
+
 import type { FlowMessage, MessageType } from "@/lib/flow.server";
+import { appendTagExclusion } from "@/lib/flow.functions";
 import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
 import { tagAccent } from "@/lib/tag-colors";
 import { useTags } from "@/lib/use-tags";
@@ -196,6 +199,16 @@ function MessageRowBase({
   const [historyOpen, setHistoryOpen] = useState(false);
   const actionsOpen = reminderOpen || menuOpen || saveOpen || tagPickerOpen || historyOpen;
 
+  // After dismissing a suggestion, an optional one-liner teaches the tag why.
+  const [dismissed, setDismissed] = useState<{ id: string; name: string } | null>(null);
+  const [reason, setReason] = useState("");
+  const saveExclusion = useServerFn(appendTagExclusion);
+
+  function closeReason() {
+    setDismissed(null);
+    setReason("");
+  }
+
   const isReply = depth > 0;
   const tags = message.tags;
 
@@ -349,6 +362,11 @@ function MessageRowBase({
                                 event.stopPropagation();
                                 event.currentTarget.blur();
                                 onRemoveTag(tag.id);
+                                // Never blocks the dismiss — just offers to learn.
+                                if (isSuggested) {
+                                  setReason("");
+                                  setDismissed({ id: tag.id, name: tag.name });
+                                }
                               }}
                               className={cn(
                                 "inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-muted-foreground/50 transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/tag:opacity-100 max-[939px]:opacity-100 [@media(hover:none)]:opacity-100",
@@ -371,6 +389,46 @@ function MessageRowBase({
                       />
                     )}
                   </div>
+
+                  {/* Optional: say why that suggestion was wrong. */}
+                  {dismissed && (
+                    <form
+                      onClick={(event) => event.stopPropagation()}
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const text = reason.trim();
+                        closeReason();
+                        if (text) {
+                          void saveExclusion({ data: { tagId: dismissed.id, reason: text } }).catch(
+                            () => undefined,
+                          );
+                        }
+                      }}
+                      className="flex items-center gap-2 pt-1.5"
+                    >
+                      <input
+                        autoFocus
+                        value={reason}
+                        onChange={(event) => setReason(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape") {
+                            event.stopPropagation();
+                            closeReason();
+                          }
+                        }}
+                        placeholder={`Why not ${dismissed.name}? (optional)`}
+                        className="w-full max-w-xs border-b border-border bg-transparent pb-0.5 text-[11.5px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={closeReason}
+                        aria-label="Skip"
+                        className="text-[11px] text-muted-foreground/60 hover:text-foreground"
+                      >
+                        Skip
+                      </button>
+                    </form>
+                  )}
 
                   {/* Shown once, the moment a tag has earned its automation. */}
                   {graduatedTag && (
