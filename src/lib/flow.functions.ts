@@ -304,6 +304,57 @@ export const updateMessage = createServerFn({ method: "POST" })
     return mapMessage(message as never);
   });
 
+/**
+ * Edit history. Versions are captured by a database trigger on every content
+ * change, so reading and restoring is all the app has to do.
+ */
+export const listMessageRevisions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("Missing message");
+    return { id: input.id };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: rows, error } = await supabase
+      .from("message_revisions")
+      .select("id, revision_number, content, content_html, created_at, change_reason")
+      .eq("message_id", data.id)
+      .eq("user_id", userId)
+      .order("revision_number", { ascending: false });
+    if (error) throw error;
+    return rows ?? [];
+  });
+
+/**
+ * Restoring writes the old text forward as a new current version, so the
+ * trigger captures whatever was on screen first — a restore can be undone.
+ */
+export const revertMessage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string; revision: number }) => {
+    if (!input?.id) throw new Error("Missing message");
+    if (!Number.isFinite(input?.revision)) throw new Error("Missing revision");
+    return { id: input.id, revision: Math.trunc(input.revision) };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase.rpc("revert_message", {
+      p_message_id: data.id,
+      p_revision: data.revision,
+    });
+    if (error) throw error;
+    const { data: message, error: readError } = await supabase
+      .from("messages")
+      .select(MESSAGE_SELECT)
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .single();
+    if (readError) throw readError;
+    return mapMessage(message as never);
+  });
+
+
 export const setMessageCompletion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string; completed: boolean }) => {
