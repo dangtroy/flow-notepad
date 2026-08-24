@@ -137,7 +137,7 @@ function parseTask(raw: unknown): AiTask | null {
 }
 
 
-async function classifyWithAi(input: {
+export async function classifyWithAi(input: {
   content: string;
   parent: string | null;
   tags: Array<{ name: string; context: string; group?: string | null }>;
