@@ -16,6 +16,7 @@ import {
   getDueReminders,
   getPinnedMessages,
   getStreamPage,
+  getTasks,
   getViewCounts,
   getWeekStats,
   organizeMessageFn,
@@ -26,9 +27,11 @@ import {
   setMessageCompletion,
   setMessageReminder,
   setMessageType,
+  setTaskDue,
   updateMessage,
 } from "@/lib/flow.functions";
 import type { FlowMessage, MessageType } from "@/lib/flow.server";
+import type { FlowTask } from "@/lib/tasks.server";
 import { htmlToText } from "@/lib/rich-text";
 import { tagIdsFrom, type FilterMode } from "@/lib/tag-filter";
 import { useAppearance } from "@/lib/use-appearance";
@@ -43,6 +46,7 @@ import {
   type StreamView,
 } from "@/components/flow/stream-top-bar";
 import { ReferenceList } from "@/components/flow/reference-list";
+import { TaskList } from "@/components/flow/task-list";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
@@ -669,7 +673,7 @@ function FlowPage() {
 
   async function handleTaskComplete(task: FlowTask) {
     try {
-      await complete({ data: { id: task.id, isCompleted: !task.is_completed } });
+      await complete({ data: { id: task.id, completed: !task.is_completed } });
     } catch {
       toast.error("Could not update that task");
     }
@@ -691,7 +695,7 @@ function FlowPage() {
   async function handleRemoveTask(task: FlowTask) {
     try {
       for (const tagId of task.taskTagIds) {
-        await untag({ data: { messageId: task.id, tagId } });
+        await dropTag({ data: { messageId: task.id, tagId } });
       }
       toast.success("No longer a task");
     } catch {
