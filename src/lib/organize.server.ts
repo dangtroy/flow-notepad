@@ -121,7 +121,11 @@ function relevance(content: string, tag: TagRow, group?: GroupRow): number {
 }
 
 type AiTag = { name: string; confidence: number };
-type AiConcept = { name: string; reason: string; group?: string | null };
+/** What a proposed new tag actually is, used for labelling and for learning. */
+export const CONCEPT_KINDS = ["person", "tool", "theme", "project", "brand", "other"] as const;
+export type ConceptKind = (typeof CONCEPT_KINDS)[number];
+
+type AiConcept = { name: string; reason: string; group?: string | null; kind: ConceptKind };
 
 /**
  * The same call that classifies tags also reads the note for actionability.
@@ -163,6 +167,8 @@ function parseTask(raw: unknown): AiTask | null {
 async function classifyWithAi(input: {
   content: string;
   parent: string | null;
+  /** One line summarising which new-tag suggestions the user recently kept or ignored. */
+  decisions: string;
   tags: Array<{
     name: string;
     context: string;
@@ -211,7 +217,11 @@ async function classifyWithAi(input: {
             "Give each chosen tag a confidence between 0 and 1 based on how clearly the note matches that tag's context rule.",
             'When a tag lists a "Do NOT use for" rule, treat it as binding: never choose that tag for a note the rule excludes. Weigh the example notes heavily — they are the user\'s own confirmations and dismissals for that tag.',
             "Return no tags when nothing matches — that is a correct answer.",
-            "Optionally return concepts: a recurring, reusable topic that no existing tag covers. Skip trivial or one-off nouns. Usually return an empty concepts array.",
+            'Return "concepts": proposals for brand-new tags the user does not have yet. Suggest a concept whenever the note touches something that would plausibly recur across other notes and be worth filtering by later. Return concepts readily — for a substantive note an empty array should be the exception, not the default.',
+            "Good concepts: tools and platforms (Shopify, Printify, Klaviyo, Meta Ads), recurring operational themes (print on demand, fulfillment, inventory, SEO), projects, brands, and PEOPLE named in the note (a note saying \"Follow up with Prof for Pierre\" should suggest a \"Pierre\" tag with kind: person).",
+            "Skip concepts that are one-off nouns unlikely to recur, generic filler, or that essentially duplicate an existing tag — check the provided tag list first, and if an existing tag already covers it, do not propose a new one.",
+            'Each concept returns name + reason + group + kind, where kind is one of person / tool / theme / project / brand / other.',
+            input.decisions,
             'Also read the note and return "task" (null only when there is no open loop at all).',
             "A task is anything the writer needs to do, follow up on, decide, confirm, find, or resolve — an open loop only they can close. Judge by intent, not grammar. Tasks rarely look like commands; people write them as worries, observations, and half-thoughts.",
             'These are ALL tasks: "jared needs the pricing but I think we changed it" (get Jared pricing) / "I haven\'t followed up with the artist yet" (overdue follow-up) / "maybe make a separate collection for the tour stuff" (tentative build) / "I think Sarah sent me something about this somewhere" (find it) / "OTL needs more kith/dime energy" (direction to execute) / "don\'t forget to ask about shipping rates" (reminder) / "check whether we can automate this in Shopify Flow" (investigation) / "creeptee launch maybe friday? need to confirm products and photos" (confirm, with a fuzzy Friday due date).',
@@ -223,7 +233,7 @@ async function classifyWithAi(input: {
             "task.priority: low | normal | high, only when the note's own words signal urgency. Otherwise null.",
             "task.label: an imperative-form restatement of the action, at most 60 characters.",
             `Today is ${new Date().toISOString()}.`,
-            'Respond ONLY with JSON: {"tags":[{"name":"...","confidence":0.0}],"concepts":[{"name":"...","reason":"...","group":"..."}],"summary":"...","task":{"is_actionable":true,"confidence":0.0,"due_at":null,"due_is_fuzzy":false,"priority":null,"label":"..."}}',
+            'Respond ONLY with JSON: {"tags":[{"name":"...","confidence":0.0}],"concepts":[{"name":"...","reason":"...","group":"...","kind":"person|tool|theme|project|brand|other"}],"summary":"...","task":{"is_actionable":true,"confidence":0.0,"due_at":null,"due_is_fuzzy":false,"priority":null,"label":"..."}}',
           ].join("\n"),
         },
         {
@@ -251,7 +261,7 @@ async function classifyWithAi(input: {
   const jsonText = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
   const parsed = JSON.parse(jsonText) as {
     tags?: Array<{ name?: unknown; confidence?: unknown }>;
-    concepts?: Array<{ name?: unknown; reason?: unknown; group?: unknown }>;
+    concepts?: Array<{ name?: unknown; reason?: unknown; group?: unknown; kind?: unknown }>;
     summary?: unknown;
     task?: unknown;
   };
@@ -266,15 +276,56 @@ async function classifyWithAi(input: {
       })),
     concepts: (parsed.concepts ?? [])
       .filter((concept) => typeof concept?.name === "string")
-      .slice(0, 2)
+      .slice(0, 3)
       .map((concept) => ({
         name: String(concept.name).trim().slice(0, 60),
         reason: typeof concept.reason === "string" ? concept.reason.slice(0, 400) : "",
         group: typeof concept.group === "string" ? concept.group : null,
+        kind: CONCEPT_KINDS.includes(String(concept.kind).toLowerCase() as ConceptKind)
+          ? (String(concept.kind).toLowerCase() as ConceptKind)
+          : "other",
       })),
     summary: typeof parsed.summary === "string" ? parsed.summary.slice(0, 400) : "",
     task: parseTask(parsed.task),
   };
+}
+
+/**
+ * The user's own history of keeping / ignoring proposed tags, summarised for the
+ * prompt. This is how Flow learns which KINDS of new tags are worth being born.
+ */
+async function conceptDecisions(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+): Promise<string> {
+  const rows = await supabase
+    .from("tag_suggestions")
+    .select("name, status, concept_kind")
+    .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
+    .eq("kind", "new_tag")
+    .in("status", ["applied", "ignored"])
+    .order("updated_at", { ascending: false })
+    .limit(60);
+
+  const describe = (status: string) =>
+    (rows.data ?? [])
+      .filter((row) => row.status === status)
+      .slice(0, 15)
+      .map((row) => `${row.name} (${row.concept_kind ?? "other"})`);
+
+  const approved = describe("applied");
+  const ignored = describe("ignored");
+  if (!approved.length && !ignored.length) return "";
+
+  return [
+    approved.length ? `The user recently approved these new tags: ${approved.join(", ")}.` : "",
+    ignored.length ? `They recently ignored these: ${ignored.join(", ")}.` : "",
+    "Lean toward the approved kinds; avoid re-proposing ignored ones or close variants.",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 /**
@@ -287,6 +338,7 @@ async function recordSuggestion(
   notepadId: string,
   suggestion: {
     kind: SuggestionKind;
+    conceptKind?: ConceptKind;
     name: string;
     tagId?: string | null;
     reason: string;
@@ -328,6 +380,7 @@ async function recordSuggestion(
     user_id: userId,
     conversation_id: notepadId,
     kind: suggestion.kind,
+    concept_kind: suggestion.conceptKind ?? "other",
     tag_id: suggestion.tagId ?? null,
     name: suggestion.name.trim().slice(0, 60),
     normalized_name: normalized,
@@ -564,6 +617,7 @@ export async function organizeMessage(
       const result = await classifyWithAi({
         content: content.slice(0, MAX_CONTENT_CHARS),
         parent: parentExcerpt,
+        decisions: await conceptDecisions(supabase, userId, notepadId),
         tags: candidates.map((tag) => ({
           name: tag.name,
           context: (tag.context ?? "").trim(),
@@ -591,7 +645,8 @@ export async function organizeMessage(
         }
       }
 
-      // New concepts are only ever proposals: Flow never creates a tag itself.
+      // New concepts are only ever proposals: Flow never creates a tag itself,
+      // not even for people. The user approves with ✓ and it starts unproven.
       for (const concept of result.concepts) {
         const normalized = normalizeTag(concept.name);
         if (!normalized) continue;
@@ -602,6 +657,7 @@ export async function organizeMessage(
         suggested += 1;
         await recordSuggestion(supabase, userId, notepadId, {
           kind: "new_tag",
+          conceptKind: concept.kind,
           name: concept.name,
           reason: concept.reason,
           messageId,
@@ -717,7 +773,7 @@ export async function loadSuggestions(
   const { data, error } = await supabase
     .from("tag_suggestions")
     .select(
-      "id, kind, tag_id, name, reason, message_ids, evidence_count, suggested_group_id, suggested_group_name",
+      "id, kind, concept_kind, tag_id, name, reason, message_ids, evidence_count, suggested_group_id, suggested_group_name",
     )
     .eq("user_id", userId)
     .eq("conversation_id", notepadId)
@@ -730,6 +786,9 @@ export async function loadSuggestions(
     .map((row) => ({
       id: row.id,
       kind: (row.kind === "existing_tag" ? "existing_tag" : "new_tag") as SuggestionKind,
+      concept_kind: (CONCEPT_KINDS.includes(row.concept_kind as ConceptKind)
+        ? row.concept_kind
+        : "other") as ConceptKind,
       tag_id: row.tag_id,
       name: row.name,
       reason: row.reason,

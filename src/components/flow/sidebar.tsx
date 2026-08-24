@@ -77,7 +77,15 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const list = tags.data ?? [];
   // A tag with nothing in it is noise: it only appears once a note uses it.
   const visible = list.filter((tag) => tag.message_count > 0);
-  const sections = buildTagSections(visible, groups.data ?? [], sort);
+  // Tasks live in their own top tab, so their group is not repeated here.
+  const taskGroupIds = new Set(
+    (groups.data ?? []).filter((group) => group.name.trim().toLowerCase() === "tasks").map((g) => g.id),
+  );
+  const sections = buildTagSections(
+    visible.filter((tag) => !tag.group_id || !taskGroupIds.has(tag.group_id)),
+    (groups.data ?? []).filter((group) => !taskGroupIds.has(group.id)),
+    sort,
+  );
 
   async function signOut() {
     await supabase.auth.signOut();

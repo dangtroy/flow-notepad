@@ -1,0 +1,1 @@
+ALTER TABLE public.tag_suggestions ADD COLUMN IF NOT EXISTS concept_kind text NOT NULL DEFAULT 'other';

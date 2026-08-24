@@ -169,7 +169,9 @@ function SuggestionRow({
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13.5px] font-medium text-foreground">{suggestion.name}</p>
           <p className="mt-0.5 text-[11.5px] text-muted-foreground/80">
-            {suggestion.kind === "new_tag" ? "New tag · " : "Existing tag · "}
+            {suggestion.kind === "new_tag"
+              ? `New tag${suggestion.concept_kind !== "other" ? ` (${suggestion.concept_kind})` : ""} · `
+              : "Existing tag · "}
             {suggestion.message_count} {suggestion.message_count === 1 ? "note" : "notes"}
             {suggestion.suggested_group_name ? ` · group: ${suggestion.suggested_group_name}` : ""}
           </p>

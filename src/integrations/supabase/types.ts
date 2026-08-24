@@ -444,6 +444,7 @@ export type Database = {
       }
       tag_suggestions: {
         Row: {
+          concept_kind: string
           conversation_id: string
           created_at: string
           evidence_count: number
@@ -461,6 +462,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          concept_kind?: string
           conversation_id: string
           created_at?: string
           evidence_count?: number
@@ -478,6 +480,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          concept_kind?: string
           conversation_id?: string
           created_at?: string
           evidence_count?: number
