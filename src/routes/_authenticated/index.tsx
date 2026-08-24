@@ -23,6 +23,9 @@ import {
   restoreOriginalMessage,
   addMessageTag,
   removeMessageTag,
+  confirmMessageTag,
+  acknowledgeTagGraduation,
+
   sendMessage,
   setMessageCompletion,
   setMessageReminder,
@@ -125,6 +128,9 @@ function FlowPage() {
   const fetchWeek = useServerFn(getWeekStats);
   const addTag = useServerFn(addMessageTag);
   const dropTag = useServerFn(removeMessageTag);
+  const confirmTag = useServerFn(confirmMessageTag);
+  const ackGraduation = useServerFn(acknowledgeTagGraduation);
+
   const fetchTasks = useServerFn(getTasks);
   const setDue = useServerFn(setTaskDue);
   const navigate = Route.useNavigate();
