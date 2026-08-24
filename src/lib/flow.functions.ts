@@ -680,7 +680,8 @@ export const saveTag = createServerFn({ method: "POST" })
       match_keywords: data.matchKeywords ?? [],
       auto_apply: data.autoApply ?? true,
     });
-    if (error) throw error;
+    if (error && error.code !== "23505") throw error;
+
     return loadTags(supabase, userId, notepadId);
   });
 
