@@ -33,6 +33,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { HistoryPopover } from "./history-popover";
 import { ReminderPopover, reminderLabel } from "./reminder-control";
 import { FlowEditorSurface, FlowToolbar, useFlowEditor } from "./rich-editor";
 import { TagLink } from "./tag-chip";
@@ -187,7 +188,8 @@ function MessageRowBase({
   const [menuOpen, setMenuOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
-  const actionsOpen = reminderOpen || menuOpen || saveOpen || tagPickerOpen;
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const actionsOpen = reminderOpen || menuOpen || saveOpen || tagPickerOpen || historyOpen;
 
   const isReply = depth > 0;
   const tags = message.tags;
@@ -347,6 +349,15 @@ function MessageRowBase({
           >
             <Reply className={iconClass} />
           </button>
+
+          {/* Only an edited note has earlier versions to look at. */}
+          {message.edited_at && (
+            <HistoryPopover
+              messageId={message.id}
+              onOpenChange={setHistoryOpen}
+              className={actionButton}
+            />
+          )}
 
           {onSetType && (
             <Popover open={saveOpen} onOpenChange={setSaveOpen}>
