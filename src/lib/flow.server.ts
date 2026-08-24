@@ -307,6 +307,11 @@ export type FlowTagDetail = {
   /** Set the moment a tag first became trusted; drives the one-time notice. */
   graduated_at: string | null;
   graduation_ack_at: string | null;
+  /** Plain-English rule for when Flow should NOT use this tag. */
+  exclusion_hint: string;
+  /** Note snippets learned from confirmations / dismissals (newest first). */
+  positive_examples: string[];
+  negative_examples: string[];
 };
 
 
