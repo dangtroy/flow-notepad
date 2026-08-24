@@ -95,11 +95,44 @@ function relevance(content: string, tag: TagRow, group?: GroupRow): number {
 type AiTag = { name: string; confidence: number };
 type AiConcept = { name: string; reason: string; group?: string | null };
 
+/**
+ * The same call that classifies tags also reads the note for actionability.
+ * `label` is a display rewrite only — it is stored in metadata and never
+ * overwrites the user's own words.
+ */
+export type AiTask = {
+  is_actionable: boolean;
+  due_at: string | null;
+  due_is_fuzzy: boolean;
+  priority: "low" | "normal" | "high" | null;
+  label: string | null;
+};
+
+const PRIORITY_VALUES = new Set(["low", "normal", "high"]);
+
+function parseTask(raw: unknown): AiTask | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  if (value["is_actionable"] === false) return null;
+
+  const due = typeof value["due_at"] === "string" ? new Date(value["due_at"]) : null;
+  const priority = typeof value["priority"] === "string" ? value["priority"].toLowerCase() : "";
+  const label = typeof value["label"] === "string" ? value["label"].trim().slice(0, 80) : "";
+
+  return {
+    is_actionable: true,
+    due_at: due && !Number.isNaN(due.getTime()) ? due.toISOString() : null,
+    due_is_fuzzy: value["due_is_fuzzy"] === true,
+    priority: PRIORITY_VALUES.has(priority) ? (priority as AiTask["priority"]) : null,
+    label: label || null,
+  };
+}
+
 async function classifyWithAi(input: {
   content: string;
   parent: string | null;
   tags: Array<{ name: string; context: string; group?: string | null }>;
-}): Promise<{ tags: AiTag[]; concepts: AiConcept[]; summary: string }> {
+}): Promise<{ tags: AiTag[]; concepts: AiConcept[]; summary: string; task: AiTask | null }> {
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("AI is not configured");
 
