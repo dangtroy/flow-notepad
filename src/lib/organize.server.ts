@@ -504,8 +504,15 @@ export async function organizeMessage(
     const taskGroupIds = new Set(
       groups.filter((group) => group.name.trim().toLowerCase() === "tasks").map((group) => group.id),
     );
-    const taskTag = tags.find((tag) => tag.group_id && taskGroupIds.has(tag.group_id));
+    let taskTag = tags.find((tag) => tag.group_id && taskGroupIds.has(tag.group_id)) ?? null;
     let taskTagConfidence: number | null = null;
+
+    // A notepad that has never seen a task has no Tasks group yet. Rather than
+    // silently dropping the detection, Flow provisions the group and its tag the
+    // first time one is needed.
+    if (task && !taskTag && task.confidence >= TASK_SUGGEST_CONFIDENCE) {
+      taskTag = await ensureTaskTag(supabase, userId, notepadId, [...taskGroupIds][0] ?? null);
+    }
 
     if (task && taskTag) {
       if (task.confidence >= TASK_APPLY_CONFIDENCE) {
@@ -519,6 +526,7 @@ export async function organizeMessage(
         await recordTaskSuggestion(supabase, userId, notepadId, messageId, taskTag);
       }
     }
+
 
     // AI-applied links are replaced; anything the user applied stays put.
     await supabase.from("message_tags").delete().eq("message_id", messageId).eq("source", "ai");
