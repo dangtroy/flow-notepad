@@ -662,7 +662,10 @@ export const saveTag = createServerFn({ method: "POST" })
       .eq("conversation_id", notepadId)
       .eq("normalized_name", normalized)
       .maybeSingle();
-    if (existing.data) throw new Error("You already have a tag with that name");
+    // Creating a tag that already exists is a no-op rather than a hard failure,
+    // so hashtag autocomplete / quick-create can't blow up the UI.
+    if (existing.data) return loadTags(supabase, userId, notepadId);
+
 
     const { error } = await supabase.from("tags").insert({
       user_id: userId,
