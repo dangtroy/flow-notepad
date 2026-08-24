@@ -20,6 +20,10 @@ const MAX_CONTENT_CHARS = 1800;
 const MAX_PARENT_CHARS = 400;
 const AUTO_CONFIDENCE = 0.65;
 const SUGGEST_CONFIDENCE = 0.45;
+/** Task-tag application thresholds, from the task confidence alone. */
+const TASK_APPLY_CONFIDENCE = 0.8;
+const TASK_TENTATIVE_CONFIDENCE = 0.55;
+const TASK_SUGGEST_CONFIDENCE = 0.45;
 
 type TagRow = {
   id: string;
@@ -106,6 +110,8 @@ export type AiTask = {
   due_is_fuzzy: boolean;
   priority: "low" | "normal" | "high" | null;
   label: string | null;
+  /** How sure the model is that this is an open loop. Drives how it is applied. */
+  confidence: number;
 };
 
 const PRIORITY_VALUES = new Set(["low", "normal", "high"]);
@@ -118,6 +124,7 @@ function parseTask(raw: unknown): AiTask | null {
   const due = typeof value["due_at"] === "string" ? new Date(value["due_at"]) : null;
   const priority = typeof value["priority"] === "string" ? value["priority"].toLowerCase() : "";
   const label = typeof value["label"] === "string" ? value["label"].trim().slice(0, 80) : "";
+  const confidence = Math.max(0, Math.min(1, Number(value["confidence"] ?? 0.6) || 0.6));
 
   return {
     is_actionable: true,
@@ -125,8 +132,10 @@ function parseTask(raw: unknown): AiTask | null {
     due_is_fuzzy: value["due_is_fuzzy"] === true,
     priority: PRIORITY_VALUES.has(priority) ? (priority as AiTask["priority"]) : null,
     label: label || null,
+    confidence,
   };
 }
+
 
 async function classifyWithAi(input: {
   content: string;
@@ -155,13 +164,19 @@ async function classifyWithAi(input: {
             "Give each chosen tag a confidence between 0 and 1 based on how clearly the note matches that tag's context rule.",
             "Return no tags when nothing matches — that is a correct answer.",
             "Optionally return concepts: a recurring, reusable topic that no existing tag covers. Skip trivial or one-off nouns. Usually return an empty concepts array.",
-            'Also read the note for actionability and return "task". Return task: null when the note is not something to do — most notes are not.',
+            'Also read the note and return "task" (null only when there is no open loop at all).',
+            "A task is anything the writer needs to do, follow up on, decide, confirm, find, or resolve — an open loop only they can close. Judge by intent, not grammar. Tasks rarely look like commands; people write them as worries, observations, and half-thoughts.",
+            'These are ALL tasks: "jared needs the pricing but I think we changed it" (get Jared pricing) / "I haven\'t followed up with the artist yet" (overdue follow-up) / "maybe make a separate collection for the tour stuff" (tentative build) / "I think Sarah sent me something about this somewhere" (find it) / "OTL needs more kith/dime energy" (direction to execute) / "don\'t forget to ask about shipping rates" (reminder) / "check whether we can automate this in Shopify Flow" (investigation) / "creeptee launch maybe friday? need to confirm products and photos" (confirm, with a fuzzy Friday due date).',
+            'Task signal words: need to, should, should probably, have to, gotta, haven\'t yet, still need to, forgot to, don\'t forget, figure out, confirm, check, decide, look into, follow up; someone else needing/wanting/asking something from the writer; a prescriptive "X needs more Y"; an unanswered question the writer must resolve.',
+            'NOT tasks: pure observations with no action ("the pack shots look great"), things already done, and reference facts. Do not assume "most notes are not tasks" — many are.',
+            'task.confidence (0-1): explicit action or reminder → 0.85+. Clear obligation ("need to confirm products") → 0.80+. Hedged or implied ("maybe make a collection", "probably need to ask") → 0.55–0.75. Ambiguous between a musing and a task → 0.45–0.60. Not a task → return task: null.',
             "task.due_at: an ISO 8601 instant, only when the note itself contains a time reference. Never invent a deadline.",
             'task.due_is_fuzzy: true when the date was inferred from vague language ("next week", "soon", "before the launch"); false when the note states it plainly ("Sept 4", "Tuesday at 3").',
             "task.priority: low | normal | high, only when the note's own words signal urgency. Otherwise null.",
             "task.label: an imperative-form restatement of the action, at most 60 characters.",
             `Today is ${new Date().toISOString()}.`,
-            'Respond ONLY with JSON: {"tags":[{"name":"...","confidence":0.0}],"concepts":[{"name":"...","reason":"...","group":"..."}],"summary":"...","task":{"is_actionable":true,"due_at":null,"due_is_fuzzy":false,"priority":null,"label":"..."}}',
+            'Respond ONLY with JSON: {"tags":[{"name":"...","confidence":0.0}],"concepts":[{"name":"...","reason":"...","group":"..."}],"summary":"...","task":{"is_actionable":true,"confidence":0.0,"due_at":null,"due_is_fuzzy":false,"priority":null,"label":"..."}}',
+
           ].join("\n"),
         },
         {
@@ -272,6 +287,56 @@ async function recordSuggestion(
     evidence_count: 1,
   });
 }
+
+/**
+ * An ambiguous task is asked about rather than applied. Unlike concept
+ * suggestions this one surfaces on its first sighting: the question is about
+ * this note, so waiting for repeat evidence would never make sense.
+ */
+async function recordTaskSuggestion(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+  messageId: string,
+  taskTag: TagRow,
+) {
+  const existing = await supabase
+    .from("tag_suggestions")
+    .select("id, status, message_ids")
+    .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
+    .eq("kind", "existing_tag")
+    .eq("normalized_name", taskTag.normalized_name)
+    .maybeSingle();
+
+  if (existing.data) {
+    if (existing.data.status !== "pending") return;
+    const ids = new Set(existing.data.message_ids ?? []);
+    if (ids.has(messageId)) return;
+    ids.add(messageId);
+    await supabase
+      .from("tag_suggestions")
+      .update({ message_ids: [...ids], evidence_count: Math.max(ids.size, MIN_EVIDENCE.existing_tag) })
+      .eq("id", existing.data.id)
+      .eq("user_id", userId);
+    return;
+  }
+
+  await supabase.from("tag_suggestions").insert({
+    user_id: userId,
+    conversation_id: notepadId,
+    kind: "existing_tag",
+    tag_id: taskTag.id,
+    name: taskTag.name,
+    normalized_name: taskTag.normalized_name,
+    reason: "Looks like a task?",
+    suggested_group_id: taskTag.group_id,
+    message_ids: [messageId],
+    evidence_count: MIN_EVIDENCE.existing_tag,
+  });
+}
+
+
 
 export type OrganizeResult = {
   ok: boolean;
@@ -433,6 +498,28 @@ export async function organizeMessage(
       }
     }
 
+    // The Tasks tag is applied from the task confidence, not from tag matching:
+    // sure things land silently, hedged ones land tentative (lighter chip), and
+    // genuinely ambiguous notes only ever become a question the user can dismiss.
+    const taskGroupIds = new Set(
+      groups.filter((group) => group.name.trim().toLowerCase() === "tasks").map((group) => group.id),
+    );
+    const taskTag = tags.find((tag) => tag.group_id && taskGroupIds.has(tag.group_id));
+    let taskTagConfidence: number | null = null;
+
+    if (task && taskTag) {
+      if (task.confidence >= TASK_APPLY_CONFIDENCE) {
+        autoTagIds.add(taskTag.id);
+        taskTagConfidence = task.confidence;
+      } else if (task.confidence >= TASK_TENTATIVE_CONFIDENCE) {
+        autoTagIds.add(taskTag.id);
+        taskTagConfidence = task.confidence;
+      } else if (task.confidence >= TASK_SUGGEST_CONFIDENCE) {
+        suggested += 1;
+        await recordTaskSuggestion(supabase, userId, notepadId, messageId, taskTag);
+      }
+    }
+
     // AI-applied links are replaced; anything the user applied stays put.
     await supabase.from("message_tags").delete().eq("message_id", messageId).eq("source", "ai");
     if (autoTagIds.size) {
@@ -442,10 +529,12 @@ export async function organizeMessage(
           message_id: messageId,
           tag_id: tagId,
           source: "ai",
+          confidence: tagId === taskTag?.id ? taskTagConfidence : null,
         })),
         { onConflict: "message_id,tag_id" },
       );
     }
+
 
     // Task fields are written alongside the AI status. The user's own words stay
     // in `content`: the imperative rewrite only ever lands in metadata, and a

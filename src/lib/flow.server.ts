@@ -32,6 +32,8 @@ export type FlowMessage = {
   remind_at: string | null;
   reminder_dismissed_at: string | null;
   tags: FlowTag[];
+  /** Tags AI applied with low confidence — rendered lighter. */
+  tentativeTagIds: string[];
 };
 
 
@@ -58,7 +60,7 @@ export async function ensurePreferences(supabase: Client, userId: string) {
 }
 
 export const MESSAGE_SELECT =
-  "id, type, content, content_html, is_completed, completed_at, ai_status, created_at, updated_at, edited_at, parent_message_id, ai_cleaned, original_content, original_content_html, is_pinned, pinned_at, remind_at, reminder_dismissed_at, message_tags(tag_id, tags(id, name, color))";
+  "id, type, content, content_html, is_completed, completed_at, ai_status, created_at, updated_at, edited_at, parent_message_id, ai_cleaned, original_content, original_content_html, is_pinned, pinned_at, remind_at, reminder_dismissed_at, message_tags(tag_id, confidence, tags(id, name, color))";
 
 type MessageRow = {
   id: string;
@@ -79,11 +81,11 @@ type MessageRow = {
   pinned_at?: string | null;
   remind_at?: string | null;
   reminder_dismissed_at?: string | null;
-  message_tags?: Array<{ tags: FlowTag | null }> | null;
+  message_tags?: Array<{ tags: FlowTag | null; confidence?: number | null }> | null;
 };
 
 export function mapMessage(row: MessageRow): FlowMessage {
-  const links = (row.message_tags ?? []) as Array<{ tags: FlowTag | null }>;
+  const links = (row.message_tags ?? []) as Array<{ tags: FlowTag | null; confidence?: number | null }>;
   return {
     id: row.id,
     type: (row.type as MessageType | null) ?? "stream",
@@ -107,6 +109,9 @@ export function mapMessage(row: MessageRow): FlowMessage {
       .map((link) => link.tags)
       .filter((tag): tag is FlowTag => Boolean(tag))
       .sort((a, b) => a.name.localeCompare(b.name)),
+    tentativeTagIds: links
+      .filter((link) => link.tags && typeof link.confidence === "number" && link.confidence < 0.8)
+      .map((link) => link.tags!.id),
   };
 }
 

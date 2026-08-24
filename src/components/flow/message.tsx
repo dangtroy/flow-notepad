@@ -281,8 +281,16 @@ function MessageRowBase({
                 <div>
                   <div className="flex flex-wrap items-center gap-3 pt-1.5">
                     {tags.map((tag) => (
-                      <span key={tag.id} className="group/tag inline-flex items-center gap-1">
+                      <span
+                        key={tag.id}
+                        className={cn(
+                          "group/tag inline-flex items-center gap-1",
+                          // A hedged AI guess reads lighter than a sure one.
+                          message.tentativeTagIds?.includes(tag.id) && "opacity-55",
+                        )}
+                      >
                         <TagLink tag={tag} />
+
                         {onRemoveTag && (
                           <button
                             type="button"
