@@ -298,7 +298,7 @@ function MessageRowBase({
                   <div className="flex flex-wrap items-center gap-3 pt-1.5">
                     {tags.map((tag) => {
                       // A tag Flow is still learning is offered, not asserted:
-                      // dashed, quieter, with an explicit yes / no.
+                      // identical chip styling, but a leading "?" + ✓/✕ controls.
                       const isSuggested = message.suggestedTagIds?.includes(tag.id) ?? false;
                       return (
                         <span
@@ -309,11 +309,17 @@ function MessageRowBase({
                             !isSuggested &&
                               message.tentativeTagIds?.includes(tag.id) &&
                               "opacity-55",
-                            isSuggested &&
-                              "rounded-sm border border-dashed border-border/70 px-1.5 py-0.5 opacity-70",
                           )}
                           title={isSuggested ? `Flow suggests ${tag.name}` : undefined}
                         >
+                          {isSuggested && (
+                            <span
+                              aria-hidden
+                              className="font-mono text-[11px] leading-none text-muted-foreground"
+                            >
+                              ?
+                            </span>
+                          )}
                           <TagLink tag={tag} />
 
                           {isSuggested && onConfirmTag && (
