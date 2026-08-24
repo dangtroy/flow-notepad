@@ -642,9 +642,67 @@ function FlowPage() {
     enabled: Boolean(notepadId),
   });
 
+  const tasksKey = useMemo(() => ["tasks", notepadId ?? "none"] as const, [notepadId]);
+  const tasksQuery = useQuery({
+    queryKey: tasksKey,
+    queryFn: () => fetchTasks({ data: { notepadId } }),
+    enabled: Boolean(notepadId),
+  });
+  const allTasks = tasksQuery.data?.tasks ?? [];
+
+  const tasks = useMemo(() => {
+    if (!query) return allTasks;
+    const needle = query.toLowerCase();
+    return allTasks.filter(
+      (task) =>
+        task.content.toLowerCase().includes(needle) ||
+        (task.label ?? "").toLowerCase().includes(needle) ||
+        task.tags.some((tag) => tag.name.toLowerCase().includes(needle)),
+    );
+  }, [allTasks, query]);
+
+  const refreshTasks = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: tasksKey });
+  }, [queryClient, tasksKey]);
+
+  async function handleTaskComplete(task: FlowTask) {
+    try {
+      await complete({ data: { id: task.id, isCompleted: !task.is_completed } });
+    } catch {
+      toast.error("Could not update that task");
+    }
+    refreshTasks();
+    refreshPinsAndReminders();
+  }
+
+  async function handleTaskDue(task: FlowTask, iso: string | null) {
+    try {
+      await setDue({ data: { id: task.id, dueAt: iso } });
+      toast.success(iso ? "Due date set" : "Due date cleared");
+    } catch {
+      toast.error("Could not set that date");
+    }
+    refreshTasks();
+  }
+
+  /** Un-tasking is just removing the Tasks-group tags the note carries. */
+  async function handleRemoveTask(task: FlowTask) {
+    try {
+      for (const tagId of task.taskTagIds) {
+        await untag({ data: { messageId: task.id, tagId } });
+      }
+      toast.success("No longer a task");
+    } catch {
+      toast.error("Could not update that note");
+    }
+    refreshTasks();
+    void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
+  }
+
   const counts: Record<StreamView, number> = {
     all: countsData?.all ?? 0,
     today: countsData?.today ?? 0,
+    tasks: allTasks.filter((task) => !task.is_completed).length,
     pinned: countsData?.pinned ?? 0,
     reference: countsData?.reference ?? 0,
   };
