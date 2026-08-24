@@ -687,6 +687,41 @@ export const removeMessageTag = createServerFn({ method: "POST" })
   });
 
 /**
+ * Dismissing a suggestion is the moment a person knows why the tag was wrong,
+ * so the reason they type there is appended to the tag's exclusion rule.
+ */
+export const appendTagExclusion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { tagId: string; reason: string }) => {
+    const reason = String(input?.reason ?? "").trim().slice(0, 300);
+    if (!input?.tagId) throw new Error("Missing tag");
+    if (!reason) throw new Error("Nothing to add");
+    return { tagId: input.tagId, reason };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const tag = await supabase
+      .from("tags")
+      .select("id, exclusion_hint")
+      .eq("id", data.tagId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (tag.error) throw tag.error;
+    if (!tag.data) throw new Error("That tag no longer exists");
+
+    const current = String((tag.data as { exclusion_hint?: string }).exclusion_hint ?? "").trim();
+    const next = (current ? `${current}\n${data.reason}` : data.reason).slice(0, 2000);
+    const { error } = await supabase
+      .from("tags")
+      .update({ exclusion_hint: next } as never)
+      .eq("id", data.tagId)
+      .eq("user_id", userId);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+
+/**
  * One learned example shouldn't teach Flow the wrong lesson forever, so any
  * entry can be dropped from a tag's example list in a single click.
  */
