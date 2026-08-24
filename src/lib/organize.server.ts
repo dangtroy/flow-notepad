@@ -217,8 +217,10 @@ async function classifyWithAi(input: {
             "Give each chosen tag a confidence between 0 and 1 based on how clearly the note matches that tag's context rule.",
             'When a tag lists a "Do NOT use for" rule, treat it as binding: never choose that tag for a note the rule excludes. Weigh the example notes heavily — they are the user\'s own confirmations and dismissals for that tag.',
             "Return no tags when nothing matches — that is a correct answer.",
-            'Return "concepts": proposals for brand-new tags the user does not have yet. Suggest a concept whenever the note touches something that would plausibly recur across other notes and be worth filtering by later. Return concepts readily — for a substantive note an empty array should be the exception, not the default.',
-            "Good concepts: tools and platforms (Shopify, Printify, Klaviyo, Meta Ads), recurring operational themes (print on demand, fulfillment, inventory, SEO), projects, brands, and PEOPLE named in the note (a note saying \"Follow up with Prof for Pierre\" should suggest a \"Pierre\" tag with kind: person).",
+            'Return "concepts": proposals for brand-new tags the user does not have yet. Be strict: propose only when the note strongly CENTERS on a concrete, specifically namable thing — a real tool, platform, brand, person, or a distinct named project/theme. An empty array is the normal answer.',
+            'NEVER propose generic professional categories or abstractions such as "Web development", "E-commerce operations", "Quality Assurance", "Global Operation", "Product Data Management", "Marketing", "Operations" — they are too broad to filter by. Prefer proper nouns and specific named things (Shopify, Printify, ShipHero, a person\'s name, a specific project).',
+            'Never call something recurring based on this single note, and never propose a concept that is a close variant of an existing tag or of a previously ignored proposal. When unsure, propose nothing — a missed suggestion is fine, a noisy list is not. Propose at most 2 concepts.',
+            "Good concepts: specific tools and platforms (Shopify, Printify, Klaviyo, Meta Ads), specific named projects or brands, and PEOPLE named in the note (a note saying \"Follow up with Prof for Pierre\" should suggest a \"Pierre\" tag with kind: person).",
             "Skip concepts that are one-off nouns unlikely to recur, generic filler, or that essentially duplicate an existing tag — check the provided tag list first, and if an existing tag already covers it, do not propose a new one.",
             'Each concept returns name + reason + group + kind, where kind is one of person / tool / theme / project / brand / other.',
             input.decisions,
@@ -349,6 +351,24 @@ async function recordSuggestion(
 ) {
   const normalized = normalizeTag(suggestion.name);
   if (!normalized) return;
+
+  // A close variant of something already ignored is the same nag with new
+  // wording, so it never gets proposed again.
+  if (suggestion.kind === "new_tag") {
+    const ignored = await supabase
+      .from("tag_suggestions")
+      .select("normalized_name")
+      .eq("user_id", userId)
+      .eq("conversation_id", notepadId)
+      .eq("kind", "new_tag")
+      .eq("status", "ignored")
+      .limit(200);
+    const isVariant = (ignoredName: string) =>
+      ignoredName === normalized ||
+      (ignoredName.length > 3 && normalized.includes(ignoredName)) ||
+      (normalized.length > 3 && ignoredName.includes(normalized));
+    if ((ignored.data ?? []).some((row) => isVariant(row.normalized_name))) return;
+  }
 
   const existing = await supabase
     .from("tag_suggestions")
@@ -716,6 +736,9 @@ export async function organizeMessage(
   }
 }
 
+/** The bell stays scannable: only a handful of genuinely recurring concepts. */
+const MAX_BELL_SUGGESTIONS = 5;
+
 /** Only suggestions with real, repeated evidence are shown. */
 export async function loadSuggestions(
   supabase: Client,
@@ -750,5 +773,9 @@ export async function loadSuggestions(
       suggested_group_name: row.suggested_group_name,
       evidence_count: row.evidence_count,
     }))
-    .filter((row) => row.evidence_count >= MIN_EVIDENCE[row.kind]);
+    // A concept only reaches the bell once it has actually recurred: two or more
+    // notes must back it. Single-note proposals keep accumulating silently.
+    .filter((row) => row.message_count >= MIN_EVIDENCE[row.kind])
+    .sort((a, b) => b.message_count - a.message_count)
+    .slice(0, MAX_BELL_SUGGESTIONS);
 }

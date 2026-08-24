@@ -33,7 +33,7 @@ export const LEARN_MODES: Array<{ value: LearnMode; label: string; hint: string 
  */
 export const MIN_EVIDENCE: Record<SuggestionKind, number> = {
   existing_tag: 2,
-  // A new tag proposal now surfaces on first sighting: the user always decides,
-  // and waiting for three notes made useful concepts arrive too late to matter.
-  new_tag: 1,
+  // A new tag must have actually recurred — two separate notes — before Flow
+  // asks about it. One-note guesses stay silent and accumulate instead.
+  new_tag: 2,
 };
