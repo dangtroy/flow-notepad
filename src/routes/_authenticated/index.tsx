@@ -946,6 +946,11 @@ function FlowPage() {
                             }
 
                             onAddTag={(tagId) => void handleAddTag(message, tagId)}
+                            onConfirmTag={(tagId) => void handleConfirmTag(message, tagId)}
+                            onAcknowledgeGraduation={(tagId) =>
+                              void handleAcknowledgeGraduation(tagId)
+                            }
+
                             onRemoveTag={(tagId) => void handleRemoveTag(message, tagId)}
                             onSetReminder={(iso) => void handleSetReminder(message, iso)}
                             onSetType={(type) => void handleSetType(message, type)}
