@@ -686,6 +686,41 @@ export const removeMessageTag = createServerFn({ method: "POST" })
     return { messageId: data.messageId, tagId: data.tagId };
   });
 
+/**
+ * One learned example shouldn't teach Flow the wrong lesson forever, so any
+ * entry can be dropped from a tag's example list in a single click.
+ */
+export const deleteTagExample = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { tagId: string; kind: "positive" | "negative"; example: string }) => {
+    if (!input?.tagId) throw new Error("Missing tag");
+    if (input?.kind !== "positive" && input?.kind !== "negative") throw new Error("Missing list");
+    return { tagId: input.tagId, kind: input.kind, example: String(input?.example ?? "") };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const column = data.kind === "positive" ? "positive_examples" : "negative_examples";
+    const tag = await supabase
+      .from("tags")
+      .select("id, conversation_id, positive_examples, negative_examples")
+      .eq("id", data.tagId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (tag.error) throw tag.error;
+    if (!tag.data) throw new Error("That tag no longer exists");
+
+    const current = ((tag.data as Record<string, unknown>)[column] ?? []) as unknown[];
+    const next = current.filter((entry) => entry !== data.example);
+    const { error } = await supabase
+      .from("tags")
+      .update({ [column]: next } as never)
+      .eq("id", data.tagId)
+      .eq("user_id", userId);
+    if (error) throw error;
+
+    return loadTags(supabase, userId, (tag.data as { conversation_id: string }).conversation_id);
+  });
+
 /** The "Flow will now add this automatically" note is shown once, then hidden. */
 export const acknowledgeTagGraduation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -735,6 +770,7 @@ export const saveTag = createServerFn({ method: "POST" })
       name?: string;
       color?: string;
       context?: string;
+      exclusionHint?: string;
       isEnabled?: boolean;
       groupId?: string | null;
       isPinned?: boolean;
@@ -751,6 +787,8 @@ export const saveTag = createServerFn({ method: "POST" })
         name,
         color: TAG_COLOR_KEYS.includes(input?.color as never) ? input!.color! : undefined,
         context: input?.context === undefined ? undefined : input.context.trim().slice(0, 2000),
+        exclusionHint:
+          input?.exclusionHint === undefined ? undefined : input.exclusionHint.trim().slice(0, 2000),
         isEnabled: input?.isEnabled,
         groupId: input?.groupId,
         isPinned: input?.isPinned,
@@ -775,6 +813,7 @@ export const saveTag = createServerFn({ method: "POST" })
         normalized_name?: string;
         color?: string;
         context?: string;
+        exclusion_hint?: string;
         is_enabled?: boolean;
         group_id?: string | null;
         is_pinned?: boolean;
@@ -788,6 +827,7 @@ export const saveTag = createServerFn({ method: "POST" })
       }
       if (data.color) patch.color = data.color;
       if (data.context !== undefined) patch.context = data.context;
+      if (data.exclusionHint !== undefined) patch.exclusion_hint = data.exclusionHint;
       if (data.isEnabled !== undefined) patch.is_enabled = data.isEnabled;
       if (data.groupId !== undefined) patch.group_id = data.groupId;
       if (data.isPinned !== undefined) patch.is_pinned = data.isPinned;
