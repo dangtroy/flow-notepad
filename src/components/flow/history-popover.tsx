@@ -25,11 +25,19 @@ function replacedLabel(iso: string) {
 export function HistoryPopover({
   messageId,
   className,
+  onOpenChange,
 }: {
   messageId: string;
   className?: string;
+  /** Lets the row keep its controls revealed while the panel is open. */
+  onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
+
+  function change(next: boolean) {
+    setOpen(next);
+    onOpenChange?.(next);
+  }
   const queryClient = useQueryClient();
   const loadRevisions = useServerFn(listMessageRevisions);
   const revert = useServerFn(revertMessage);
@@ -44,7 +52,7 @@ export function HistoryPopover({
   const restore = useMutation({
     mutationFn: (revision: number) => revert({ data: { id: messageId, revision } }),
     onSuccess: () => {
-      setOpen(false);
+      change(false);
       void queryClient.invalidateQueries({ queryKey: ["message-revisions", messageId] });
       void queryClient.invalidateQueries({ queryKey: ["stream"] });
       void queryClient.invalidateQueries({ queryKey: ["pinned"] });
@@ -56,7 +64,7 @@ export function HistoryPopover({
   const rows = revisions.data ?? [];
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={change}>
       <PopoverTrigger asChild>
         <button
           type="button"
