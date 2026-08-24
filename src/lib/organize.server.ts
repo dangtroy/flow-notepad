@@ -444,6 +444,28 @@ export async function organizeMessage(
       }
     }
 
+    // The Tasks tag is applied from the task confidence, not from tag matching:
+    // sure things land silently, hedged ones land tentative (lighter chip), and
+    // genuinely ambiguous notes only ever become a question the user can dismiss.
+    const taskGroupIds = new Set(
+      groups.filter((group) => group.name.trim().toLowerCase() === "tasks").map((group) => group.id),
+    );
+    const taskTag = tags.find((tag) => tag.group_id && taskGroupIds.has(tag.group_id));
+    let taskTagConfidence: number | null = null;
+
+    if (task && taskTag) {
+      if (task.confidence >= TASK_APPLY_CONFIDENCE) {
+        autoTagIds.add(taskTag.id);
+        taskTagConfidence = task.confidence;
+      } else if (task.confidence >= TASK_TENTATIVE_CONFIDENCE) {
+        autoTagIds.add(taskTag.id);
+        taskTagConfidence = task.confidence;
+      } else if (task.confidence >= TASK_SUGGEST_CONFIDENCE) {
+        suggested += 1;
+        await recordTaskSuggestion(supabase, userId, notepadId, messageId, taskTag);
+      }
+    }
+
     // AI-applied links are replaced; anything the user applied stays put.
     await supabase.from("message_tags").delete().eq("message_id", messageId).eq("source", "ai");
     if (autoTagIds.size) {
@@ -453,10 +475,12 @@ export async function organizeMessage(
           message_id: messageId,
           tag_id: tagId,
           source: "ai",
+          confidence: tagId === taskTag?.id ? taskTagConfidence : null,
         })),
         { onConflict: "message_id,tag_id" },
       );
     }
+
 
     // Task fields are written alongside the AI status. The user's own words stay
     // in `content`: the imperative rewrite only ever lands in metadata, and a
