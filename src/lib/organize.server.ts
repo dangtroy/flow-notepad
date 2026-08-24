@@ -380,6 +380,7 @@ async function recordSuggestion(
     user_id: userId,
     conversation_id: notepadId,
     kind: suggestion.kind,
+    concept_kind: suggestion.conceptKind ?? "other",
     tag_id: suggestion.tagId ?? null,
     name: suggestion.name.trim().slice(0, 60),
     normalized_name: normalized,
