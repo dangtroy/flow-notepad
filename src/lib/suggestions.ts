@@ -2,9 +2,13 @@
 
 export type SuggestionKind = "existing_tag" | "new_tag";
 
+/** What a proposed new tag is: drives the label shown on the suggestion. */
+export type ConceptKind = "person" | "tool" | "theme" | "project" | "brand" | "other";
+
 export type TagSuggestion = {
   id: string;
   kind: SuggestionKind;
+  concept_kind: ConceptKind;
   tag_id: string | null;
   name: string;
   reason: string;
@@ -29,5 +33,7 @@ export const LEARN_MODES: Array<{ value: LearnMode; label: string; hint: string 
  */
 export const MIN_EVIDENCE: Record<SuggestionKind, number> = {
   existing_tag: 2,
-  new_tag: 3,
+  // A new tag proposal now surfaces on first sighting: the user always decides,
+  // and waiting for three notes made useful concepts arrive too late to matter.
+  new_tag: 1,
 };
