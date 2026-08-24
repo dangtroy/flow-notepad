@@ -825,7 +825,15 @@ function FlowPage() {
             view === "all" || view === "today" ? "justify-end" : "justify-start",
           )}
         >
-          {view === "reference" ? (
+          {view === "tasks" ? (
+            <TaskList
+              tasks={tasks}
+              isPending={tasksQuery.isPending}
+              onToggleComplete={(task) => void handleTaskComplete(task)}
+              onSetDue={(task, iso) => void handleTaskDue(task, iso)}
+              onRemoveTask={(task) => void handleRemoveTask(task)}
+            />
+          ) : view === "reference" ? (
             <ReferenceList
               notes={referenceNotes}
               isPending={reference.isPending}
