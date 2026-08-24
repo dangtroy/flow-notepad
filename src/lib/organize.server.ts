@@ -352,6 +352,24 @@ async function recordSuggestion(
   const normalized = normalizeTag(suggestion.name);
   if (!normalized) return;
 
+  // A close variant of something already ignored is the same nag with new
+  // wording, so it never gets proposed again.
+  if (suggestion.kind === "new_tag") {
+    const ignored = await supabase
+      .from("tag_suggestions")
+      .select("normalized_name")
+      .eq("user_id", userId)
+      .eq("conversation_id", notepadId)
+      .eq("kind", "new_tag")
+      .eq("status", "ignored")
+      .limit(200);
+    const isVariant = (ignoredName: string) =>
+      ignoredName === normalized ||
+      (ignoredName.length > 3 && normalized.includes(ignoredName)) ||
+      (normalized.length > 3 && ignoredName.includes(normalized));
+    if ((ignored.data ?? []).some((row) => isVariant(row.normalized_name))) return;
+  }
+
   const existing = await supabase
     .from("tag_suggestions")
     .select("id, status, message_ids, evidence_count, reason")
