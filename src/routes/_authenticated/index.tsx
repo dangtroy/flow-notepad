@@ -477,6 +477,8 @@ function FlowPage() {
         reminder_dismissed_at: null,
         tags: [],
         tentativeTagIds: [],
+        suggestedTagIds: [],
+
       },
     ]);
     requestAnimationFrame(scrollToBottom);
