@@ -219,7 +219,8 @@ export function TaskList({
         <p className="flow-prose text-muted-foreground">
           Nothing to do yet.
           <br />
-          Anything you write that reads like an action shows up here.
+          A note becomes a task when it carries a tag in your <strong>Tasks</strong> group — create
+          that group in Settings, and anything actionable you write lands here.
         </p>
       </div>
     );
