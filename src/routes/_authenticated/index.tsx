@@ -201,7 +201,7 @@ function FlowPage() {
         },
       }),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: Boolean(notepadId) && view !== "reference",
+    enabled: Boolean(notepadId) && view !== "reference" && view !== "tasks",
   });
 
   // Pages arrive newest-first; render them oldest-first.
@@ -721,6 +721,7 @@ function FlowPage() {
     void queryClient.invalidateQueries({ queryKey: remindersKey });
     void queryClient.invalidateQueries({ queryKey: ["view-counts"] });
     void queryClient.invalidateQueries({ queryKey: ["week-stats"] });
+    void queryClient.invalidateQueries({ queryKey: ["tasks"] });
   }, [queryClient, pinnedKey, remindersKey]);
 
   /** Jumps to where a pinned or reminded thought actually lives in the stream. */
