@@ -148,6 +148,8 @@ function MessageRowBase({
   onSetType,
   onAddTag,
   onRemoveTag,
+  onConfirmTag,
+  onAcknowledgeGraduation,
 }: {
   message: FlowMessage;
   isEditing: boolean;
@@ -168,6 +170,9 @@ function MessageRowBase({
   /** Manual tagging: both applied as source 'user', never touched by AI passes. */
   onAddTag?: (tagId: string) => void;
   onRemoveTag?: (tagId: string) => void;
+  /** ✓ on a suggested tag: keeps it, and teaches Flow the tag is worth trusting. */
+  onConfirmTag?: (tagId: string) => void;
+  onAcknowledgeGraduation?: (tagId: string) => void;
 }) {
   const html = useMemo(
     () => sanitizeHtml(message.content_html ?? textToHtml(message.content)),
@@ -193,6 +198,15 @@ function MessageRowBase({
 
   const isReply = depth > 0;
   const tags = message.tags;
+
+  // A tag that just earned automation says so once, on a note that carries it.
+  const allTags = useTags();
+  const graduatedTag =
+    (allTags.data ?? []).find(
+      (tag) =>
+        tag.graduated_at && !tag.graduation_ack_at && tags.some((applied) => applied.id === tag.id),
+    ) ?? null;
+
   const offset = isReply ? offsetLabel(message.created_at, parentCreatedAt) : null;
 
   return (
@@ -282,34 +296,65 @@ function MessageRowBase({
               <div className="flow-tagwrap">
                 <div>
                   <div className="flex flex-wrap items-center gap-3 pt-1.5">
-                    {tags.map((tag) => (
-                      <span
-                        key={tag.id}
-                        className={cn(
-                          "group/tag inline-flex items-center gap-1",
-                          // A hedged AI guess reads lighter than a sure one.
-                          message.tentativeTagIds?.includes(tag.id) && "opacity-55",
-                        )}
-                      >
-                        <TagLink tag={tag} />
+                    {tags.map((tag) => {
+                      // A tag Flow is still learning is offered, not asserted:
+                      // dashed, quieter, with an explicit yes / no.
+                      const isSuggested = message.suggestedTagIds?.includes(tag.id) ?? false;
+                      return (
+                        <span
+                          key={tag.id}
+                          className={cn(
+                            "group/tag inline-flex items-center gap-1",
+                            // A hedged AI guess reads lighter than a sure one.
+                            !isSuggested &&
+                              message.tentativeTagIds?.includes(tag.id) &&
+                              "opacity-55",
+                            isSuggested &&
+                              "rounded-sm border border-dashed border-border/70 px-1.5 py-0.5 opacity-70",
+                          )}
+                          title={isSuggested ? `Flow suggests ${tag.name}` : undefined}
+                        >
+                          <TagLink tag={tag} />
 
-                        {onRemoveTag && (
-                          <button
-                            type="button"
-                            aria-label={`Remove ${tag.name}`}
-                            title={`Remove ${tag.name}`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              event.currentTarget.blur();
-                              onRemoveTag(tag.id);
-                            }}
-                            className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-muted-foreground/50 opacity-0 transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/tag:opacity-100 max-[939px]:opacity-100 [@media(hover:none)]:opacity-100"
-                          >
-                            <X className="h-2.5 w-2.5 [stroke-width:1.6]" />
-                          </button>
-                        )}
-                      </span>
-                    ))}
+                          {isSuggested && onConfirmTag && (
+                            <button
+                              type="button"
+                              aria-label={`Keep ${tag.name}`}
+                              title={`Keep ${tag.name}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                event.currentTarget.blur();
+                                onConfirmTag(tag.id);
+                              }}
+                              className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-muted-foreground/60 transition-colors duration-150 hover:text-foreground"
+                            >
+                              <Check className="h-2.5 w-2.5 [stroke-width:1.8]" />
+                            </button>
+                          )}
+
+                          {onRemoveTag && (
+                            <button
+                              type="button"
+                              aria-label={
+                                isSuggested ? `Dismiss ${tag.name}` : `Remove ${tag.name}`
+                              }
+                              title={isSuggested ? `Dismiss ${tag.name}` : `Remove ${tag.name}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                event.currentTarget.blur();
+                                onRemoveTag(tag.id);
+                              }}
+                              className={cn(
+                                "inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-muted-foreground/50 transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/tag:opacity-100 max-[939px]:opacity-100 [@media(hover:none)]:opacity-100",
+                                isSuggested ? "opacity-100" : "opacity-0",
+                              )}
+                            >
+                              <X className="h-2.5 w-2.5 [stroke-width:1.6]" />
+                            </button>
+                          )}
+                        </span>
+                      );
+                    })}
 
                     {onAddTag && (
                       <TagPicker
@@ -320,6 +365,25 @@ function MessageRowBase({
                       />
                     )}
                   </div>
+
+                  {/* Shown once, the moment a tag has earned its automation. */}
+                  {graduatedTag && (
+                    <div className="flex items-center gap-2 pt-1.5 text-[11px] text-muted-foreground/70">
+                      <span>Flow will now add {graduatedTag.name} on its own.</span>
+                      {onAcknowledgeGraduation && (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onAcknowledgeGraduation(graduatedTag.id);
+                          }}
+                          className="underline decoration-dotted transition-colors hover:text-foreground"
+                        >
+                          Got it
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

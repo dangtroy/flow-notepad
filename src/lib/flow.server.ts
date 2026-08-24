@@ -34,7 +34,10 @@ export type FlowMessage = {
   tags: FlowTag[];
   /** Tags AI applied with low confidence — rendered lighter. */
   tentativeTagIds: string[];
+  /** Tags Flow proposed but hasn't applied: the row shows ✓ / ✕ instead. */
+  suggestedTagIds: string[];
 };
+
 
 
 
@@ -60,7 +63,8 @@ export async function ensurePreferences(supabase: Client, userId: string) {
 }
 
 export const MESSAGE_SELECT =
-  "id, type, content, content_html, is_completed, completed_at, ai_status, created_at, updated_at, edited_at, parent_message_id, ai_cleaned, original_content, original_content_html, is_pinned, pinned_at, remind_at, reminder_dismissed_at, message_tags(tag_id, confidence, tags(id, name, color))";
+  "id, type, content, content_html, is_completed, completed_at, ai_status, created_at, updated_at, edited_at, parent_message_id, ai_cleaned, original_content, original_content_html, is_pinned, pinned_at, remind_at, reminder_dismissed_at, message_tags(tag_id, confidence, status, tags(id, name, color))";
+
 
 type MessageRow = {
   id: string;
@@ -81,11 +85,14 @@ type MessageRow = {
   pinned_at?: string | null;
   remind_at?: string | null;
   reminder_dismissed_at?: string | null;
-  message_tags?: Array<{ tags: FlowTag | null; confidence?: number | null }> | null;
+  message_tags?: Array<TagLinkRow> | null;
 };
 
+type TagLinkRow = { tags: FlowTag | null; confidence?: number | null; status?: string | null };
+
 export function mapMessage(row: MessageRow): FlowMessage {
-  const links = (row.message_tags ?? []) as Array<{ tags: FlowTag | null; confidence?: number | null }>;
+  const links = (row.message_tags ?? []) as Array<TagLinkRow>;
+
   return {
     id: row.id,
     type: (row.type as MessageType | null) ?? "stream",
@@ -112,6 +119,10 @@ export function mapMessage(row: MessageRow): FlowMessage {
     tentativeTagIds: links
       .filter((link) => link.tags && typeof link.confidence === "number" && link.confidence < 0.8)
       .map((link) => link.tags!.id),
+    suggestedTagIds: links
+      .filter((link) => link.tags && link.status === "suggested")
+      .map((link) => link.tags!.id),
+
   };
 }
 
@@ -289,7 +300,15 @@ export type FlowTagDetail = {
   match_keywords: string[];
   /** false = Flow only ever suggests this tag, never applies it silently. */
   auto_apply: boolean;
+  /** Earned trust: unproven tags ask first, trusted ones apply themselves. */
+  maturity: "unproven" | "trusted" | "demoted";
+  accept_count: number;
+  reject_count: number;
+  /** Set the moment a tag first became trusted; drives the one-time notice. */
+  graduated_at: string | null;
+  graduation_ack_at: string | null;
 };
+
 
 /** Groups are the user's own organizing layer over AI-applied tags. */
 export type FlowTagGroup = {
@@ -314,8 +333,9 @@ export async function loadTags(
     supabase
       .from("tags")
       .select(
-        "id, name, color, context, is_enabled, group_id, is_pinned, sort_order, match_keywords, auto_apply",
+        "id, name, color, context, is_enabled, group_id, is_pinned, sort_order, match_keywords, auto_apply, maturity, accept_count, reject_count, graduated_at, graduation_ack_at",
       )
+
       .eq("user_id", userId)
       .eq("conversation_id", notepadId)
       .order("sort_order", { ascending: true })
@@ -341,7 +361,13 @@ export async function loadTags(
     sort_order: (tag as { sort_order?: number }).sort_order ?? 0,
     match_keywords: (tag as { match_keywords?: string[] | null }).match_keywords ?? [],
     auto_apply: (tag as { auto_apply?: boolean }).auto_apply ?? true,
+    maturity: ((tag as { maturity?: string }).maturity ?? "unproven") as FlowTagDetail["maturity"],
+    accept_count: (tag as { accept_count?: number }).accept_count ?? 0,
+    reject_count: (tag as { reject_count?: number }).reject_count ?? 0,
+    graduated_at: (tag as { graduated_at?: string | null }).graduated_at ?? null,
+    graduation_ack_at: (tag as { graduation_ack_at?: string | null }).graduation_ack_at ?? null,
   }));
+
 }
 
 
