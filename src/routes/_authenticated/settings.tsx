@@ -530,6 +530,58 @@ function TagRow({
 }
 
 /**
+ * Read-only view of what Flow has learned about a tag, with one-click removal
+ * so a single bad example never keeps teaching the wrong lesson.
+ */
+function TagExamples({ tag }: { tag: FlowTagDetail }) {
+  const queryClient = useQueryClient();
+  const notepadId = useActiveNotepadId();
+  const dropExample = useServerFn(deleteTagExample);
+
+  if (tag.positive_examples.length === 0 && tag.negative_examples.length === 0) return null;
+
+  async function remove(kind: "positive" | "negative", example: string) {
+    try {
+      const next = await dropExample({ data: { tagId: tag.id, kind, example } });
+      queryClient.setQueryData(tagsKey(notepadId), next);
+    } catch {
+      toast.error("Could not remove that example");
+    }
+  }
+
+  function list(kind: "positive" | "negative", label: string, examples: string[]) {
+    if (examples.length === 0) return null;
+    return (
+      <div className="mt-2">
+        <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground/70">{label}</p>
+        <ul className="mt-1 space-y-1">
+          {examples.map((example) => (
+            <li key={example} className="flex items-start gap-2 text-[13px] text-muted-foreground">
+              <span className="min-w-0 flex-1 truncate">{example}</span>
+              <button
+                type="button"
+                onClick={() => void remove(kind, example)}
+                aria-label={`Forget example: ${example}`}
+                className="mt-0.5 shrink-0 text-muted-foreground/60 transition-colors hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-1 border-t border-border/50 pt-1">
+      {list("positive", "Notes you confirmed", tag.positive_examples)}
+      {list("negative", "Notes you dismissed", tag.negative_examples)}
+    </div>
+  );
+}
+
+/**
  * Groups are the user's organizing layer over AI-applied tags. Deleting one
  * only removes the grouping — tags and messages are untouched.
  */
