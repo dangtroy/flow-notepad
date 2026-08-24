@@ -393,57 +393,6 @@ async function recordSuggestion(
 }
 
 /**
- * An ambiguous task is asked about rather than applied. Unlike concept
- * suggestions this one surfaces on its first sighting: the question is about
- * this note, so waiting for repeat evidence would never make sense.
- */
-async function recordTaskSuggestion(
-  supabase: Client,
-  userId: string,
-  notepadId: string,
-  messageId: string,
-  taskTag: TagRow,
-) {
-  const existing = await supabase
-    .from("tag_suggestions")
-    .select("id, status, message_ids")
-    .eq("user_id", userId)
-    .eq("conversation_id", notepadId)
-    .eq("kind", "existing_tag")
-    .eq("normalized_name", taskTag.normalized_name)
-    .maybeSingle();
-
-  if (existing.data) {
-    if (existing.data.status !== "pending") return;
-    const ids = new Set(existing.data.message_ids ?? []);
-    if (ids.has(messageId)) return;
-    ids.add(messageId);
-    await supabase
-      .from("tag_suggestions")
-      .update({
-        message_ids: [...ids],
-        evidence_count: Math.max(ids.size, MIN_EVIDENCE.existing_tag),
-      })
-      .eq("id", existing.data.id)
-      .eq("user_id", userId);
-    return;
-  }
-
-  await supabase.from("tag_suggestions").insert({
-    user_id: userId,
-    conversation_id: notepadId,
-    kind: "existing_tag",
-    tag_id: taskTag.id,
-    name: taskTag.name,
-    normalized_name: taskTag.normalized_name,
-    reason: "Looks like a task?",
-    suggested_group_id: taskTag.group_id,
-    message_ids: [messageId],
-    evidence_count: MIN_EVIDENCE.existing_tag,
-  });
-}
-
-/**
  * The Tasks group is the only tag structure Flow will create on its own: the
  * Tasks view is unusable without it, and a detected task with nowhere to land
  * would just disappear. Existing "task" tags are adopted rather than duplicated.
@@ -693,8 +642,11 @@ export async function organizeMessage(
         autoTagIds.add(taskTag.id);
         taskTagConfidence = task.confidence;
       } else if (task.confidence >= TASK_SUGGEST_CONFIDENCE) {
+        // An ambiguous task is a question about THIS note, so it is offered as a
+        // `?` chip on the note itself — never in the bell, which only ever
+        // proposes tags that do not exist yet.
         suggested += 1;
-        await recordTaskSuggestion(supabase, userId, notepadId, messageId, taskTag);
+        suggestTagIds.add(taskTag.id);
       }
     }
 
@@ -778,6 +730,7 @@ export async function loadSuggestions(
     .eq("user_id", userId)
     .eq("conversation_id", notepadId)
     .eq("status", "pending")
+    .eq("kind", "new_tag")
     .order("evidence_count", { ascending: false })
     .limit(50);
   if (error) throw error;

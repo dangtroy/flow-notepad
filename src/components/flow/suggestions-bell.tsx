@@ -103,7 +103,10 @@ export function SuggestionsBell() {
 
       <PopoverContent align="start" className="w-[21rem] p-0">
         <div className="flex items-center justify-between border-b border-border/70 px-3.5 py-2.5">
-          <span className="text-[13px] font-medium">Suggested tags</span>
+          <div>
+            <p className="text-[13px] font-medium">New tags</p>
+            <p className="text-[11px] text-muted-foreground">Approve to add these to your tags.</p>
+          </div>
           {count > 0 && (
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <button
@@ -130,8 +133,8 @@ export function SuggestionsBell() {
         <div className="max-h-[24rem] overflow-y-auto">
           {count === 0 && (
             <p className="px-3.5 py-6 text-[13px] leading-relaxed text-muted-foreground">
-              Nothing to review. Flow only asks when a topic keeps coming back and none of your tags
-              covers it.
+              No new tags to review. Flow only proposes one when a topic keeps coming back and none
+              of your tags covers it. Tags you already have are confirmed on the note itself.
             </p>
           )}
 
@@ -169,9 +172,7 @@ function SuggestionRow({
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13.5px] font-medium text-foreground">{suggestion.name}</p>
           <p className="mt-0.5 text-[11.5px] text-muted-foreground/80">
-            {suggestion.kind === "new_tag"
-              ? `New tag${suggestion.concept_kind !== "other" ? ` (${suggestion.concept_kind})` : ""} · `
-              : "Existing tag · "}
+            {`New tag${suggestion.concept_kind !== "other" ? ` (${suggestion.concept_kind})` : ""} · `}
             {suggestion.message_count} {suggestion.message_count === 1 ? "note" : "notes"}
             {suggestion.suggested_group_name ? ` · group: ${suggestion.suggested_group_name}` : ""}
           </p>
