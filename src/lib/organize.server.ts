@@ -233,7 +233,7 @@ async function classifyWithAi(input: {
             "task.priority: low | normal | high, only when the note's own words signal urgency. Otherwise null.",
             "task.label: an imperative-form restatement of the action, at most 60 characters.",
             `Today is ${new Date().toISOString()}.`,
-            'Respond ONLY with JSON: {"tags":[{"name":"...","confidence":0.0}],"concepts":[{"name":"...","reason":"...","group":"..."}],"summary":"...","task":{"is_actionable":true,"confidence":0.0,"due_at":null,"due_is_fuzzy":false,"priority":null,"label":"..."}}',
+            'Respond ONLY with JSON: {"tags":[{"name":"...","confidence":0.0}],"concepts":[{"name":"...","reason":"...","group":"...","kind":"person|tool|theme|project|brand|other"}],"summary":"...","task":{"is_actionable":true,"confidence":0.0,"due_at":null,"due_is_fuzzy":false,"priority":null,"label":"..."}}',
           ].join("\n"),
         },
         {
