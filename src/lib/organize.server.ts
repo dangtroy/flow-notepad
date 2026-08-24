@@ -290,7 +290,9 @@ export async function organizeMessage(
 ): Promise<OrganizeResult> {
   const message = await supabase
     .from("messages")
-    .select("id, content, ai_status, ai_fingerprint, parent_message_id, conversation_id")
+    .select(
+      "id, content, ai_status, ai_fingerprint, parent_message_id, conversation_id, metadata, due_at",
+    )
     .eq("id", messageId)
     .eq("user_id", userId)
     .maybeSingle();
