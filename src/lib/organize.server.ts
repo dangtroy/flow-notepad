@@ -291,6 +291,44 @@ async function classifyWithAi(input: {
 }
 
 /**
+ * The user's own history of keeping / ignoring proposed tags, summarised for the
+ * prompt. This is how Flow learns which KINDS of new tags are worth being born.
+ */
+async function conceptDecisions(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+): Promise<string> {
+  const rows = await supabase
+    .from("tag_suggestions")
+    .select("name, status, concept_kind")
+    .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
+    .eq("kind", "new_tag")
+    .in("status", ["applied", "ignored"])
+    .order("updated_at", { ascending: false })
+    .limit(60);
+
+  const describe = (status: string) =>
+    (rows.data ?? [])
+      .filter((row) => row.status === status)
+      .slice(0, 15)
+      .map((row) => `${row.name} (${row.concept_kind ?? "other"})`);
+
+  const approved = describe("applied");
+  const ignored = describe("ignored");
+  if (!approved.length && !ignored.length) return "";
+
+  return [
+    approved.length ? `The user recently approved these new tags: ${approved.join(", ")}.` : "",
+    ignored.length ? `They recently ignored these: ${ignored.join(", ")}.` : "",
+    "Lean toward the approved kinds; avoid re-proposing ignored ones or close variants.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
  * Records evidence for a suggestion without ever creating a tag. Ignored
  * suggestions stay ignored, so Flow does not nag about the same concept.
  */
@@ -300,6 +338,7 @@ async function recordSuggestion(
   notepadId: string,
   suggestion: {
     kind: SuggestionKind;
+    conceptKind?: ConceptKind;
     name: string;
     tagId?: string | null;
     reason: string;
