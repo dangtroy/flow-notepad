@@ -20,6 +20,10 @@ const MAX_CONTENT_CHARS = 1800;
 const MAX_PARENT_CHARS = 400;
 const AUTO_CONFIDENCE = 0.65;
 const SUGGEST_CONFIDENCE = 0.45;
+/** Task-tag application thresholds, from the task confidence alone. */
+const TASK_APPLY_CONFIDENCE = 0.8;
+const TASK_TENTATIVE_CONFIDENCE = 0.55;
+const TASK_SUGGEST_CONFIDENCE = 0.45;
 
 type TagRow = {
   id: string;
