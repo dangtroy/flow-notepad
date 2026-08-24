@@ -364,6 +364,7 @@ export async function organizeMessage(
     let usedAi = false;
     let summary = "";
     let suggested = 0;
+    let task: AiTask | null = null;
 
     // Tier 3: one small AI call, and only when there is genuine doubt left.
     const worthAi = content.length >= 12 && (candidates.length > 0 || tags.length === 0);
