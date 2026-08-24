@@ -14,6 +14,7 @@ import {
   getPreferences,
   retagAllMessages,
   reorderTagGroups,
+  deleteTagExample,
   saveTag,
   saveTagGroup,
   updatePreferences,
@@ -259,6 +260,7 @@ function TagsSection() {
       name?: string;
       color?: string;
       context?: string;
+      exclusionHint?: string;
       isEnabled?: boolean;
       groupId?: string | null;
       matchKeywords?: string[];
@@ -270,6 +272,7 @@ function TagsSection() {
       // Rules changed, so existing notes are re-read against the new intent.
       if (
         patch.context !== undefined ||
+        patch.exclusionHint !== undefined ||
         patch.isEnabled !== undefined ||
         patch.name !== undefined ||
         patch.matchKeywords !== undefined
@@ -365,6 +368,7 @@ function TagRow({
       name?: string;
       color?: string;
       context?: string;
+      exclusionHint?: string;
       isEnabled?: boolean;
       groupId?: string | null;
       matchKeywords?: string[];
@@ -375,10 +379,12 @@ function TagRow({
 }) {
   const [name, setName] = useState(tag.name);
   const [context, setContext] = useState(tag.context);
+  const [exclusion, setExclusion] = useState(tag.exclusion_hint);
   const [parsedKeywords, setKeywords] = useState<string[]>(tag.match_keywords);
   const dirty =
     name.trim() !== tag.name ||
     context.trim() !== tag.context ||
+    exclusion.trim() !== tag.exclusion_hint ||
     parsedKeywords.join("|") !== tag.match_keywords.join("|");
 
 
@@ -445,6 +451,18 @@ function TagRow({
         className="mt-2 w-full resize-none bg-transparent text-sm leading-relaxed text-muted-foreground outline-none"
       />
 
+      <textarea
+        value={exclusion}
+        onChange={(e) => setExclusion(e.target.value)}
+        rows={2}
+        aria-label={`Exclusions for ${tag.name}`}
+        placeholder="When should Flow NOT use it?"
+        className="w-full resize-none bg-transparent text-sm leading-relaxed text-muted-foreground outline-none"
+      />
+
+      {/* What Flow has learned from your own approvals and dismissals. */}
+      <TagExamples tag={tag} />
+
       {/* Literal words: a match here is handled instantly, with no AI call. */}
       <KeywordChips
         label={`Match words for ${tag.name}`}
@@ -483,6 +501,7 @@ function TagRow({
               onClick={() => {
                 setName(tag.name);
                 setContext(tag.context);
+                setExclusion(tag.exclusion_hint);
                 setKeywords(tag.match_keywords);
               }}
               className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
@@ -495,6 +514,7 @@ function TagRow({
                 void onUpdate(tag.id, {
                   name: name.trim(),
                   context: context.trim(),
+                  exclusionHint: exclusion.trim(),
                   matchKeywords: parsedKeywords,
                 })
               }
