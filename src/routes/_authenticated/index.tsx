@@ -121,6 +121,8 @@ function FlowPage() {
   const fetchWeek = useServerFn(getWeekStats);
   const addTag = useServerFn(addMessageTag);
   const dropTag = useServerFn(removeMessageTag);
+  const fetchTasks = useServerFn(getTasks);
+  const setDue = useServerFn(setTaskDue);
   const navigate = Route.useNavigate();
   const { appearance } = useAppearance();
   const notepadId = useActiveNotepadId();
