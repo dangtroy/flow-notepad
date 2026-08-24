@@ -391,6 +391,7 @@ export async function organizeMessage(
       });
       usedAi = true;
       summary = result.summary;
+      task = result.task;
 
       const byNormalized = new Map(candidates.map((tag) => [tag.normalized_name, tag]));
       for (const choice of result.tags) {
