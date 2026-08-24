@@ -199,6 +199,16 @@ function MessageRowBase({
   const [historyOpen, setHistoryOpen] = useState(false);
   const actionsOpen = reminderOpen || menuOpen || saveOpen || tagPickerOpen || historyOpen;
 
+  // After dismissing a suggestion, an optional one-liner teaches the tag why.
+  const [dismissed, setDismissed] = useState<{ id: string; name: string } | null>(null);
+  const [reason, setReason] = useState("");
+  const saveExclusion = useServerFn(appendTagExclusion);
+
+  function closeReason() {
+    setDismissed(null);
+    setReason("");
+  }
+
   const isReply = depth > 0;
   const tags = message.tags;
 
