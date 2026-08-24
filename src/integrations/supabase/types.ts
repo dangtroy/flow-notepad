@@ -144,6 +144,7 @@ export type Database = {
           id: string
           message_id: string
           source: string
+          status: string
           tag_id: string
           user_id: string
         }
@@ -153,6 +154,7 @@ export type Database = {
           id?: string
           message_id: string
           source?: string
+          status?: string
           tag_id: string
           user_id: string
         }
@@ -162,6 +164,7 @@ export type Database = {
           id?: string
           message_id?: string
           source?: string
+          status?: string
           tag_id?: string
           user_id?: string
         }
@@ -340,6 +343,58 @@ export type Database = {
         }
         Relationships: []
       }
+      tag_feedback: {
+        Row: {
+          action: string
+          body_snippet: string
+          created_at: string
+          id: string
+          message_id: string | null
+          tag_id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          body_snippet?: string
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          tag_id: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          body_snippet?: string
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          tag_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tag_feedback_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tag_feedback_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "task_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tag_feedback_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tag_groups: {
         Row: {
           color: string | null
@@ -465,52 +520,73 @@ export type Database = {
       }
       tags: {
         Row: {
+          accept_count: number
           auto_apply: boolean
+          auto_apply_override: boolean | null
           color: string | null
           context: string
           conversation_id: string
           created_at: string
+          graduated_at: string | null
+          graduation_ack_at: string | null
           group_id: string | null
           id: string
           is_enabled: boolean
           is_pinned: boolean
+          last_decision_at: string | null
           match_keywords: string[]
+          maturity: string
           name: string
           normalized_name: string
+          reject_count: number
           sort_order: number
           updated_at: string
           user_id: string
         }
         Insert: {
+          accept_count?: number
           auto_apply?: boolean
+          auto_apply_override?: boolean | null
           color?: string | null
           context?: string
           conversation_id: string
           created_at?: string
+          graduated_at?: string | null
+          graduation_ack_at?: string | null
           group_id?: string | null
           id?: string
           is_enabled?: boolean
           is_pinned?: boolean
+          last_decision_at?: string | null
           match_keywords?: string[]
+          maturity?: string
           name: string
           normalized_name: string
+          reject_count?: number
           sort_order?: number
           updated_at?: string
           user_id: string
         }
         Update: {
+          accept_count?: number
           auto_apply?: boolean
+          auto_apply_override?: boolean | null
           color?: string | null
           context?: string
           conversation_id?: string
           created_at?: string
+          graduated_at?: string | null
+          graduation_ack_at?: string | null
           group_id?: string | null
           id?: string
           is_enabled?: boolean
           is_pinned?: boolean
+          last_decision_at?: string | null
           match_keywords?: string[]
+          maturity?: string
           name?: string
           normalized_name?: string
+          reject_count?: number
           sort_order?: number
           updated_at?: string
           user_id?: string

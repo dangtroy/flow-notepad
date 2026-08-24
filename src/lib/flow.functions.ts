@@ -1,5 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
 import {
   ensurePreferences,
   loadDueReminders,
@@ -544,6 +547,37 @@ export const setTaskDue = createServerFn({ method: "POST" })
  * source: 'ai' rows before re-applying, so a hand-applied tag survives every
  * later AI pass.
  */
+/**
+ * Every accept / dismiss / manual decision is written to one ledger row. The
+ * database trigger does all the counting and promotion: app code never writes
+ * `maturity` or the counters itself.
+ */
+async function recordTagFeedback(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  input: {
+    tagId: string;
+    messageId: string;
+    action: "accept" | "reject" | "manual_add" | "manual_remove";
+  },
+) {
+  const note = await supabase
+    .from("messages")
+    .select("content")
+    .eq("id", input.messageId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const { error } = await supabase.from("tag_feedback").insert({
+    user_id: userId,
+    tag_id: input.tagId,
+    message_id: input.messageId,
+    action: input.action,
+    body_snippet: (note.data?.content ?? "").slice(0, 200),
+  });
+  if (error) throw error;
+}
+
 export const addMessageTag = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { messageId: string; tagId: string }) => {
@@ -577,11 +611,45 @@ export const addMessageTag = createServerFn({ method: "POST" })
         message_id: data.messageId,
         tag_id: data.tagId,
         source: "user",
+        status: "applied",
       },
       { onConflict: "message_id,tag_id" },
     );
     if (error) throw error;
+
+    // Choosing a tag by hand is the strongest signal it earns its keep.
+    await recordTagFeedback(supabase, userId, { ...data, action: "manual_add" });
     return { messageId: data.messageId, tag: tag.data };
+  });
+
+/** ✓ on a suggested tag: it becomes a real tag on the note, and Flow learns. */
+export const confirmMessageTag = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { messageId: string; tagId: string }) => {
+    if (!input?.messageId) throw new Error("Missing note");
+    if (!input?.tagId) throw new Error("Missing tag");
+    return { messageId: input.messageId, tagId: input.tagId };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("message_tags")
+      .update({ status: "applied", source: "user" })
+      .eq("user_id", userId)
+      .eq("message_id", data.messageId)
+      .eq("tag_id", data.tagId);
+    if (error) throw error;
+
+    await recordTagFeedback(supabase, userId, { ...data, action: "accept" });
+
+    // The trigger may have just promoted the tag; report its new state back.
+    const tag = await supabase
+      .from("tags")
+      .select("id, name, maturity, graduated_at, graduation_ack_at")
+      .eq("id", data.tagId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    return { messageId: data.messageId, tagId: data.tagId, tag: tag.data ?? null };
   });
 
 export const removeMessageTag = createServerFn({ method: "POST" })
@@ -592,15 +660,52 @@ export const removeMessageTag = createServerFn({ method: "POST" })
     return { messageId: input.messageId, tagId: input.tagId };
   })
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    const { supabase, userId } = context;
+    // Dismissing a proposal and taking off a tag Flow got wrong are different
+    // lessons: the first is a reject, the second a manual removal.
+    const existing = await supabase
+      .from("message_tags")
+      .select("status")
+      .eq("user_id", userId)
+      .eq("message_id", data.messageId)
+      .eq("tag_id", data.tagId)
+      .maybeSingle();
+
+    const { error } = await supabase
       .from("message_tags")
       .delete()
-      .eq("user_id", context.userId)
+      .eq("user_id", userId)
       .eq("message_id", data.messageId)
       .eq("tag_id", data.tagId);
     if (error) throw error;
+
+    await recordTagFeedback(supabase, userId, {
+      ...data,
+      action:
+        (existing.data as { status?: string } | null)?.status === "suggested"
+          ? "reject"
+          : "manual_remove",
+    });
     return { messageId: data.messageId, tagId: data.tagId };
   });
+
+/** The "Flow will now add this automatically" note is shown once, then hidden. */
+export const acknowledgeTagGraduation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { tagId: string }) => {
+    if (!input?.tagId) throw new Error("Missing tag");
+    return { tagId: input.tagId };
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("tags")
+      .update({ graduation_ack_at: new Date().toISOString() })
+      .eq("id", data.tagId)
+      .eq("user_id", context.userId);
+    if (error) throw error;
+    return { tagId: data.tagId };
+  });
+
 
 
 /**

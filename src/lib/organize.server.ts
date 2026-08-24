@@ -20,6 +20,9 @@ const MAX_CONTENT_CHARS = 1800;
 const MAX_PARENT_CHARS = 400;
 const AUTO_CONFIDENCE = 0.65;
 const SUGGEST_CONFIDENCE = 0.45;
+/** A trusted tag needs this much confidence before it applies itself. */
+const TRUST_APPLY_CONFIDENCE = 0.8;
+
 /** Task-tag application thresholds, from the task confidence alone. */
 const TASK_APPLY_CONFIDENCE = 0.8;
 const TASK_TENTATIVE_CONFIDENCE = 0.55;
@@ -35,7 +38,15 @@ type TagRow = {
   auto_apply: boolean | null;
   match_keywords: string[] | null;
   group_id: string | null;
+  /** Earned trust. Only a trusted tag may apply itself without asking. */
+  maturity?: string | null;
 };
+
+/** A tag only applies itself once the user has confirmed it a few times. */
+function isTrusted(tag: TagRow): boolean {
+  return tag.maturity === "trusted" || tag.auto_apply === true;
+}
+
 
 type GroupRow = { id: string; name: string };
 
@@ -438,7 +449,8 @@ export async function organizeMessage(
     const [tagRows, groupRows] = await Promise.all([
       supabase
         .from("tags")
-        .select("id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id")
+        .select("id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id, maturity")
+
         .eq("user_id", userId)
         .eq("conversation_id", notepadId),
       supabase
@@ -453,6 +465,8 @@ export async function organizeMessage(
     const groupById = new Map(groups.map((group) => [group.id, group]));
 
     const autoTagIds = new Set<string>();
+    // Tags Flow proposes on the note itself: a lighter chip with ✓ / ✕.
+    const suggestTagIds = new Set<string>();
     const decided = new Set<string>();
 
     // Tier 1: deterministic rules. A literal match needs no model at all.
@@ -460,19 +474,10 @@ export async function organizeMessage(
       const hit = keywordsForTag(tag).some((keyword) => matchesKeyword(content, keyword));
       if (!hit) continue;
       decided.add(tag.id);
-      if (tag.auto_apply !== false) autoTagIds.add(tag.id);
-      else {
-        await recordSuggestion(supabase, userId, notepadId, {
-          kind: "existing_tag",
-          tagId: tag.id,
-          name: tag.name,
-          reason: `Matches your rule for ${tag.name}.`,
-          messageId,
-          groupId: tag.group_id,
-          groupName: tag.group_id ? (groupById.get(tag.group_id)?.name ?? null) : null,
-        });
-      }
+      if (isTrusted(tag)) autoTagIds.add(tag.id);
+      else suggestTagIds.add(tag.id);
     }
+
 
     // Tier 2: only the tags whose written context could plausibly relate, and
     // only their rules — never the conversation, never the whole tag table.
@@ -522,21 +527,16 @@ export async function organizeMessage(
       for (const choice of result.tags) {
         const tag = byNormalized.get(normalizeTag(choice.name));
         if (!tag) continue;
-        if (choice.confidence >= AUTO_CONFIDENCE && tag.auto_apply !== false) {
+        // A trusted tag applies itself when the model is sure; anything else is
+        // offered on the note for the user to confirm or dismiss.
+        if (choice.confidence >= TRUST_APPLY_CONFIDENCE && isTrusted(tag)) {
           autoTagIds.add(tag.id);
         } else if (choice.confidence >= SUGGEST_CONFIDENCE) {
           suggested += 1;
-          await recordSuggestion(supabase, userId, notepadId, {
-            kind: "existing_tag",
-            tagId: tag.id,
-            name: tag.name,
-            reason: `Flow thinks this may be about ${tag.name}, but wasn't sure enough to apply it.`,
-            messageId,
-            groupId: tag.group_id,
-            groupName: tag.group_id ? (groupById.get(tag.group_id)?.name ?? null) : null,
-          });
+          suggestTagIds.add(tag.id);
         }
       }
+
 
       // New concepts are only ever proposals: Flow never creates a tag itself.
       for (const concept of result.concepts) {
@@ -590,18 +590,31 @@ export async function organizeMessage(
 
     // AI-applied links are replaced; anything the user applied stays put.
     await supabase.from("message_tags").delete().eq("message_id", messageId).eq("source", "ai");
-    if (autoTagIds.size) {
-      await supabase.from("message_tags").upsert(
-        [...autoTagIds].map((tagId) => ({
-          user_id: userId,
-          message_id: messageId,
-          tag_id: tagId,
-          source: "ai",
-          confidence: tagId === taskTag?.id ? taskTagConfidence : null,
-        })),
-        { onConflict: "message_id,tag_id" },
-      );
+    // A suggested tag on a note the user already decided about would nag: only
+    // tags with no link at all are offered.
+    for (const tagId of autoTagIds) suggestTagIds.delete(tagId);
+    const links = [
+      ...[...autoTagIds].map((tagId) => ({
+        user_id: userId,
+        message_id: messageId,
+        tag_id: tagId,
+        source: "ai",
+        status: "applied",
+        confidence: tagId === taskTag?.id ? taskTagConfidence : null,
+      })),
+      ...[...suggestTagIds].map((tagId) => ({
+        user_id: userId,
+        message_id: messageId,
+        tag_id: tagId,
+        source: "ai",
+        status: "suggested",
+        confidence: null,
+      })),
+    ];
+    if (links.length) {
+      await supabase.from("message_tags").upsert(links, { onConflict: "message_id,tag_id" });
     }
+
 
 
     // Task fields are written alongside the AI status. The user's own words stay
