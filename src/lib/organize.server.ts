@@ -447,6 +447,20 @@ export async function organizeMessage(
       );
     }
 
+    // Task fields are written alongside the AI status. The user's own words stay
+    // in `content`: the imperative rewrite only ever lands in metadata, and a
+    // date the user set by hand is never overwritten by a later pass.
+    const taskFields: Record<string, unknown> = {};
+    if (task) {
+      const metadata = (message.data.metadata ?? {}) as Record<string, unknown>;
+      if (task.label) taskFields["metadata"] = { ...metadata, task_label: task.label };
+      if (task.priority) taskFields["task_priority"] = task.priority;
+      if (task.due_at && !message.data.due_at) {
+        taskFields["due_at"] = task.due_at;
+        taskFields["due_is_fuzzy"] = task.due_is_fuzzy;
+      }
+    }
+
     await supabase
       .from("messages")
       .update({
@@ -455,6 +469,7 @@ export async function organizeMessage(
         ai_error: null,
         ai_fingerprint: stamp,
         ai_context: { summary, used_ai: usedAi },
+        ...taskFields,
       })
       .eq("id", messageId)
       .eq("user_id", userId);
