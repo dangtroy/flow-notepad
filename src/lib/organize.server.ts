@@ -288,6 +288,56 @@ async function recordSuggestion(
   });
 }
 
+/**
+ * An ambiguous task is asked about rather than applied. Unlike concept
+ * suggestions this one surfaces on its first sighting: the question is about
+ * this note, so waiting for repeat evidence would never make sense.
+ */
+async function recordTaskSuggestion(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+  messageId: string,
+  taskTag: TagRow,
+) {
+  const existing = await supabase
+    .from("tag_suggestions")
+    .select("id, status, message_ids")
+    .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
+    .eq("kind", "existing_tag")
+    .eq("normalized_name", taskTag.normalized_name)
+    .maybeSingle();
+
+  if (existing.data) {
+    if (existing.data.status !== "pending") return;
+    const ids = new Set(existing.data.message_ids ?? []);
+    if (ids.has(messageId)) return;
+    ids.add(messageId);
+    await supabase
+      .from("tag_suggestions")
+      .update({ message_ids: [...ids], evidence_count: Math.max(ids.size, MIN_EVIDENCE.existing_tag) })
+      .eq("id", existing.data.id)
+      .eq("user_id", userId);
+    return;
+  }
+
+  await supabase.from("tag_suggestions").insert({
+    user_id: userId,
+    conversation_id: notepadId,
+    kind: "existing_tag",
+    tag_id: taskTag.id,
+    name: taskTag.name,
+    normalized_name: taskTag.normalized_name,
+    reason: "Looks like a task?",
+    suggested_group_id: taskTag.group_id,
+    message_ids: [messageId],
+    evidence_count: MIN_EVIDENCE.existing_tag,
+  });
+}
+
+
+
 export type OrganizeResult = {
   ok: boolean;
   skipped?: boolean;
