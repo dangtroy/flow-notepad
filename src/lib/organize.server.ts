@@ -95,11 +95,44 @@ function relevance(content: string, tag: TagRow, group?: GroupRow): number {
 type AiTag = { name: string; confidence: number };
 type AiConcept = { name: string; reason: string; group?: string | null };
 
+/**
+ * The same call that classifies tags also reads the note for actionability.
+ * `label` is a display rewrite only — it is stored in metadata and never
+ * overwrites the user's own words.
+ */
+export type AiTask = {
+  is_actionable: boolean;
+  due_at: string | null;
+  due_is_fuzzy: boolean;
+  priority: "low" | "normal" | "high" | null;
+  label: string | null;
+};
+
+const PRIORITY_VALUES = new Set(["low", "normal", "high"]);
+
+function parseTask(raw: unknown): AiTask | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  if (value["is_actionable"] === false) return null;
+
+  const due = typeof value["due_at"] === "string" ? new Date(value["due_at"]) : null;
+  const priority = typeof value["priority"] === "string" ? value["priority"].toLowerCase() : "";
+  const label = typeof value["label"] === "string" ? value["label"].trim().slice(0, 80) : "";
+
+  return {
+    is_actionable: true,
+    due_at: due && !Number.isNaN(due.getTime()) ? due.toISOString() : null,
+    due_is_fuzzy: value["due_is_fuzzy"] === true,
+    priority: PRIORITY_VALUES.has(priority) ? (priority as AiTask["priority"]) : null,
+    label: label || null,
+  };
+}
+
 async function classifyWithAi(input: {
   content: string;
   parent: string | null;
   tags: Array<{ name: string; context: string; group?: string | null }>;
-}): Promise<{ tags: AiTag[]; concepts: AiConcept[]; summary: string }> {
+}): Promise<{ tags: AiTag[]; concepts: AiConcept[]; summary: string; task: AiTask | null }> {
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("AI is not configured");
 
@@ -122,7 +155,13 @@ async function classifyWithAi(input: {
             "Give each chosen tag a confidence between 0 and 1 based on how clearly the note matches that tag's context rule.",
             "Return no tags when nothing matches — that is a correct answer.",
             "Optionally return concepts: a recurring, reusable topic that no existing tag covers. Skip trivial or one-off nouns. Usually return an empty concepts array.",
-            'Respond ONLY with JSON: {"tags":[{"name":"...","confidence":0.0}],"concepts":[{"name":"...","reason":"...","group":"..."}],"summary":"..."}',
+            'Also read the note for actionability and return "task". Return task: null when the note is not something to do — most notes are not.',
+            "task.due_at: an ISO 8601 instant, only when the note itself contains a time reference. Never invent a deadline.",
+            'task.due_is_fuzzy: true when the date was inferred from vague language ("next week", "soon", "before the launch"); false when the note states it plainly ("Sept 4", "Tuesday at 3").',
+            "task.priority: low | normal | high, only when the note's own words signal urgency. Otherwise null.",
+            "task.label: an imperative-form restatement of the action, at most 60 characters.",
+            `Today is ${new Date().toISOString()}.`,
+            'Respond ONLY with JSON: {"tags":[{"name":"...","confidence":0.0}],"concepts":[{"name":"...","reason":"...","group":"..."}],"summary":"...","task":{"is_actionable":true,"due_at":null,"due_is_fuzzy":false,"priority":null,"label":"..."}}',
           ].join("\n"),
         },
         {
@@ -148,6 +187,7 @@ async function classifyWithAi(input: {
     tags?: Array<{ name?: unknown; confidence?: unknown }>;
     concepts?: Array<{ name?: unknown; reason?: unknown; group?: unknown }>;
     summary?: unknown;
+    task?: unknown;
   };
 
   return {
@@ -167,6 +207,7 @@ async function classifyWithAi(input: {
         group: typeof concept.group === "string" ? concept.group : null,
       })),
     summary: typeof parsed.summary === "string" ? parsed.summary.slice(0, 400) : "",
+    task: parseTask(parsed.task),
   };
 }
 
@@ -249,7 +290,9 @@ export async function organizeMessage(
 ): Promise<OrganizeResult> {
   const message = await supabase
     .from("messages")
-    .select("id, content, ai_status, ai_fingerprint, parent_message_id, conversation_id")
+    .select(
+      "id, content, ai_status, ai_fingerprint, parent_message_id, conversation_id, metadata, due_at",
+    )
     .eq("id", messageId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -321,6 +364,7 @@ export async function organizeMessage(
     let usedAi = false;
     let summary = "";
     let suggested = 0;
+    let task: AiTask | null = null;
 
     // Tier 3: one small AI call, and only when there is genuine doubt left.
     const worthAi = content.length >= 12 && (candidates.length > 0 || tags.length === 0);
@@ -347,6 +391,7 @@ export async function organizeMessage(
       });
       usedAi = true;
       summary = result.summary;
+      task = result.task;
 
       const byNormalized = new Map(candidates.map((tag) => [tag.normalized_name, tag]));
       for (const choice of result.tags) {
@@ -402,6 +447,20 @@ export async function organizeMessage(
       );
     }
 
+    // Task fields are written alongside the AI status. The user's own words stay
+    // in `content`: the imperative rewrite only ever lands in metadata, and a
+    // date the user set by hand is never overwritten by a later pass.
+    const taskFields: Record<string, unknown> = {};
+    if (task) {
+      const metadata = (message.data.metadata ?? {}) as Record<string, unknown>;
+      if (task.label) taskFields["metadata"] = { ...metadata, task_label: task.label };
+      if (task.priority) taskFields["task_priority"] = task.priority;
+      if (task.due_at && !message.data.due_at) {
+        taskFields["due_at"] = task.due_at;
+        taskFields["due_is_fuzzy"] = task.due_is_fuzzy;
+      }
+    }
+
     await supabase
       .from("messages")
       .update({
@@ -410,6 +469,7 @@ export async function organizeMessage(
         ai_error: null,
         ai_fingerprint: stamp,
         ai_context: { summary, used_ai: usedAi },
+        ...taskFields,
       })
       .eq("id", messageId)
       .eq("user_id", userId);

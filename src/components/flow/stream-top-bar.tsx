@@ -2,11 +2,12 @@ import { PanelRight, Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-export type StreamView = "all" | "today" | "pinned" | "reference";
+export type StreamView = "all" | "today" | "tasks" | "pinned" | "reference";
 
 export const STREAM_VIEWS: Array<{ value: StreamView; label: string }> = [
   { value: "all", label: "All" },
   { value: "today", label: "Today" },
+  { value: "tasks", label: "Tasks" },
   { value: "pinned", label: "Pinned" },
   { value: "reference", label: "Reference" },
 ];

@@ -16,6 +16,7 @@ import {
   getDueReminders,
   getPinnedMessages,
   getStreamPage,
+  getTasks,
   getViewCounts,
   getWeekStats,
   organizeMessageFn,
@@ -26,9 +27,11 @@ import {
   setMessageCompletion,
   setMessageReminder,
   setMessageType,
+  setTaskDue,
   updateMessage,
 } from "@/lib/flow.functions";
 import type { FlowMessage, MessageType } from "@/lib/flow.server";
+import type { FlowTask } from "@/lib/tasks.server";
 import { htmlToText } from "@/lib/rich-text";
 import { tagIdsFrom, type FilterMode } from "@/lib/tag-filter";
 import { useAppearance } from "@/lib/use-appearance";
@@ -43,6 +46,7 @@ import {
   type StreamView,
 } from "@/components/flow/stream-top-bar";
 import { ReferenceList } from "@/components/flow/reference-list";
+import { TaskList } from "@/components/flow/task-list";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
@@ -121,6 +125,8 @@ function FlowPage() {
   const fetchWeek = useServerFn(getWeekStats);
   const addTag = useServerFn(addMessageTag);
   const dropTag = useServerFn(removeMessageTag);
+  const fetchTasks = useServerFn(getTasks);
+  const setDue = useServerFn(setTaskDue);
   const navigate = Route.useNavigate();
   const { appearance } = useAppearance();
   const notepadId = useActiveNotepadId();
@@ -195,7 +201,7 @@ function FlowPage() {
         },
       }),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: Boolean(notepadId) && view !== "reference",
+    enabled: Boolean(notepadId) && view !== "reference" && view !== "tasks",
   });
 
   // Pages arrive newest-first; render them oldest-first.
@@ -642,9 +648,67 @@ function FlowPage() {
     enabled: Boolean(notepadId),
   });
 
+  const tasksKey = useMemo(() => ["tasks", notepadId ?? "none"] as const, [notepadId]);
+  const tasksQuery = useQuery({
+    queryKey: tasksKey,
+    queryFn: () => fetchTasks({ data: { notepadId } }),
+    enabled: Boolean(notepadId),
+  });
+  const allTasks = tasksQuery.data?.tasks ?? [];
+
+  const tasks = useMemo(() => {
+    if (!query) return allTasks;
+    const needle = query.toLowerCase();
+    return allTasks.filter(
+      (task) =>
+        task.content.toLowerCase().includes(needle) ||
+        (task.label ?? "").toLowerCase().includes(needle) ||
+        task.tags.some((tag) => tag.name.toLowerCase().includes(needle)),
+    );
+  }, [allTasks, query]);
+
+  const refreshTasks = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: tasksKey });
+  }, [queryClient, tasksKey]);
+
+  async function handleTaskComplete(task: FlowTask) {
+    try {
+      await complete({ data: { id: task.id, completed: !task.is_completed } });
+    } catch {
+      toast.error("Could not update that task");
+    }
+    refreshTasks();
+    refreshPinsAndReminders();
+  }
+
+  async function handleTaskDue(task: FlowTask, iso: string | null) {
+    try {
+      await setDue({ data: { id: task.id, dueAt: iso } });
+      toast.success(iso ? "Due date set" : "Due date cleared");
+    } catch {
+      toast.error("Could not set that date");
+    }
+    refreshTasks();
+  }
+
+  /** Un-tasking is just removing the Tasks-group tags the note carries. */
+  async function handleRemoveTask(task: FlowTask) {
+    try {
+      for (const tagId of task.taskTagIds) {
+        await dropTag({ data: { messageId: task.id, tagId } });
+      }
+      toast.success("No longer a task");
+    } catch {
+      toast.error("Could not update that note");
+    }
+    refreshTasks();
+    void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
+  }
+
   const counts: Record<StreamView, number> = {
     all: countsData?.all ?? 0,
     today: countsData?.today ?? 0,
+    tasks: allTasks.filter((task) => !task.is_completed).length,
     pinned: countsData?.pinned ?? 0,
     reference: countsData?.reference ?? 0,
   };
@@ -657,6 +721,7 @@ function FlowPage() {
     void queryClient.invalidateQueries({ queryKey: remindersKey });
     void queryClient.invalidateQueries({ queryKey: ["view-counts"] });
     void queryClient.invalidateQueries({ queryKey: ["week-stats"] });
+    void queryClient.invalidateQueries({ queryKey: ["tasks"] });
   }, [queryClient, pinnedKey, remindersKey]);
 
   /** Jumps to where a pinned or reminded thought actually lives in the stream. */
@@ -761,7 +826,15 @@ function FlowPage() {
             view === "all" || view === "today" ? "justify-end" : "justify-start",
           )}
         >
-          {view === "reference" ? (
+          {view === "tasks" ? (
+            <TaskList
+              tasks={tasks}
+              isPending={tasksQuery.isPending}
+              onToggleComplete={(task) => void handleTaskComplete(task)}
+              onSetDue={(task, iso) => void handleTaskDue(task, iso)}
+              onRemoveTask={(task) => void handleRemoveTask(task)}
+            />
+          ) : view === "reference" ? (
             <ReferenceList
               notes={referenceNotes}
               isPending={reference.isPending}
