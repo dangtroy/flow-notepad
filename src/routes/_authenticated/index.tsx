@@ -398,6 +398,28 @@ function FlowPage() {
     }
   }
 
+  /** ✓ on a suggested tag: it stays, and the tag moves a step toward trusted. */
+  async function handleConfirmTag(message: FlowMessage, tagId: string) {
+    const previous = message.suggestedTagIds;
+    patchMessage(message.id, { suggestedTagIds: previous.filter((id) => id !== tagId) });
+    try {
+      await confirmTag({ data: { messageId: message.id, tagId } });
+      void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
+    } catch (error) {
+      patchMessage(message.id, { suggestedTagIds: previous });
+      toast.error(error instanceof Error ? error.message : "Couldn’t keep that tag");
+    }
+  }
+
+  async function handleAcknowledgeGraduation(tagId: string) {
+    try {
+      await ackGraduation({ data: { tagId } });
+    } finally {
+      void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
+    }
+  }
+
+
   async function handleSend(html: string, cleanup: CleanupMeta, tagIds: string[] = []) {
     // Sending while the Reference view is open keeps the note there.
     if (view === "reference") {
