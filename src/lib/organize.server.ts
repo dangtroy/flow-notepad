@@ -577,6 +577,7 @@ export async function organizeMessage(
       const result = await classifyWithAi({
         content: content.slice(0, MAX_CONTENT_CHARS),
         parent: parentExcerpt,
+        decisions: await conceptDecisions(supabase, userId, notepadId),
         tags: candidates.map((tag) => ({
           name: tag.name,
           context: (tag.context ?? "").trim(),
@@ -604,7 +605,8 @@ export async function organizeMessage(
         }
       }
 
-      // New concepts are only ever proposals: Flow never creates a tag itself.
+      // New concepts are only ever proposals: Flow never creates a tag itself,
+      // not even for people. The user approves with ✓ and it starts unproven.
       for (const concept of result.concepts) {
         const normalized = normalizeTag(concept.name);
         if (!normalized) continue;
@@ -615,6 +617,7 @@ export async function organizeMessage(
         suggested += 1;
         await recordSuggestion(supabase, userId, notepadId, {
           kind: "new_tag",
+          conceptKind: concept.kind,
           name: concept.name,
           reason: concept.reason,
           messageId,
