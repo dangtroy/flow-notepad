@@ -121,7 +121,11 @@ function relevance(content: string, tag: TagRow, group?: GroupRow): number {
 }
 
 type AiTag = { name: string; confidence: number };
-type AiConcept = { name: string; reason: string; group?: string | null };
+/** What a proposed new tag actually is, used for labelling and for learning. */
+export const CONCEPT_KINDS = ["person", "tool", "theme", "project", "brand", "other"] as const;
+export type ConceptKind = (typeof CONCEPT_KINDS)[number];
+
+type AiConcept = { name: string; reason: string; group?: string | null; kind: ConceptKind };
 
 /**
  * The same call that classifies tags also reads the note for actionability.
