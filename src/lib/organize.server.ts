@@ -167,6 +167,8 @@ function parseTask(raw: unknown): AiTask | null {
 async function classifyWithAi(input: {
   content: string;
   parent: string | null;
+  /** One line summarising which new-tag suggestions the user recently kept or ignored. */
+  decisions: string;
   tags: Array<{
     name: string;
     context: string;
