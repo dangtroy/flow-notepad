@@ -527,6 +527,7 @@ export type Database = {
           context: string
           conversation_id: string
           created_at: string
+          exclusion_hint: string
           graduated_at: string | null
           graduation_ack_at: string | null
           group_id: string | null
@@ -537,7 +538,9 @@ export type Database = {
           match_keywords: string[]
           maturity: string
           name: string
+          negative_examples: Json
           normalized_name: string
+          positive_examples: Json
           reject_count: number
           sort_order: number
           updated_at: string
@@ -551,6 +554,7 @@ export type Database = {
           context?: string
           conversation_id: string
           created_at?: string
+          exclusion_hint?: string
           graduated_at?: string | null
           graduation_ack_at?: string | null
           group_id?: string | null
@@ -561,7 +565,9 @@ export type Database = {
           match_keywords?: string[]
           maturity?: string
           name: string
+          negative_examples?: Json
           normalized_name: string
+          positive_examples?: Json
           reject_count?: number
           sort_order?: number
           updated_at?: string
@@ -575,6 +581,7 @@ export type Database = {
           context?: string
           conversation_id?: string
           created_at?: string
+          exclusion_hint?: string
           graduated_at?: string | null
           graduation_ack_at?: string | null
           group_id?: string | null
@@ -585,7 +592,9 @@ export type Database = {
           match_keywords?: string[]
           maturity?: string
           name?: string
+          negative_examples?: Json
           normalized_name?: string
+          positive_examples?: Json
           reject_count?: number
           sort_order?: number
           updated_at?: string

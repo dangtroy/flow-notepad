@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.learn_tag_examples() FROM PUBLIC, anon, authenticated;

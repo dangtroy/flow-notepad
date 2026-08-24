@@ -307,6 +307,11 @@ export type FlowTagDetail = {
   /** Set the moment a tag first became trusted; drives the one-time notice. */
   graduated_at: string | null;
   graduation_ack_at: string | null;
+  /** Plain-English rule for when Flow should NOT use this tag. */
+  exclusion_hint: string;
+  /** Note snippets learned from confirmations / dismissals (newest first). */
+  positive_examples: string[];
+  negative_examples: string[];
 };
 
 
@@ -324,6 +329,16 @@ export type FlowTagGroup = {
 };
 
 /** One reusable list of tags with derived counts — the source for filters and management. */
+/** jsonb arrays arrive untyped; keep only non-empty strings. */
+function asExamples(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .slice(0, 10);
+}
+
 export async function loadTags(
   supabase: Client,
   userId: string,
@@ -333,7 +348,7 @@ export async function loadTags(
     supabase
       .from("tags")
       .select(
-        "id, name, color, context, is_enabled, group_id, is_pinned, sort_order, match_keywords, auto_apply, maturity, accept_count, reject_count, graduated_at, graduation_ack_at",
+        "id, name, color, context, is_enabled, group_id, is_pinned, sort_order, match_keywords, auto_apply, maturity, accept_count, reject_count, graduated_at, graduation_ack_at, exclusion_hint, positive_examples, negative_examples",
       )
 
       .eq("user_id", userId)
@@ -366,6 +381,9 @@ export async function loadTags(
     reject_count: (tag as { reject_count?: number }).reject_count ?? 0,
     graduated_at: (tag as { graduated_at?: string | null }).graduated_at ?? null,
     graduation_ack_at: (tag as { graduation_ack_at?: string | null }).graduation_ack_at ?? null,
+    exclusion_hint: (tag as { exclusion_hint?: string }).exclusion_hint ?? "",
+    positive_examples: asExamples((tag as { positive_examples?: unknown }).positive_examples),
+    negative_examples: asExamples((tag as { negative_examples?: unknown }).negative_examples),
   }));
 
 }

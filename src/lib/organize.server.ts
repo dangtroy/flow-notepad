@@ -35,6 +35,11 @@ type TagRow = {
   color: string | null;
   context: string | null;
   is_enabled: boolean | null;
+  /** Plain-English rule for when this tag must NOT be used. */
+  exclusion_hint?: string | null;
+  /** Note snippets learned from the user's own confirmations / dismissals. */
+  positive_examples?: unknown;
+  negative_examples?: unknown;
   auto_apply: boolean | null;
   match_keywords: string[] | null;
   group_id: string | null;
@@ -48,6 +53,15 @@ function isTrusted(tag: TagRow): boolean {
 }
 
 type GroupRow = { id: string; name: string };
+
+/** jsonb example arrays arrive untyped. */
+function exampleList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((entry) => entry.trim().slice(0, 200))
+    .filter(Boolean);
+}
 
 /** Stable, cheap content fingerprint so unchanged notes are skipped entirely. */
 export function fingerprint(text: string): string {
@@ -149,13 +163,37 @@ function parseTask(raw: unknown): AiTask | null {
 async function classifyWithAi(input: {
   content: string;
   parent: string | null;
-  tags: Array<{ name: string; context: string; group?: string | null }>;
+  tags: Array<{
+    name: string;
+    context: string;
+    group?: string | null;
+    exclusionHint?: string;
+    positives?: string[];
+    negatives?: string[];
+  }>;
 }): Promise<{ tags: AiTag[]; concepts: AiConcept[]; summary: string; task: AiTask | null }> {
   const apiKey = process.env["LOVABLE_API_KEY"];
   if (!apiKey) throw new Error("AI is not configured");
 
+  // Guidance is only sent when it exists, so tags with none stay one short line.
   const tagLines = input.tags
-    .map((tag) => `- "${tag.name}"${tag.group ? ` (group: ${tag.group})` : ""}: ${tag.context}`)
+    .map((tag) => {
+      const lines = [
+        `- "${tag.name}"${tag.group ? ` (group: ${tag.group})` : ""}: ${tag.context}`,
+      ];
+      if (tag.exclusionHint?.trim()) lines.push(`  Do NOT use for: ${tag.exclusionHint.trim()}`);
+      const positives = (tag.positives ?? []).slice(0, 5);
+      if (positives.length) {
+        lines.push(`  Example notes that ARE this tag: ${positives.map((e) => `"${e}"`).join(" | ")}`);
+      }
+      const negatives = (tag.negatives ?? []).slice(0, 5);
+      if (negatives.length) {
+        lines.push(
+          `  Example notes that are NOT this tag: ${negatives.map((e) => `"${e}"`).join(" | ")}`,
+        );
+      }
+      return lines.join("\n");
+    })
     .join("\n");
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -171,6 +209,7 @@ async function classifyWithAi(input: {
             "You classify ONE short personal note against the user's own tags.",
             "Only use tag names from the provided list, copied exactly. Never rename or invent tags there.",
             "Give each chosen tag a confidence between 0 and 1 based on how clearly the note matches that tag's context rule.",
+            'When a tag lists a "Do NOT use for" rule, treat it as binding: never choose that tag for a note the rule excludes. Weigh the example notes heavily — they are the user\'s own confirmations and dismissals for that tag.',
             "Return no tags when nothing matches — that is a correct answer.",
             "Optionally return concepts: a recurring, reusable topic that no existing tag covers. Skip trivial or one-off nouns. Usually return an empty concepts array.",
             'Also read the note and return "task" (null only when there is no open loop at all).',
@@ -461,7 +500,7 @@ export async function organizeMessage(
       supabase
         .from("tags")
         .select(
-          "id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id, maturity",
+          "id, name, normalized_name, color, context, is_enabled, auto_apply, match_keywords, group_id, maturity, exclusion_hint, positive_examples, negative_examples",
         )
 
         .eq("user_id", userId)
@@ -529,6 +568,9 @@ export async function organizeMessage(
           name: tag.name,
           context: (tag.context ?? "").trim(),
           group: tag.group_id ? (groupById.get(tag.group_id)?.name ?? null) : null,
+          exclusionHint: (tag.exclusion_hint ?? "").trim(),
+          positives: exampleList(tag.positive_examples),
+          negatives: exampleList(tag.negative_examples),
         })),
       });
       usedAi = true;
