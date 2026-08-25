@@ -381,18 +381,53 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
 
+      {/* Search sits directly under the header, above the views. */}
+      <div className="px-3 pb-1">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
+          <input
+            type="search"
+            value={queryInput}
+            onChange={(event) => setQueryInput(event.target.value)}
+            placeholder="Search notes"
+            aria-label="Search notes"
+            className="w-full rounded-md border border-sidebar-border bg-background/40 py-1.5 pl-8 pr-2 text-[12.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/45 focus:border-primary/40"
+          />
+        </div>
+      </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-4">
-        <Link
-          to="/"
-          search={{}}
-          onClick={onNavigate}
-          activeOptions={{ exact: true, includeSearch: false }}
-          className={cn(itemClass, selected.length === 0 && "bg-accent-quiet text-primary")}
-        >
-          <Inbox className="h-3.5 w-3.5" />
-          All
-        </Link>
+        {([
+          { label: "Inbox", items: INBOX_VIEWS },
+          { label: "Organize", items: ORGANIZE_VIEWS },
+        ] as const).map((block) => (
+          <div key={block.label}>
+            <p className={sectionLabelClass}>{block.label}</p>
+            {block.items.map((item) => {
+              const isActive = activeView === item.value && selected.length === 0;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => goView(item.value)}
+                  aria-pressed={isActive}
+                  className={cn(
+                    itemClass,
+                    "w-full text-left",
+                    isActive && "bg-accent-quiet text-primary",
+                  )}
+                >
+                  <item.icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  <span className="shrink-0 font-mono text-micro tabular-nums text-ai-muted">
+                    {viewCounts[item.value]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+
 
         {sections.map((section) => {
           const collapsed = section.group?.is_collapsed ?? false;
