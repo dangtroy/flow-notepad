@@ -243,7 +243,7 @@ export function Composer({
   }
 
   return (
-    <div className="border-t border-border bg-surface/80 backdrop-blur-sm">
+    <div className="border-t border-border bg-surface">
       <div className="flow-shell px-5 pb-5 pt-3.5 sm:px-8">
         {replyingTo && (
           <div className="mb-2 flex items-center gap-2 text-[12px] text-muted-foreground">
@@ -317,13 +317,13 @@ export function Composer({
             void insertImageFiles(editor, files);
           }}
           className={cn(
-            "relative rounded-xl border border-border bg-background/60 transition-colors duration-200",
+            "relative rounded-lg border border-border bg-background/60 transition-colors duration-200",
             focused && "border-border-strong",
             dropping && "border-primary/70 bg-primary/[0.04]",
           )}
         >
           {dropping && (
-            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/70 text-[12px] text-muted-foreground">
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/70 text-[12px] text-muted-foreground">
               <span className="inline-flex items-center gap-2">
                 <ImagePlus className="h-3.5 w-3.5" />
                 Drop images to add them to this note
@@ -333,7 +333,7 @@ export function Composer({
 
           {/* #hashtag autocomplete over this notepad's own tags. */}
           {menuOpen && (
-            <div className="absolute bottom-full left-3 z-20 mb-2 w-56 overflow-hidden rounded-lg border border-border bg-popover py-1 shadow-md">
+            <div className="absolute bottom-full left-3 z-20 mb-2 w-56 overflow-hidden rounded-lg border border-border bg-popover py-1 shadow-float">
               {suggestions.map((tag, index) => (
                 <button
                   key={tag.id}
@@ -453,7 +453,8 @@ export function Composer({
                   aria-hidden
                   className={cn(
                     "relative h-3.5 w-6 rounded-full transition-colors duration-150",
-                    always ? "bg-ai" : "bg-elevated",
+                    // On is an active state, and active is what the accent means.
+                    always ? "bg-primary" : "bg-elevated",
                   )}
                 >
                   <span
@@ -478,10 +479,10 @@ export function Composer({
                     "inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors duration-150",
                     isEmpty || cleaning
                       ? "text-muted-foreground/40"
-                      : "text-muted-foreground hover:bg-elevated hover:text-ai",
+                      : "text-muted-foreground hover:bg-elevated hover:text-foreground",
                   )}
                 >
-                  <Sparkles className={cn("h-3.5 w-3.5", cleaning && "animate-pulse text-ai")} />
+                  <Sparkles className={cn("h-3.5 w-3.5", cleaning && "animate-pulse text-primary")} />
                 </button>
               )}
 
@@ -492,19 +493,17 @@ export function Composer({
                 onClick={() => void submit()}
                 className={cn(
                   "inline-flex h-8 items-center justify-center gap-1.5 rounded-full transition-all duration-150",
-                  cleaning ? "px-3 bg-ai text-ai-foreground" : "w-8",
+                  cleaning ? "px-3 bg-primary text-primary-foreground" : "w-8",
                   !cleaning &&
                     (isEmpty
                       ? "bg-elevated text-muted-foreground/50"
-                      : always
-                        ? "bg-ai text-ai-foreground hover:brightness-110"
-                        : "bg-primary text-primary-foreground hover:brightness-110"),
+                      : "bg-primary text-primary-foreground hover:brightness-110"),
                 )}
               >
                 {cleaning ? (
                   <>
                     <Sparkles className="h-3.5 w-3.5 animate-pulse" />
-                    <span className="text-[11px]">Cleaning &amp; sending…</span>
+                    <span className="font-mono text-micro tracking-[0.01em]">Cleaning &amp; sending…</span>
                   </>
                 ) : (
                   <ArrowUp className="h-3.5 w-3.5" />

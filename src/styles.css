@@ -72,7 +72,6 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-ai: var(--ai);
-  --color-ai-foreground: var(--ai-foreground);
   --color-ai-muted: var(--ai-muted);
   --color-accent-quiet: var(--accent-quiet);
   --color-success: var(--success);
@@ -170,7 +169,6 @@
   /* The machine voice: every AI-generated and structural element. */
   --ai: #5b6472;
   --ai-muted: #9aa0aa;
-  --ai-foreground: #ffffff;
 
   --chart-1: oklch(0.55 0.09 232);
   --chart-2: oklch(0.55 0.08 160);
@@ -224,7 +222,6 @@
   --ring: #6e8bff;
   --ai: #9aa4b2;
   --ai-muted: #5c636e;
-  --ai-foreground: #0c0c0d;
 
   --chart-1: oklch(0.72 0.075 232);
   --chart-2: oklch(0.7 0.07 160);
