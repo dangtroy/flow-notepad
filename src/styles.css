@@ -131,112 +131,113 @@
 
 
 
-  --background: #fcfcfc;
-  --foreground: #1a1a1a;
+  /* Warm paper, never pure white; ink is soft charcoal, never pure black. */
+  --background: #faf9f7;
+  --foreground: #2c2b28;
   --surface: #ffffff;
-  --elevated: #f1f1f0;
+  --elevated: #f0efeb;
 
   --card: #ffffff;
-  --card-foreground: #1a1a1a;
+  --card-foreground: #2c2b28;
   --popover: #ffffff;
-  --popover-foreground: #1a1a1a;
+  --popover-foreground: #2c2b28;
 
   /* The one accent: interactive / active / focus. Never decorative. */
-  --primary: #3b5bdb;
+  --primary: #4a61c9;
   --primary-foreground: #ffffff;
   /* Accent wash behind an active nav row — the only tinted resting surface. */
-  --accent-quiet: #eef1fc;
+  --accent-quiet: #eef0f9;
 
-  --secondary: #f5f5f4;
-  --secondary-foreground: #1a1a1a;
+  --secondary: #f2f1ed;
+  --secondary-foreground: #2c2b28;
 
-  --muted: #f5f5f4;
-  --muted-foreground: #6b6b6b;
+  --muted: #f2f1ed;
+  --muted-foreground: #78756e;
 
   /* NOTE: --accent here is the neutral hover tone (shadcn's meaning), not the
      design system's accent colour. That one lives on --primary above. */
-  --accent: #f1f1f0;
-  --accent-foreground: #1a1a1a;
+  --accent: #f0efeb;
+  --accent-foreground: #2c2b28;
 
-  --destructive: #e03131;
+  --destructive: #c9483f;
   --destructive-foreground: #ffffff;
-  --success: #2f9e44;
+  --success: #3f8f52;
 
-  --border: #ececec;
-  --border-strong: #dadada;
-  --input: #dadada;
-  --ring: #3b5bdb;
+  --border: #e8e6e0;
+  --border-strong: #d6d3cb;
+  --input: #d6d3cb;
+  --ring: #4a61c9;
   /* The machine voice: every AI-generated and structural element. */
-  --ai: #5b6472;
-  --ai-muted: #9aa0aa;
+  --ai: #6a6862;
+  --ai-muted: #a2a09a;
 
-  --chart-1: oklch(0.55 0.09 232);
-  --chart-2: oklch(0.55 0.08 160);
-  --chart-3: oklch(0.6 0.09 90);
-  --chart-4: oklch(0.56 0.1 30);
-  --chart-5: oklch(0.55 0.07 300);
+  --chart-1: oklch(0.6 0.07 232);
+  --chart-2: oklch(0.6 0.06 160);
+  --chart-3: oklch(0.66 0.07 90);
+  --chart-4: oklch(0.62 0.08 30);
+  --chart-5: oklch(0.6 0.06 300);
 
-  --sidebar: #f5f5f4;
-  --sidebar-foreground: #1a1a1a;
-  --sidebar-primary: #3b5bdb;
+  --sidebar: #f4f2ee;
+  --sidebar-foreground: #2c2b28;
+  --sidebar-accent: #e9e7e1;
+  --sidebar-primary: #4a61c9;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ececec;
-  --sidebar-accent-foreground: #1a1a1a;
-  --sidebar-border: #ececec;
-  --sidebar-ring: #3b5bdb;
+  --sidebar-accent-foreground: #2c2b28;
+  --sidebar-border: #e8e6e0;
+  --sidebar-ring: #4a61c9;
 }
 
 .dark {
-  /* Near-black base, slightly lighter surfaces, hairline borders. */
-  --background: #0c0c0d;
-  --foreground: #ededed;
-  --surface: #17181a;
-  --elevated: #202124;
+  /* Soft warm charcoal, not black; text is off-white so it never glares. */
+  --background: #1b1b1d;
+  --foreground: #e4e2de;
+  --surface: #212124;
+  --elevated: #2a2a2e;
 
-  --card: #17181a;
-  --card-foreground: #ededed;
-  --popover: #17181a;
-  --popover-foreground: #ededed;
+  --card: #212124;
+  --card-foreground: #e4e2de;
+  --popover: #242427;
+  --popover-foreground: #e4e2de;
 
-  --primary: #6e8bff;
-  --primary-foreground: #0c0c0d;
-  --accent-quiet: #1a1e2e;
+  --primary: #8b9ff0;
+  --primary-foreground: #1b1b1d;
+  --accent-quiet: #272a35;
 
-  --secondary: #1c1d20;
-  --secondary-foreground: #ededed;
+  --secondary: #26262a;
+  --secondary-foreground: #e4e2de;
 
-  --muted: #1c1d20;
-  --muted-foreground: #9a9a9a;
+  --muted: #26262a;
+  --muted-foreground: #a3a09a;
 
   /* Neutral hover tone, not the design system's accent — see :root. */
-  --accent: #202124;
-  --accent-foreground: #ededed;
+  --accent: #2a2a2e;
+  --accent-foreground: #e4e2de;
 
-  --destructive: #ff6b6b;
-  --destructive-foreground: #0c0c0d;
-  --success: #51cf66;
+  --destructive: #e08079;
+  --destructive-foreground: #1b1b1d;
+  --success: #77c48c;
 
-  --border: #232427;
-  --border-strong: #303237;
-  --input: #303237;
-  --ring: #6e8bff;
-  --ai: #9aa4b2;
-  --ai-muted: #5c636e;
+  --border: #303034;
+  --border-strong: #3d3d43;
+  --input: #3d3d43;
+  --ring: #8b9ff0;
+  --ai: #a8a5a0;
+  --ai-muted: #6f6d68;
 
-  --chart-1: oklch(0.72 0.075 232);
-  --chart-2: oklch(0.7 0.07 160);
-  --chart-3: oklch(0.75 0.08 90);
-  --chart-4: oklch(0.68 0.09 30);
-  --chart-5: oklch(0.7 0.06 300);
+  --chart-1: oklch(0.72 0.06 232);
+  --chart-2: oklch(0.72 0.055 160);
+  --chart-3: oklch(0.76 0.06 90);
+  --chart-4: oklch(0.7 0.07 30);
+  --chart-5: oklch(0.72 0.05 300);
 
-  --sidebar: #141416;
-  --sidebar-foreground: #ededed;
-  --sidebar-primary: #6e8bff;
-  --sidebar-primary-foreground: #0c0c0d;
-  --sidebar-accent: #232427;
-  --sidebar-accent-foreground: #ededed;
-  --sidebar-border: #232427;
-  --sidebar-ring: #6e8bff;
+  --sidebar: #191919;
+  --sidebar-foreground: #e4e2de;
+  --sidebar-primary: #8b9ff0;
+  --sidebar-primary-foreground: #1b1b1d;
+  --sidebar-accent: #2a2a2e;
+  --sidebar-accent-foreground: #e4e2de;
+  --sidebar-border: #2c2c30;
+  --sidebar-ring: #8b9ff0;
 }
 
 @layer base {

@@ -30,6 +30,7 @@ import { tagIdsFrom, tagsParam, toggleTagId } from "@/lib/tag-filter";
 import { TAG_SORTS, buildTagSections, moveTagWithin, sortTags, type TagSection } from "@/lib/tag-organization";
 import { useAppearance } from "@/lib/use-appearance";
 import { useActiveNotepadId } from "@/lib/use-notepad";
+import { useSettingsDialog } from "@/lib/use-settings-dialog";
 import { NotepadSwitcher } from "./notepad-switcher";
 import { SuggestionsBell } from "./suggestions-bell";
 
@@ -48,6 +49,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const tags = useTags();
   const groups = useTagGroups();
   const { appearance, update, mode: themeMode } = useAppearance();
+  const { openSettings } = useSettingsDialog();
   const sort = appearance.tagSort;
 
   const clearDone = useServerFn(clearCompleted);
@@ -335,7 +337,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                   onClick={() => section.kind === "group" && applyGroup(section)}
                   disabled={section.kind !== "group"}
                   className={cn(
-                    "flex min-w-0 flex-1 items-center gap-2 font-mono text-micro uppercase tracking-[0.16em] text-muted-foreground/70",
+                    "flex min-w-0 flex-1 items-center gap-2 py-1 text-[11px] font-medium text-muted-foreground/60",
                     section.kind === "group" && "transition-colors hover:text-foreground",
                   )}
                 >
@@ -348,7 +350,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                   ) : null}
                   <span className="min-w-0 flex-1 truncate text-left">{section.label}</span>
                   {section.kind === "group" && (
-                    <span className="shrink-0 tracking-normal">{section.count}</span>
+                    <span className="shrink-0 font-mono tabular-nums">{section.count}</span>
                   )}
                 </button>
               </div>
@@ -399,10 +401,17 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           <CheckCheck className="h-3.5 w-3.5" />
           Clear done notes
         </button>
-        <Link to="/settings" onClick={onNavigate} className={itemClass}>
+        <button
+          type="button"
+          onClick={() => {
+            onNavigate?.();
+            openSettings();
+          }}
+          className={cn(itemClass, "w-full text-left")}
+        >
           <Settings className="h-3.5 w-3.5" />
           Settings
-        </Link>
+        </button>
         <button type="button" onClick={signOut} className={cn(itemClass, "w-full text-left")}>
           <LogOut className="h-3.5 w-3.5" />
           Sign out

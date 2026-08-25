@@ -39,6 +39,7 @@ import { tagIdsFrom, type FilterMode } from "@/lib/tag-filter";
 import { useAppearance } from "@/lib/use-appearance";
 import { referenceKey, tagsKey, useReferenceNotes } from "@/lib/use-tags";
 import { useActiveNotepadId } from "@/lib/use-notepad";
+import { useSettingsDialog } from "@/lib/use-settings-dialog";
 import { Composer, type CleanupMeta } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
 import { AttentionRail } from "@/components/flow/attention-rail";
@@ -56,6 +57,8 @@ export const Route = createFileRoute("/_authenticated/")({
     mode?: FilterMode | undefined;
     view?: StreamView | undefined;
     q?: string | undefined;
+    /** Set by the legacy /settings link: opens the settings modal on arrival. */
+    settings?: true | undefined;
   } => ({
     tags:
       typeof search["tags"] === "string" && search["tags"] ? (search["tags"] as string) : undefined,
@@ -66,6 +69,8 @@ export const Route = createFileRoute("/_authenticated/")({
     view: STREAM_VIEWS.some((option) => option.value === search["view"])
       ? (search["view"] as StreamView)
       : undefined,
+    settings:
+      search["settings"] === true || search["settings"] === "true" ? (true as const) : undefined,
   }),
   head: () => ({
     meta: [
@@ -163,6 +168,16 @@ function FlowPage() {
     }, 300);
     return () => window.clearTimeout(timer);
   }, [queryInput, query, navigate]);
+
+  // ?settings=true (from the old /settings path) opens the modal, then clears.
+  const { openSettings } = useSettingsDialog();
+  useEffect(() => {
+    if (!search.settings) return;
+    openSettings();
+    void navigate({ search: (prev) => ({ ...prev, settings: undefined }), replace: true });
+  }, [search.settings, openSettings, navigate]);
+
+
 
   // Four views over the same notepad: All, Today, Pinned, and Reference.
   const view: StreamView = search.view ?? "all";

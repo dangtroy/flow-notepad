@@ -53,21 +53,18 @@ export function NotepadsSettings() {
   }
 
   return (
-    <section className="mt-14">
-      <h2 className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">
-        Notepads
-      </h2>
-      <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+    <div>
+      <p className="text-[13px] leading-relaxed text-muted-foreground">
         Each notepad is its own continuous stream, with its own notes, tags and organizing rules.
       </p>
 
-      <ul className="mt-5 space-y-2">
+      <ul className="mt-4 space-y-2">
         {notepads.map((notepad, index) => (
           <li
             key={notepad.id}
             className={cn(
               "rounded-lg border border-border px-3 py-2.5",
-              notepad.id === activeId && "border-primary/50",
+              notepad.id === activeId && "border-primary/40 bg-accent-quiet/40",
             )}
           >
             <div className="flex items-center gap-2">
@@ -204,6 +201,6 @@ export function NotepadsSettings() {
           </li>
         ))}
       </ul>
-    </section>
+    </div>
   );
 }

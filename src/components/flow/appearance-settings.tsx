@@ -7,237 +7,201 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-
-type Option<T> = { label: string; value: T };
+import {
+  SettingsChoices,
+  SettingsHint,
+  SettingsRow,
+} from "@/components/flow/settings/settings-primitives";
 
 /** Curated choices only — never raw CSS controls. */
 export function AppearanceSettings() {
   const { appearance, update, mode } = useAppearance();
 
   return (
-    <section className="mt-14">
-      <h2 className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">
-        Appearance
-      </h2>
-      <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+    <div>
+      <SettingsHint>
         A few quiet choices about how Flow reads. Everything applies instantly and is remembered on
         this device.
-      </p>
+      </SettingsHint>
 
-      <div className="mt-6 space-y-7">
-        <Row label="Theme">
-          <Choices
-            value={appearance.theme}
-            options={[
-              { label: "Light", value: "light" },
-              { label: "Dark", value: "dark" },
-              { label: "System", value: "system" },
-            ]}
-            onSelect={(theme) => update({ theme })}
-          />
-        </Row>
+      <div className="mt-4 divide-y divide-border border-t border-border">
+        <div className="py-2.5">
+          <SettingsRow label="Theme">
+            <SettingsChoices
+              value={appearance.theme}
+              options={[
+                { label: "Light", value: "light" },
+                { label: "Dark", value: "dark" },
+                { label: "System", value: "system" },
+              ]}
+              onSelect={(theme) => update({ theme })}
+            />
+          </SettingsRow>
+        </div>
 
-        <Row label="Accent">
-          <div className="flex flex-wrap items-center gap-2">
-            {(Object.keys(ACCENTS) as AccentKey[]).map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => update({ accent: key })}
-                aria-label={ACCENTS[key].label}
-                aria-pressed={appearance.accent === key}
-                className={cn(
-                  "h-5 w-5 rounded-full ring-offset-2 ring-offset-background transition-shadow",
-                  appearance.accent === key && "ring-1 ring-border-strong",
-                )}
-                style={{
-                  backgroundColor: mode === "dark" ? ACCENTS[key].dark : ACCENTS[key].light,
-                }}
-              />
-            ))}
-          </div>
-        </Row>
+        <div className="py-2.5">
+          <SettingsRow label="Accent">
+            <div className="flex flex-wrap items-center gap-2">
+              {(Object.keys(ACCENTS) as AccentKey[]).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => update({ accent: key })}
+                  aria-label={ACCENTS[key].label}
+                  aria-pressed={appearance.accent === key}
+                  className={cn(
+                    "h-4 w-4 rounded-full ring-offset-2 ring-offset-background transition-shadow",
+                    appearance.accent === key && "ring-1 ring-border-strong",
+                  )}
+                  style={{
+                    backgroundColor: mode === "dark" ? ACCENTS[key].dark : ACCENTS[key].light,
+                  }}
+                />
+              ))}
+            </div>
+          </SettingsRow>
+        </div>
+
+        <div className="py-2.5">
+          <SettingsRow label="Text size">
+            <SettingsChoices
+              value={appearance.textSize}
+              options={[
+                { label: "Small", value: "small" },
+                { label: "Default", value: "default" },
+                { label: "Large", value: "large" },
+              ]}
+              onSelect={(textSize) => update({ textSize })}
+            />
+          </SettingsRow>
+        </div>
+
+        <div className="py-2.5">
+          <SettingsRow label="Density">
+            <SettingsChoices
+              value={appearance.density}
+              options={[
+                { label: "Compact", value: "compact" },
+                { label: "Comfortable", value: "comfortable" },
+                { label: "Spacious", value: "spacious" },
+              ]}
+              onSelect={(density) => update({ density })}
+            />
+          </SettingsRow>
+        </div>
+
+        <div className="py-2.5">
+          <SettingsRow label="Timestamps & tags" description="Show them at rest or on hover">
+            <SettingsChoices
+              value={appearance.rowMeta}
+              options={[
+                { label: "Always", value: "always" },
+                { label: "On hover", value: "hover" },
+              ]}
+              onSelect={(rowMeta) => update({ rowMeta })}
+            />
+          </SettingsRow>
+        </div>
       </div>
 
-      {/* Everything beyond theme and accent is tucked away until wanted. */}
-      <Accordion type="single" collapsible className="mt-5">
-        <AccordionItem value="more" className="border-border/70">
-          <AccordionTrigger className="text-[13px] text-muted-foreground hover:no-underline">
-            More appearance options
+      {/* Everything beyond the basics is tucked away until wanted. */}
+      <Accordion type="single" collapsible className="mt-1">
+        <AccordionItem value="more" className="border-b-0">
+          <AccordionTrigger className="py-2.5 text-[13px] text-muted-foreground hover:no-underline">
+            Layout &amp; borders
           </AccordionTrigger>
           <AccordionContent>
-            <div className="space-y-7 pt-2">
-              <Row label="Text size">
-                <Choices
-                  value={appearance.textSize}
-                  options={[
-                    { label: "Small", value: "small" },
-                    { label: "Default", value: "default" },
-                    { label: "Large", value: "large" },
-                  ]}
-                  onSelect={(textSize) => update({ textSize })}
-                />
-              </Row>
+            <div className="divide-y divide-border border-t border-border">
+              <div className="py-2.5">
+                <SettingsRow label="Content width">
+                  <SettingsChoices
+                    value={appearance.contentWidth}
+                    options={[
+                      { label: "Narrow", value: "narrow" },
+                      { label: "Default", value: "default" },
+                      { label: "Wide", value: "wide" },
+                      { label: "Full", value: "full" },
+                    ]}
+                    onSelect={(contentWidth) => update({ contentWidth })}
+                  />
+                </SettingsRow>
+              </div>
 
-              <Row label="Density">
-                <Choices
-                  value={appearance.density}
-                  options={[
-                    { label: "Compact", value: "compact" },
-                    { label: "Comfortable", value: "comfortable" },
-                    { label: "Spacious", value: "spacious" },
-                  ]}
-                  onSelect={(density) => update({ density })}
-                />
-              </Row>
+              <div className="py-2.5">
+                <SettingsRow label="Reply spacing">
+                  <SettingsChoices
+                    value={appearance.replySpacing}
+                    options={[
+                      { label: "Compact", value: "compact" },
+                      { label: "Comfortable", value: "comfortable" },
+                      { label: "Spacious", value: "spacious" },
+                    ]}
+                    onSelect={(replySpacing) => update({ replySpacing })}
+                  />
+                </SettingsRow>
+              </div>
 
-              <Row label="Content width">
-                <Choices
-                  value={appearance.contentWidth}
-                  options={[
-                    { label: "Narrow", value: "narrow" },
-                    { label: "Default", value: "default" },
-                    { label: "Wide", value: "wide" },
-                    { label: "Full", value: "full" },
-                  ]}
-                  onSelect={(contentWidth) => update({ contentWidth })}
-                />
-              </Row>
+              <div className="py-2.5">
+                <SettingsRow label="Border colour">
+                  <SettingsChoices
+                    value={appearance.borderTone}
+                    options={[
+                      { label: "Subtle", value: "subtle" },
+                      { label: "Medium", value: "medium" },
+                      { label: "Strong", value: "strong" },
+                      { label: "Accent", value: "accent" },
+                    ]}
+                    onSelect={(borderTone) => update({ borderTone })}
+                  />
+                </SettingsRow>
+              </div>
 
-              <Row label="Reply spacing">
-                <Choices
-                  value={appearance.replySpacing}
-                  options={[
-                    { label: "Compact", value: "compact" },
-                    { label: "Comfortable", value: "comfortable" },
-                    { label: "Spacious", value: "spacious" },
-                  ]}
-                  onSelect={(replySpacing) => update({ replySpacing })}
-                />
-              </Row>
+              <div className="py-2.5">
+                <SettingsRow label="Border thickness">
+                  <SettingsChoices
+                    value={appearance.borderThickness}
+                    options={[
+                      { label: "Hairline", value: "hairline" },
+                      { label: "Thin", value: "thin" },
+                      { label: "Medium", value: "medium" },
+                      { label: "Thick", value: "thick" },
+                    ]}
+                    onSelect={(borderThickness) => update({ borderThickness })}
+                  />
+                </SettingsRow>
+              </div>
 
-              <Row label="Border colour">
-                <Choices
-                  value={appearance.borderTone}
-                  options={[
-                    { label: "Subtle", value: "subtle" },
-                    { label: "Medium", value: "medium" },
-                    { label: "Strong", value: "strong" },
-                    { label: "Accent", value: "accent" },
-                  ]}
-                  onSelect={(borderTone) => update({ borderTone })}
-                />
-              </Row>
+              <div className="py-2.5">
+                <SettingsRow label="Sidebar width">
+                  <SettingsChoices
+                    value={appearance.sidebarWidth}
+                    options={[
+                      { label: "Narrow", value: "narrow" },
+                      { label: "Default", value: "default" },
+                      { label: "Wide", value: "wide" },
+                    ]}
+                    onSelect={(sidebarWidth) => update({ sidebarWidth })}
+                  />
+                </SettingsRow>
+              </div>
 
-              <Row label="Border thickness">
-                <Choices
-                  value={appearance.borderThickness}
-                  options={[
-                    { label: "Hairline", value: "hairline" },
-                    { label: "Thin", value: "thin" },
-                    { label: "Medium", value: "medium" },
-                    { label: "Thick", value: "thick" },
-                  ]}
-                  onSelect={(borderThickness) => update({ borderThickness })}
-                />
-              </Row>
-
-              <Row label="Sidebar width">
-                <Choices
-                  value={appearance.sidebarWidth}
-                  options={[
-                    { label: "Narrow", value: "narrow" },
-                    { label: "Default", value: "default" },
-                    { label: "Wide", value: "wide" },
-                  ]}
-                  onSelect={(sidebarWidth) => update({ sidebarWidth })}
-                />
-              </Row>
-
-              <Row label="Sidebar order">
-                <Choices
-                  value={appearance.tagSort}
-                  options={[
-                    { label: "Name", value: "alphabetical" },
-                    { label: "Number of tags", value: "most-used" },
-                    { label: "Manual", value: "manual" },
-                  ]}
-                  onSelect={(tagSort) => update({ tagSort })}
-                />
-              </Row>
-
-              <Row label="Timestamps &amp; tags">
-                <Choices
-                  value={appearance.rowMeta}
-                  options={[
-                    { label: "Always show", value: "always" },
-                    { label: "On hover", value: "hover" },
-                  ]}
-                  onSelect={(rowMeta) => update({ rowMeta })}
-                />
-              </Row>
+              <div className="py-2.5">
+                <SettingsRow label="Sidebar order">
+                  <SettingsChoices
+                    value={appearance.tagSort}
+                    options={[
+                      { label: "Name", value: "alphabetical" },
+                      { label: "Most used", value: "most-used" },
+                      { label: "Manual", value: "manual" },
+                    ]}
+                    onSelect={(tagSort) => update({ tagSort })}
+                  />
+                </SettingsRow>
+              </div>
             </div>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-    </section>
-  );
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <span className="text-[15px] text-foreground">{label}</span>
-      {children}
     </div>
-  );
-}
-
-function Choices<T extends string>({
-  value,
-  options,
-  onSelect,
-}: {
-  value: T;
-  options: Array<Option<T>>;
-  onSelect: (value: T) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((option) => (
-        <Toggle
-          key={option.label}
-          label={option.label}
-          active={option.value === value}
-          onClick={() => onSelect(option.value)}
-        />
-      ))}
-    </div>
-  );
-}
-
-function Toggle({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "rounded-md border px-3 py-1.5 text-[13px] transition-colors",
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {label}
-    </button>
   );
 }
