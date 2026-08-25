@@ -428,13 +428,14 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         ))}
 
+        <p className={sectionLabelClass}>Tags</p>
 
         {sections.map((section) => {
           const collapsed = section.group?.is_collapsed ?? false;
           return (
             <div
               key={section.kind + (section.group?.id ?? "")}
-              className="pt-5"
+              className="pt-2"
               onDragOver={(event) => {
                 if (dragTagId) event.preventDefault();
               }}
