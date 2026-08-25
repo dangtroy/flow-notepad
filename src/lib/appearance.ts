@@ -16,6 +16,8 @@ export type ReplySpacing = "compact" | "comfortable" | "spacious";
 export type BorderTone = "subtle" | "medium" | "strong" | "accent";
 export type BorderThickness = "hairline" | "thin" | "medium" | "thick";
 export type TagSortChoice = "alphabetical" | "most-used" | "manual";
+/** Whether a row's quiet metadata line rests visible or waits for hover. */
+export type RowMeta = "always" | "hover";
 
 export type Appearance = {
   theme: ThemeChoice;
@@ -23,8 +25,12 @@ export type Appearance = {
   textSize: TextSize;
   density: Density;
   contentWidth: ContentWidth;
-  /** When on, row details stay revealed instead of waiting for hover. */
-  alwaysShowDetails: boolean;
+  /**
+   * The metadata tier — timestamp and tags. Rests visible by default so a note
+   * reads as content + one quiet line; set to "hover" for a text-only stream.
+   * Row controls are always hover-only regardless (touch devices excepted).
+   */
+  rowMeta: RowMeta;
   sidebarWidth: SidebarWidth;
   replySpacing: ReplySpacing;
   borderTone: BorderTone;
@@ -38,7 +44,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   textSize: "default",
   density: "comfortable",
   contentWidth: "default",
-  alwaysShowDetails: false,
+  rowMeta: "always",
   sidebarWidth: "default",
   replySpacing: "comfortable",
   borderTone: "subtle",

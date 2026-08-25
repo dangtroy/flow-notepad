@@ -847,7 +847,7 @@ function FlowPage() {
           <div
             className={cn(
               "flow-stream flow-shell flex min-h-full flex-col px-5 pb-8 pt-8 sm:px-8",
-              appearance.alwaysShowDetails && "always-show",
+              appearance.rowMeta === "hover" && "meta-on-hover",
               // Only the live stream reads bottom-up; the saved views are lists.
               view === "all" || view === "today" ? "justify-end" : "justify-start",
             )}

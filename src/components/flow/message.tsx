@@ -311,29 +311,25 @@ function MessageRowBase({
                   <div className="flex flex-wrap items-center gap-3 pt-1.5">
                     {tags.map((tag) => {
                       // A tag Flow is still learning is offered, not asserted:
-                      // identical chip styling, but a leading "?" + ✓/✕ controls.
+                      // a leading "?", the fainter AI tone, and ✓/✕ controls.
                       const isSuggested = message.suggestedTagIds?.includes(tag.id) ?? false;
+                      const isTentative = message.tentativeTagIds?.includes(tag.id) ?? false;
                       return (
                         <span
                           key={tag.id}
-                          className={cn(
-                            "group/tag inline-flex items-center gap-1",
-                            // A hedged AI guess reads lighter than a sure one.
-                            !isSuggested &&
-                              message.tentativeTagIds?.includes(tag.id) &&
-                              "opacity-55",
-                          )}
+                          className="group/tag inline-flex items-center gap-1"
                           title={isSuggested ? `Flow suggests ${tag.name}` : undefined}
                         >
                           {isSuggested && (
                             <span
                               aria-hidden
-                              className="font-mono text-[11px] leading-none text-muted-foreground"
+                              className="font-mono text-micro leading-none text-ai-muted"
                             >
                               ?
                             </span>
                           )}
-                          <TagLink tag={tag} />
+                          {/* Unsure reads fainter than sure — never a badge. */}
+                          <TagLink tag={tag} muted={isSuggested || isTentative} />
 
                           {isSuggested && onConfirmTag && (
                             <button
@@ -345,7 +341,7 @@ function MessageRowBase({
                                 event.currentTarget.blur();
                                 onConfirmTag(tag.id);
                               }}
-                              className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-muted-foreground/60 transition-colors duration-150 hover:text-foreground"
+                              className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-ai-muted transition-colors duration-150 hover:text-foreground"
                             >
                               <Check className="h-2.5 w-2.5 [stroke-width:1.8]" />
                             </button>
@@ -369,7 +365,7 @@ function MessageRowBase({
                                 }
                               }}
                               className={cn(
-                                "inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-muted-foreground/50 transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/tag:opacity-100 max-[939px]:opacity-100 [@media(hover:none)]:opacity-100",
+                                "inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-ai-muted transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/tag:opacity-100 max-[939px]:opacity-100 [@media(hover:none)]:opacity-100",
                                 isSuggested ? "opacity-100" : "opacity-0",
                               )}
                             >

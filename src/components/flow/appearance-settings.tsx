@@ -166,11 +166,14 @@ export function AppearanceSettings() {
                 />
               </Row>
 
-              <Row label="Row details">
-                <Toggle
-                  label="Always show details"
-                  active={appearance.alwaysShowDetails}
-                  onClick={() => update({ alwaysShowDetails: !appearance.alwaysShowDetails })}
+              <Row label="Timestamps &amp; tags">
+                <Choices
+                  value={appearance.rowMeta}
+                  options={[
+                    { label: "Always show", value: "always" },
+                    { label: "On hover", value: "hover" },
+                  ]}
+                  onSelect={(rowMeta) => update({ rowMeta })}
                 />
               </Row>
             </div>

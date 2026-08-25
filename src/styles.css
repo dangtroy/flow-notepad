@@ -489,28 +489,18 @@
     position: relative;
   }
 
-  .flow-meta,
-  .flow-acts {
-    opacity: 0;
-    transition: opacity 130ms ease-out;
-  }
-
-  .flow-row:hover > .flow-meta,
-  .flow-row:focus-within > .flow-meta,
-  .flow-row:hover > .flow-acts,
-  .flow-row:focus-within > .flow-acts,
-  .flow-row-open > .flow-meta,
-  .flow-row-open > .flow-acts,
-  .flow-stream.always-show .flow-row > .flow-meta,
-  .flow-stream.always-show .flow-row > .flow-acts {
+  /* Tier two — metadata. One quiet line that rests visible, so a note reads as
+     content plus its timestamp and tags without being touched. */
+  .flow-meta {
     opacity: 1;
+    transition: opacity 130ms ease-out;
   }
 
   /* Tags expand with grid rows — animating height would thrash the layout. */
   .flow-tagwrap {
     display: grid;
-    grid-template-rows: 0fr;
-    opacity: 0;
+    grid-template-rows: 1fr;
+    opacity: 1;
     transition:
       grid-template-rows 160ms ease-out,
       opacity 160ms ease-out;
@@ -520,11 +510,39 @@
     overflow: hidden;
   }
 
-  .flow-row:hover .flow-tagwrap,
-  .flow-row:focus-within .flow-tagwrap,
-  .flow-row-open .flow-tagwrap,
-  .flow-stream.always-show .flow-tagwrap {
+  /* Opted into the text-only stream: the metadata tier waits for the row. */
+  .flow-stream.meta-on-hover .flow-meta {
+    opacity: 0;
+  }
+
+  .flow-stream.meta-on-hover .flow-tagwrap {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+
+  .flow-stream.meta-on-hover .flow-row:hover > .flow-meta,
+  .flow-stream.meta-on-hover .flow-row:focus-within > .flow-meta,
+  .flow-stream.meta-on-hover .flow-row-open > .flow-meta {
+    opacity: 1;
+  }
+
+  .flow-stream.meta-on-hover .flow-row:hover .flow-tagwrap,
+  .flow-stream.meta-on-hover .flow-row:focus-within .flow-tagwrap,
+  .flow-stream.meta-on-hover .flow-row-open .flow-tagwrap {
     grid-template-rows: 1fr;
+    opacity: 1;
+  }
+
+  /* Tier three — controls. Hover only, and always in space already reserved
+     for them, so revealing them never shifts a line of text. */
+  .flow-acts {
+    opacity: 0;
+    transition: opacity 130ms ease-out;
+  }
+
+  .flow-row:hover > .flow-acts,
+  .flow-row:focus-within > .flow-acts,
+  .flow-row-open > .flow-acts {
     opacity: 1;
   }
 
@@ -536,14 +554,17 @@
     }
   }
 
-  /* No hover on touch, and no room for margins on narrow screens. */
+  /* No hover on touch, and no room for margins on narrow screens. Selectors
+     match the meta-on-hover ones so they win rather than tie. */
   @media (max-width: 939px), (hover: none) {
-    .flow-meta,
-    .flow-acts {
+    .flow-acts,
+    .flow-stream .flow-meta,
+    .flow-stream.meta-on-hover .flow-meta {
       opacity: 1;
     }
 
-    .flow-tagwrap {
+    .flow-stream .flow-tagwrap,
+    .flow-stream.meta-on-hover .flow-tagwrap {
       grid-template-rows: 1fr;
       opacity: 1;
     }

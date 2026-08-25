@@ -10,7 +10,16 @@ import { cn } from "@/lib/utils";
  * machine voice: mono, in the AI tone. The entity's own colour appears only as
  * the dot — never as the text, never as a fill. Links to that tag's view.
  */
-export function TagLink({ tag, className }: { tag: FlowTag; className?: string }) {
+export function TagLink({
+  tag,
+  muted = false,
+  className,
+}: {
+  tag: FlowTag;
+  /** Anything Flow is not yet sure of — suggested or hedged — reads fainter. */
+  muted?: boolean;
+  className?: string;
+}) {
   const accent = tagAccent(tag.color);
 
   return (
@@ -20,13 +29,14 @@ export function TagLink({ tag, className }: { tag: FlowTag; className?: string }
       onClick={(event) => event.stopPropagation()}
       title={`Show only ${tag.name}`}
       className={cn(
-        "inline-flex items-center gap-1.5 font-mono text-micro leading-none tracking-[0.01em] text-ai transition-opacity hover:opacity-80",
+        "inline-flex items-center gap-1.5 font-mono text-micro leading-none tracking-[0.01em] transition-opacity hover:opacity-80",
+        muted ? "text-ai-muted" : "text-ai",
         className,
       )}
     >
       <span
         aria-hidden
-        className="h-[5px] w-[5px] shrink-0 rounded-full"
+        className={cn("h-[5px] w-[5px] shrink-0 rounded-full", muted && "opacity-60")}
         style={{ backgroundColor: accent }}
       />
       {tag.name}
