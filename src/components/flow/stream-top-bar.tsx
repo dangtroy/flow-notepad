@@ -73,7 +73,7 @@ export function StreamTopBar({
               )}
             >
               {option.label}
-              <span className="rounded-full bg-elevated px-1.5 py-0.5 text-[10px] tracking-normal tabular-nums text-muted-foreground/70">
+              <span className="rounded-full bg-elevated px-1.5 py-0.5 font-mono text-micro tracking-normal tabular-nums text-ai-muted">
                 {counts[option.value]}
               </span>
             </button>
@@ -90,7 +90,7 @@ export function StreamTopBar({
         >
           <PanelRight className="h-3.5 w-3.5" />
           {attentionCount > 0 && (
-            <span className="rounded-full bg-elevated px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground/80">
+            <span className="rounded-full bg-elevated px-1.5 py-0.5 font-mono text-micro tabular-nums text-ai-muted">
               {attentionCount}
             </span>
           )}

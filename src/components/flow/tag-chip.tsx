@@ -6,8 +6,9 @@ import { tagAccent } from "@/lib/tag-colors";
 import { cn } from "@/lib/utils";
 
 /**
- * The canonical stream tag: a small entity dot, then the name in the entity's
- * own colour. No pill, no border — and it links to that tag's filtered view.
+ * The canonical stream tag. A tag is machine-written, so it speaks in the
+ * machine voice: mono, in the AI tone. The entity's own colour appears only as
+ * the dot — never as the text, never as a fill. Links to that tag's view.
  */
 export function TagLink({ tag, className }: { tag: FlowTag; className?: string }) {
   const accent = tagAccent(tag.color);
@@ -19,10 +20,9 @@ export function TagLink({ tag, className }: { tag: FlowTag; className?: string }
       onClick={(event) => event.stopPropagation()}
       title={`Show only ${tag.name}`}
       className={cn(
-        "inline-flex items-center gap-1.5 font-mono text-[11px] leading-none tracking-tight transition-opacity hover:opacity-80",
+        "inline-flex items-center gap-1.5 font-mono text-micro leading-none tracking-[0.01em] text-ai transition-opacity hover:opacity-80",
         className,
       )}
-      style={{ color: accent }}
     >
       <span
         aria-hidden
@@ -46,11 +46,12 @@ export function TagChip({
 }) {
   const accent = tagAccent(tag.color);
 
+  // The one variant that deliberately trades the dot for colour-coded text.
   if (style === "text") {
     return (
       <span
-        className={cn("text-[11px] leading-none text-muted-foreground/80", className)}
-        style={{ color: `color-mix(in oklab, ${accent} 55%, var(--muted-foreground))` }}
+        className={cn("font-mono text-micro leading-none tracking-[0.01em]", className)}
+        style={{ color: `color-mix(in oklab, ${accent} 55%, var(--ai))` }}
       >
         {tag.name}
       </span>
@@ -61,7 +62,7 @@ export function TagChip({
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 text-[11px] leading-none text-muted-foreground",
+          "inline-flex items-center gap-1.5 font-mono text-micro leading-none tracking-[0.01em] text-ai",
           className,
         )}
       >
@@ -78,7 +79,7 @@ export function TagChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-[2px] text-[11px] leading-none text-muted-foreground",
+        "inline-flex items-center gap-1.5 rounded-md border px-1.5 py-[2px] font-mono text-micro leading-none tracking-[0.01em] text-ai",
         className,
       )}
       style={{ borderColor: `color-mix(in oklab, ${accent} 32%, transparent)` }}

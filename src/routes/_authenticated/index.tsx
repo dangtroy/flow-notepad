@@ -910,7 +910,7 @@ function FlowPage() {
                       <section key={group.label} className={cn("mb-8", "last:mb-0")}>
                         <div className={"mb-4 flex items-center gap-3"}>
                           <span className="h-px flex-1 bg-border" />
-                          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/50">
+                          <span className="font-mono text-micro uppercase tracking-[0.18em] text-muted-foreground/70">
                             {group.label}
                           </span>
                           <span className="h-px flex-1 bg-border" />

@@ -76,10 +76,10 @@ export function ReferenceList({
       {groups.map((group) => (
         <section key={group.key}>
           <div className="mb-1.5 flex items-center gap-3">
-            <h2 className="text-[10.5px] font-medium uppercase tracking-[0.14em] text-muted-foreground/55">
+            <h2 className="font-mono text-micro uppercase tracking-[0.14em] text-ai">
               {group.label}
             </h2>
-            <span className="text-[10.5px] tabular-nums text-muted-foreground/40">
+            <span className="font-mono text-micro tabular-nums text-ai-muted">
               {group.notes.length}
             </span>
             <span aria-hidden className="h-px flex-1 bg-border/60" />
@@ -155,7 +155,7 @@ function ReferenceRow({
         className="flow-meta hidden w-24 shrink-0 flex-row items-center gap-2 sm:flex"
         style={{ height: "26.4px" }}
       >
-        <div className="text-[11px] leading-none tabular-nums tracking-wide whitespace-nowrap text-muted-foreground/55">
+        <div className="font-mono text-micro leading-none tabular-nums tracking-[0.01em] whitespace-nowrap text-ai-muted">
           <time dateTime={note.updated_at}>{timeAgo(note.updated_at)}</time>
         </div>
       </div>
@@ -165,7 +165,7 @@ function ReferenceRow({
           <MessageEditor initialHtml={html} onCancel={onCancelEdit} onSave={onSaveEdit} />
         ) : (
           <>
-            <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] tabular-nums tracking-wide text-muted-foreground/55 sm:hidden">
+            <div className="mb-1 flex flex-wrap items-center gap-2 font-mono text-micro tabular-nums tracking-[0.01em] text-ai-muted sm:hidden">
               <time dateTime={note.updated_at}>{timeAgo(note.updated_at)}</time>
             </div>
 

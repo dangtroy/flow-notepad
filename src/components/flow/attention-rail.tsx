@@ -15,7 +15,7 @@ const PREVIEW = 2;
 
 function Badge({ value }: { value: number }) {
   return (
-    <span className="shrink-0 rounded-full bg-elevated px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground/70">
+    <span className="shrink-0 rounded-full bg-elevated px-1.5 py-0.5 font-mono text-micro tabular-nums text-ai-muted">
       {value}
     </span>
   );
@@ -24,7 +24,7 @@ function Badge({ value }: { value: number }) {
 function SectionLabel({ children, count }: { children: React.ReactNode; count?: number }) {
   return (
     <div className="mb-2 flex items-center gap-2">
-      <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/55">
+      <span className="font-mono text-micro uppercase tracking-[0.16em] text-muted-foreground/70">
         {children}
       </span>
       {count !== undefined && <Badge value={count} />}
@@ -90,7 +90,7 @@ export function AttentionRail({
         </button>
         {total > 0 && <Badge value={total} />}
         <span
-          className="mt-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/55"
+          className="mt-1 font-mono text-micro uppercase tracking-[0.18em] text-muted-foreground/70"
           style={{ writingMode: "vertical-rl" }}
         >
           Needs Attention
@@ -114,7 +114,7 @@ export function AttentionRail({
       )}
     >
       <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
-        <span className="flex-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60">
+        <span className="flex-1 font-mono text-micro uppercase tracking-[0.18em] text-muted-foreground/70">
           Needs Attention
         </span>
         {!embedded && (
@@ -152,7 +152,7 @@ export function AttentionRail({
                           overdue ? "bg-destructive" : "bg-muted-foreground/40",
                         )}
                       />
-                      <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/60">
+                      <span className="font-mono text-micro uppercase tracking-[0.14em] text-ai">
                         {overdue ? "Overdue" : `Reminder · ${timeAgo(at)}`}
                       </span>
                     </div>
@@ -237,7 +237,7 @@ export function AttentionRail({
                       aria-hidden
                       className="h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/40"
                     />
-                    <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/60">
+                    <span className="font-mono text-micro uppercase tracking-[0.14em] text-ai">
                       Pinned
                     </span>
                     <button
@@ -287,7 +287,7 @@ export function AttentionRail({
             ].map((row) => (
               <div key={row.label} className="flex items-center justify-between">
                 <dt className="text-muted-foreground/70">{row.label}</dt>
-                <dd className="tabular-nums text-foreground/85">{row.value}</dd>
+                <dd className="font-mono tabular-nums text-ai">{row.value}</dd>
               </div>
             ))}
           </dl>

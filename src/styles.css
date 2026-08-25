@@ -5,17 +5,41 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Flow design system — dark first.
+ * Flow design system — direction: Instrument. Calm, precise, fast, AI-native.
  *
- * Deep neutral charcoal surfaces, off-white text, restrained gray secondary
- * text, hairline borders, one quiet accent. All colors in oklch.
+ * Two voices, and the distinction is the identity: user-written content is
+ * sans at full contrast; anything machine-made or structural (tags, times,
+ * counts, inferred dates) is mono in the AI tone. Separation comes from space
+ * and tone, never from cards. One accent, and it only ever means interactive.
  * Tonal layers: --background (conversation) < --sidebar < --surface (composer).
  */
 
 @theme inline {
-  --font-sans: "Karla", ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --font-sans: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  /* Machine voice. A real webfont — never the system mono fallback. */
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  /* Kept as a hook for large titles; the default voice is sans. */
+  --font-display: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  /* Type scale. Body is the hero; meta and micro are the machine voice. */
+  --text-display: 1.75rem;
+  --text-display--line-height: 1.2;
+  --text-display--font-weight: 600;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.3;
+  --text-title--font-weight: 600;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.55;
+  --text-body--font-weight: 400;
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.5;
+  --text-body-sm--font-weight: 400;
+  --text-meta: 0.75rem;
+  --text-meta--line-height: 1.4;
+  --text-meta--font-weight: 450;
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1.4;
+  --text-micro--font-weight: 450;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -49,6 +73,9 @@
   --color-ring: var(--ring);
   --color-ai: var(--ai);
   --color-ai-foreground: var(--ai-foreground);
+  --color-ai-muted: var(--ai-muted);
+  --color-accent-quiet: var(--accent-quiet);
+  --color-success: var(--success);
   --color-ring-offset-background: var(--background);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -80,14 +107,16 @@
 
 /* Light mode — warm paper, same restraint, same accent. */
 :root {
-  --radius: 0.625rem;
+  /* 8px base: rounded-md lands on 6px (buttons, inputs, tags) and rounded-lg
+     on 8px (composer, popovers). Small and consistent — never one big radius. */
+  --radius: 0.5rem;
 
   /* Appearance defaults — overridden per user on <html> at runtime. */
-  --flow-text-size: 0.9975rem;
-  --flow-line-height: 1.72;
-  --flow-row-pad: 0.7rem;
-  --flow-thread-gap: 1.15rem;
-  --flow-row-gap: 0.35rem;
+  --flow-text-size: 0.9375rem;
+  --flow-line-height: 1.55;
+  --flow-row-pad: 0.75rem;
+  --flow-thread-gap: 2rem;
+  --flow-row-gap: 0.25rem;
   --flow-content-width: 46rem;
   --flow-sidebar-width: 13.5rem;
   --flow-reply-gap: 0.9rem;
@@ -96,37 +125,45 @@
 
 
 
-  --background: oklch(0.987 0.003 90);
-  --foreground: oklch(0.235 0.006 264);
-  --surface: oklch(1 0 0);
-  --elevated: oklch(0.955 0.004 90);
+  --background: #fcfcfc;
+  --foreground: #1a1a1a;
+  --surface: #ffffff;
+  --elevated: #f1f1f0;
 
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.235 0.006 264);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.235 0.006 264);
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
 
-  --primary: oklch(0.53 0.09 232);
-  --primary-foreground: oklch(0.99 0.003 90);
+  /* The one accent: interactive / active / focus. Never decorative. */
+  --primary: #3b5bdb;
+  --primary-foreground: #ffffff;
+  /* Accent wash behind an active nav row — the only tinted resting surface. */
+  --accent-quiet: #eef1fc;
 
-  --secondary: oklch(0.949 0.004 90);
-  --secondary-foreground: oklch(0.29 0.006 264);
+  --secondary: #f5f5f4;
+  --secondary-foreground: #1a1a1a;
 
-  --muted: oklch(0.951 0.004 90);
-  --muted-foreground: oklch(0.505 0.008 264);
+  --muted: #f5f5f4;
+  --muted-foreground: #6b6b6b;
 
-  --accent: oklch(0.943 0.005 90);
-  --accent-foreground: oklch(0.27 0.006 264);
+  /* NOTE: --accent here is the neutral hover tone (shadcn's meaning), not the
+     design system's accent colour. That one lives on --primary above. */
+  --accent: #f1f1f0;
+  --accent-foreground: #1a1a1a;
 
-  --destructive: oklch(0.56 0.17 22);
-  --destructive-foreground: oklch(0.99 0.003 90);
+  --destructive: #e03131;
+  --destructive-foreground: #ffffff;
+  --success: #2f9e44;
 
-  --border: oklch(0.24 0.01 264 / 10%);
-  --border-strong: oklch(0.24 0.01 264 / 18%);
-  --input: oklch(0.24 0.01 264 / 14%);
-  --ring: oklch(0.6 0.07 232);
-  --ai: oklch(0.58 0.19 295);
-  --ai-foreground: oklch(0.99 0.003 90);
+  --border: #ececec;
+  --border-strong: #dadada;
+  --input: #dadada;
+  --ring: #3b5bdb;
+  /* The machine voice: every AI-generated and structural element. */
+  --ai: #5b6472;
+  --ai-muted: #9aa0aa;
+  --ai-foreground: #ffffff;
 
   --chart-1: oklch(0.55 0.09 232);
   --chart-2: oklch(0.55 0.08 160);
@@ -134,49 +171,53 @@
   --chart-4: oklch(0.56 0.1 30);
   --chart-5: oklch(0.55 0.07 300);
 
-  --sidebar: oklch(0.965 0.004 90);
-  --sidebar-foreground: oklch(0.29 0.006 264);
-  --sidebar-primary: oklch(0.53 0.09 232);
-  --sidebar-primary-foreground: oklch(0.99 0.003 90);
-  --sidebar-accent: oklch(0.925 0.005 90);
-  --sidebar-accent-foreground: oklch(0.24 0.006 264);
-  --sidebar-border: oklch(0.24 0.01 264 / 9%);
-  --sidebar-ring: oklch(0.6 0.07 232);
+  --sidebar: #f5f5f4;
+  --sidebar-foreground: #1a1a1a;
+  --sidebar-primary: #3b5bdb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ececec;
+  --sidebar-accent-foreground: #1a1a1a;
+  --sidebar-border: #ececec;
+  --sidebar-ring: #3b5bdb;
 }
 
 .dark {
-  /* Near-black charcoal base, slightly lighter surfaces, hairline borders. */
-  --background: oklch(0.158 0.004 285);
-  --foreground: oklch(0.958 0.001 285);
-  --surface: oklch(0.183 0.004 285);
-  --elevated: oklch(0.235 0.004 285);
+  /* Near-black base, slightly lighter surfaces, hairline borders. */
+  --background: #0c0c0d;
+  --foreground: #ededed;
+  --surface: #17181a;
+  --elevated: #202124;
 
-  --card: oklch(0.183 0.004 285);
-  --card-foreground: oklch(0.958 0.001 285);
-  --popover: oklch(0.205 0.004 285);
-  --popover-foreground: oklch(0.958 0.001 285);
+  --card: #17181a;
+  --card-foreground: #ededed;
+  --popover: #17181a;
+  --popover-foreground: #ededed;
 
-  --primary: oklch(0.72 0.075 232);
-  --primary-foreground: oklch(0.16 0.01 250);
+  --primary: #6e8bff;
+  --primary-foreground: #0c0c0d;
+  --accent-quiet: #1a1e2e;
 
-  --secondary: oklch(0.228 0.004 285);
-  --secondary-foreground: oklch(0.9 0.002 285);
+  --secondary: #1c1d20;
+  --secondary-foreground: #ededed;
 
-  --muted: oklch(0.222 0.004 285);
-  --muted-foreground: oklch(0.703 0.005 285);
+  --muted: #1c1d20;
+  --muted-foreground: #9a9a9a;
 
-  --accent: oklch(0.245 0.004 285);
-  --accent-foreground: oklch(0.93 0.002 285);
+  /* Neutral hover tone, not the design system's accent — see :root. */
+  --accent: #202124;
+  --accent-foreground: #ededed;
 
-  --destructive: oklch(0.62 0.16 22);
-  --destructive-foreground: oklch(0.97 0.005 264);
+  --destructive: #ff6b6b;
+  --destructive-foreground: #0c0c0d;
+  --success: #51cf66;
 
-  --border: oklch(1 0 0 / 10%);
-  --border-strong: oklch(1 0 0 / 16%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.66 0.06 232);
-  --ai: oklch(0.66 0.19 295);
-  --ai-foreground: oklch(0.16 0.02 295);
+  --border: #232427;
+  --border-strong: #303237;
+  --input: #303237;
+  --ring: #6e8bff;
+  --ai: #9aa4b2;
+  --ai-muted: #5c636e;
+  --ai-foreground: #0c0c0d;
 
   --chart-1: oklch(0.72 0.075 232);
   --chart-2: oklch(0.7 0.07 160);
@@ -184,14 +225,14 @@
   --chart-4: oklch(0.68 0.09 30);
   --chart-5: oklch(0.7 0.06 300);
 
-  --sidebar: oklch(0.14 0.004 285);
-  --sidebar-foreground: oklch(0.9 0.002 285);
-  --sidebar-primary: oklch(0.72 0.075 232);
-  --sidebar-primary-foreground: oklch(0.16 0.01 250);
-  --sidebar-accent: oklch(0.235 0.004 285);
-  --sidebar-accent-foreground: oklch(0.95 0.002 285);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.66 0.06 232);
+  --sidebar: #141416;
+  --sidebar-foreground: #ededed;
+  --sidebar-primary: #6e8bff;
+  --sidebar-primary-foreground: #0c0c0d;
+  --sidebar-accent: #232427;
+  --sidebar-accent-foreground: #ededed;
+  --sidebar-border: #232427;
+  --sidebar-ring: #6e8bff;
 }
 
 @layer base {
@@ -218,7 +259,14 @@
 
   .font-display {
     font-family: var(--font-display);
-    font-variation-settings: "SOFT" 30, "WONK" 0;
+  }
+
+  /* The machine voice. Anything Flow generated or that is structural metadata
+     — tags, timestamps, counts, inferred dates — reads in mono, in AI tone. */
+  .flow-machine {
+    font-family: var(--font-mono);
+    letter-spacing: 0.01em;
+    font-feature-settings: "tnum" 1;
   }
 
   /* Quiet scrollbars — visible only against motion, never decorative. */
@@ -233,9 +281,9 @@
  * inside the editor so content looks identical while writing and after saving.
  */
 @utility flow-prose {
-  font-size: var(--flow-text-size, 0.9975rem);
-  line-height: var(--flow-line-height, 1.72);
-  letter-spacing: 0.001em;
+  font-size: var(--flow-text-size, 0.9375rem);
+  line-height: var(--flow-line-height, 1.55);
+  letter-spacing: 0;
 
   & > * + * {
     margin-top: 0.7em;

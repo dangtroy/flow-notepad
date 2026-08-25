@@ -258,10 +258,10 @@ function MessageRowBase({
           </button>
         )}
 
-        <div className="text-[11px] leading-none tabular-nums tracking-wide whitespace-nowrap text-muted-foreground/55">
+        <div className="font-mono text-micro leading-none tabular-nums tracking-[0.01em] whitespace-nowrap text-ai-muted">
           <time dateTime={message.created_at}>{timeLabel(message.created_at)}</time>
-          {offset && <span className="text-muted-foreground/40"> · {offset}</span>}
-          {message.edited_at && <span className="text-muted-foreground/40"> · edited</span>}
+          {offset && <span> · {offset}</span>}
+          {message.edited_at && <span> · edited</span>}
         </div>
       </div>
 
@@ -274,7 +274,7 @@ function MessageRowBase({
         ) : (
           <>
             {/* Narrow screens have no margins: a quiet meta line leads instead. */}
-            <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] tabular-nums tracking-wide text-muted-foreground/55 sm:hidden">
+            <div className="mb-1 flex flex-wrap items-center gap-2 font-mono text-micro tabular-nums tracking-[0.01em] text-ai-muted sm:hidden">
               {!message.is_completed && (
                 <button
                   type="button"

@@ -50,9 +50,14 @@ export const DEFAULT_APPEARANCE: Appearance = {
 export const APPEARANCE_STORAGE_KEY = "flow-appearance";
 export const APPEARANCE_EVENT = "flow-appearance";
 
-/** Muted accents only — one quiet colour, tuned per theme. */
+/**
+ * One quiet colour at a time, tuned per theme. The accent only ever means
+ * interactive / active / focus — never decoration. `blue` is the system
+ * default indigo; its key is kept for stored preferences written before the
+ * palette was retuned.
+ */
 export const ACCENTS: Record<AccentKey, { label: string; light: string; dark: string }> = {
-  blue: { label: "Blue", light: "oklch(0.53 0.09 232)", dark: "oklch(0.72 0.075 232)" },
+  blue: { label: "Indigo", light: "#3b5bdb", dark: "#6e8bff" },
   teal: { label: "Teal", light: "oklch(0.52 0.075 190)", dark: "oklch(0.72 0.07 190)" },
   violet: { label: "Violet", light: "oklch(0.52 0.095 295)", dark: "oklch(0.72 0.075 295)" },
   amber: { label: "Amber", light: "oklch(0.58 0.09 70)", dark: "oklch(0.76 0.08 80)" },
@@ -60,22 +65,27 @@ export const ACCENTS: Record<AccentKey, { label: string; light: string; dark: st
   graphite: { label: "Graphite", light: "oklch(0.42 0.01 264)", dark: "oklch(0.78 0.005 264)" },
 };
 
+/** Default is the system body size (15px); the others step around it. */
 const TEXT_SIZES: Record<TextSize, string> = {
-  small: "0.925rem",
-  default: "0.9975rem",
-  large: "1.075rem",
+  small: "0.875rem",
+  default: "0.9375rem",
+  large: "1.0625rem",
 };
 
+/**
+ * Every value lands on the 4px spacing scale. Consecutive notes sit tight —
+ * they are one stream — while a new day gets a full 32px of air.
+ */
 const DENSITY: Record<Density, { line: string; row: string; thread: string; gap: string }> = {
-  compact: { line: "1.55", row: "0.3rem", thread: "0.55rem", gap: "0.1rem" },
-  comfortable: { line: "1.72", row: "0.55rem", thread: "1.15rem", gap: "0.35rem" },
-  spacious: { line: "1.85", row: "0.8rem", thread: "1.9rem", gap: "0.6rem" },
+  compact: { line: "1.45", row: "0.5rem", thread: "1.5rem", gap: "0.25rem" },
+  comfortable: { line: "1.55", row: "0.75rem", thread: "2rem", gap: "0.25rem" },
+  spacious: { line: "1.7", row: "1rem", thread: "3rem", gap: "0.5rem" },
 };
 
 const REPLY_SPACING: Record<ReplySpacing, string> = {
-  compact: "0.35rem",
-  comfortable: "0.9rem",
-  spacious: "1.6rem",
+  compact: "0.25rem",
+  comfortable: "0.75rem",
+  spacious: "1.5rem",
 };
 
 const BORDER_TONES: Record<BorderTone, { label: string; value: string }> = {
@@ -147,6 +157,12 @@ export function applyAppearance(appearance: Appearance) {
   root.style.setProperty("--sidebar-primary", value);
   root.style.setProperty("--ring", value);
   root.style.setProperty("--sidebar-ring", value);
+  // The active-row wash follows whichever accent is chosen, so it never
+  // strands an indigo tint behind a rose accent.
+  root.style.setProperty(
+    "--accent-quiet",
+    `color-mix(in oklab, ${value} ${mode === "dark" ? "16%" : "9%"}, var(--background))`,
+  );
 
   const density = DENSITY[appearance.density];
   root.style.setProperty("--flow-text-size", TEXT_SIZES[appearance.textSize]);

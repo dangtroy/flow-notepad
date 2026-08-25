@@ -95,7 +95,7 @@ export function SuggestionsBell() {
       >
         <Bell className="h-3.5 w-3.5" />
         {count > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 min-w-[1rem] rounded-full bg-primary px-1 text-center text-[10px] font-medium leading-4 text-primary-foreground">
+          <span className="absolute -right-0.5 -top-0.5 min-w-[1rem] rounded-full bg-primary px-1 text-center font-mono text-micro tabular-nums leading-4 text-primary-foreground">
             {count}
           </span>
         )}
@@ -171,7 +171,7 @@ function SuggestionRow({
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13.5px] font-medium text-foreground">{suggestion.name}</p>
-          <p className="mt-0.5 text-[11.5px] text-muted-foreground/80">
+          <p className="mt-0.5 font-mono text-micro tracking-[0.01em] text-ai">
             {`New tag${suggestion.concept_kind !== "other" ? ` (${suggestion.concept_kind})` : ""} · `}
             {suggestion.message_count} {suggestion.message_count === 1 ? "note" : "notes"}
             {suggestion.suggested_group_name ? ` · group: ${suggestion.suggested_group_name}` : ""}

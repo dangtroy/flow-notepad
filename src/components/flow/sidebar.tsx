@@ -220,7 +220,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
             style={{ backgroundColor: tagAccent(tag.color) }}
           />
           <span className="min-w-0 flex-1 truncate">{tag.name}</span>
-          <span className="shrink-0 text-[11px] text-muted-foreground/55 group-hover/tag:hidden">
+          <span className="shrink-0 font-mono text-micro tabular-nums text-ai-muted group-hover/tag:hidden">
             {tag.message_count}
           </span>
         </button>
@@ -335,7 +335,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                   onClick={() => section.kind === "group" && applyGroup(section)}
                   disabled={section.kind !== "group"}
                   className={cn(
-                    "flex min-w-0 flex-1 items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground/50",
+                    "flex min-w-0 flex-1 items-center gap-2 font-mono text-micro uppercase tracking-[0.16em] text-muted-foreground/70",
                     section.kind === "group" && "transition-colors hover:text-foreground",
                   )}
                 >
