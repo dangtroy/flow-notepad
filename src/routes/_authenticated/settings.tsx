@@ -221,7 +221,7 @@ function TagsSection() {
 
     if (names.length === 1) {
       try {
-        refresh(await persist({ data: { name: names[0]!, context: newContext } }));
+        refresh(await persist({ data: { name: names[0]!, context: newContext, notepadId } }));
         setNewName("");
         setNewContext("");
         void retagEverything();
@@ -235,7 +235,7 @@ function TagsSection() {
     const skipped: string[] = [];
     for (const name of names) {
       try {
-        refresh(await persist({ data: { name, context: newContext } }));
+        refresh(await persist({ data: { name, context: newContext, notepadId } }));
         created += 1;
       } catch {
         skipped.push(name);
@@ -268,7 +268,7 @@ function TagsSection() {
     },
   ) {
     try {
-      refresh(await persist({ data: { id, ...patch } }));
+      refresh(await persist({ data: { id, ...patch, notepadId } }));
       // Rules changed, so existing notes are re-read against the new intent.
       if (
         patch.context !== undefined ||
@@ -287,7 +287,7 @@ function TagsSection() {
 
   async function drop(tag: FlowTagDetail) {
     try {
-      refresh(await remove({ data: { id: tag.id } }));
+      refresh(await remove({ data: { id: tag.id, notepadId } }));
     } catch {
       toast.error("Could not delete that tag");
     }
@@ -606,7 +606,7 @@ function GroupsSection() {
     event.preventDefault();
     if (!newName.trim()) return;
     try {
-      apply(await persist({ data: { name: newName } }));
+      apply(await persist({ data: { name: newName, notepadId } }));
       setNewName("");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not create that group");
@@ -616,7 +616,7 @@ function GroupsSection() {
   async function rename(group: FlowTagGroup, name: string) {
     if (!name.trim() || name.trim() === group.name) return;
     try {
-      apply(await persist({ data: { id: group.id, name: name.trim() } }));
+      apply(await persist({ data: { id: group.id, name: name.trim(), notepadId } }));
     } catch {
       toast.error("Could not rename that group");
     }
@@ -624,7 +624,7 @@ function GroupsSection() {
 
   async function recolor(group: FlowTagGroup, color: string) {
     try {
-      apply(await persist({ data: { id: group.id, color } }));
+      apply(await persist({ data: { id: group.id, color, notepadId } }));
     } catch {
       toast.error("Could not update that group");
     }
@@ -638,7 +638,7 @@ function GroupsSection() {
     const [item] = next.splice(index, 1);
     next.splice(target, 0, item!);
     try {
-      apply(await reorder({ data: { ids: next.map((group) => group.id) } }));
+      apply(await reorder({ data: { ids: next.map((group) => group.id), notepadId } }));
     } catch {
       toast.error("Could not reorder groups");
     }
@@ -646,7 +646,7 @@ function GroupsSection() {
 
   async function drop(group: FlowTagGroup) {
     try {
-      apply(await remove({ data: { id: group.id } }));
+      apply(await remove({ data: { id: group.id, notepadId } }));
     } catch {
       toast.error("Could not delete that group");
     }
