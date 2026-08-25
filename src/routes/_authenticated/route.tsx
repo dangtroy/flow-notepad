@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { PanelLeft } from "lucide-react";
 
+import { CommandMenu, useCommandMenu } from "@/components/flow/command-menu";
 import { SidebarBody } from "@/components/flow/sidebar";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { FlowLogo } from "@/components/flow/flow-logo";
@@ -21,9 +22,11 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const commandMenu = useCommandMenu();
 
   return (
     <NotepadProvider>
+      <CommandMenu open={commandMenu.open} onOpenChange={commandMenu.setOpen} />
       <div className="flex h-dvh overflow-hidden bg-background">
       <aside className="hidden w-[var(--flow-sidebar-width,13.5rem)] shrink-0 border-r border-sidebar-border bg-sidebar md:block">
         <SidebarBody />

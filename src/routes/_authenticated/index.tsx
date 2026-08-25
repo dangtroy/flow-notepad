@@ -55,10 +55,14 @@ export const Route = createFileRoute("/_authenticated/")({
     tags?: string | undefined;
     mode?: FilterMode | undefined;
     view?: StreamView | undefined;
+    q?: string | undefined;
   } => ({
     tags:
       typeof search["tags"] === "string" && search["tags"] ? (search["tags"] as string) : undefined,
     mode: search["mode"] === "and" ? "and" : undefined,
+    // In the URL so a search survives a reload and the back button, and so the
+    // command menu can hand one over.
+    q: typeof search["q"] === "string" && search["q"] ? (search["q"] as string) : undefined,
     view: STREAM_VIEWS.some((option) => option.value === search["view"])
       ? (search["view"] as StreamView)
       : undefined,
@@ -137,14 +141,28 @@ function FlowPage() {
   const [railOpen, setRailOpen] = useState(true);
   // Small screens have no room for the rail: it opens as a sheet instead.
   const [panelSheet, setPanelSheet] = useState(false);
-  const [queryInput, setQueryInput] = useState("");
-  const [query, setQuery] = useState("");
+  // The URL holds the committed search; the input is local so typing stays
+  // instant, and only the settled value is written back.
+  const query = search.q ?? "";
+  const [queryInput, setQueryInput] = useState(query);
 
-  // Debounced: typing never refetches on every keystroke.
+  // A search arriving from elsewhere (command menu, back button) wins.
   useEffect(() => {
-    const timer = window.setTimeout(() => setQuery(queryInput.trim()), 300);
+    setQueryInput(query);
+  }, [query]);
+
+  // Debounced: typing never refetches, or pushes history, on every keystroke.
+  useEffect(() => {
+    const next = queryInput.trim();
+    if (next === query) return;
+    const timer = window.setTimeout(() => {
+      void navigate({
+        search: (prev) => ({ ...prev, q: next || undefined }),
+        replace: true,
+      });
+    }, 300);
     return () => window.clearTimeout(timer);
-  }, [queryInput]);
+  }, [queryInput, query, navigate]);
 
   // Four views over the same notepad: All, Today, Pinned, and Reference.
   const view: StreamView = search.view ?? "all";

@@ -68,7 +68,7 @@ export function StreamTopBar({
               className={cn(
                 "flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10.5px] uppercase tracking-[0.14em] transition-colors duration-150",
                 view === option.value
-                  ? "border-border bg-surface text-foreground"
+                  ? "border-transparent bg-accent-quiet text-primary"
                   : "border-transparent text-muted-foreground/60 hover:text-foreground",
               )}
             >

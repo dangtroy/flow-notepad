@@ -37,7 +37,7 @@ import { SuggestionsBell } from "./suggestions-bell";
 import { cn } from "@/lib/utils";
 
 const itemClass =
-  "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
+  "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
 /** Navigation, not a dashboard: All, pinned tags, the user's groups, then ungrouped. */
 export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
@@ -210,7 +210,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           className={cn(
             itemClass,
             "w-full text-left",
-            isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+            isActive && "bg-accent-quiet text-primary",
             !tag.is_enabled && "opacity-55",
           )}
         >
@@ -295,7 +295,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           search={{}}
           onClick={onNavigate}
           activeOptions={{ exact: true, includeSearch: false }}
-          className={cn(itemClass, selected.length === 0 && "bg-sidebar-accent text-sidebar-accent-foreground")}
+          className={cn(itemClass, selected.length === 0 && "bg-accent-quiet text-primary")}
         >
           <Inbox className="h-3.5 w-3.5" />
           All

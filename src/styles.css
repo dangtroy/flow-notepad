@@ -91,7 +91,10 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* Flat by design: every shadow scale resolves to none. */
+  /* Flat by design: every shadow scale resolves to none. The one exception is
+     --shadow-float, for layers that genuinely float above the page — the
+     command menu, popovers, toasts. Nothing at rest ever carries it. */
+  --shadow-float: 0 4px 16px -4px rgb(0 0 0 / 0.12);
   --shadow-quiet: none;
   --shadow-lifted: none;
   --shadow-2xs: none;
