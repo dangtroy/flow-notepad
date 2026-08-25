@@ -146,28 +146,8 @@ function FlowPage() {
   const [railOpen, setRailOpen] = useState(true);
   // Small screens have no room for the rail: it opens as a sheet instead.
   const [panelSheet, setPanelSheet] = useState(false);
-  // The URL holds the committed search; the input is local so typing stays
-  // instant, and only the settled value is written back.
+  // The committed search lives in the URL; the sidebar owns the input.
   const query = search.q ?? "";
-  const [queryInput, setQueryInput] = useState(query);
-
-  // A search arriving from elsewhere (command menu, back button) wins.
-  useEffect(() => {
-    setQueryInput(query);
-  }, [query]);
-
-  // Debounced: typing never refetches, or pushes history, on every keystroke.
-  useEffect(() => {
-    const next = queryInput.trim();
-    if (next === query) return;
-    const timer = window.setTimeout(() => {
-      void navigate({
-        search: (prev) => ({ ...prev, q: next || undefined }),
-        replace: true,
-      });
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [queryInput, query, navigate]);
 
   // ?settings=true (from the old /settings path) opens the modal, then clears.
   const { openSettings } = useSettingsDialog();
@@ -859,15 +839,6 @@ function FlowPage() {
       {/* min-w-0 keeps a long note from widening the column past the screen. */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <StreamTopBar
-          view={view}
-          onViewChange={(next) =>
-            void navigate({
-              search: (prev) => ({ ...prev, view: next === "all" ? undefined : next }),
-            })
-          }
-          counts={counts}
-          query={queryInput}
-          onQueryChange={setQueryInput}
           attentionCount={dueReminders.length + pinned.length}
           onOpenPanel={() => setPanelSheet(true)}
         />

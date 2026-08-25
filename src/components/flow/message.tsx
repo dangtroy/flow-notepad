@@ -308,7 +308,7 @@ function MessageRowBase({
             {(tags.length > 0 || onAddTag || message.ai_status === "pending") && (
               <div className="flow-tagwrap">
                 <div>
-                  <div className="flex flex-wrap items-center gap-3 pt-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
                     {/* Organising is still running: hold the space it will fill
                         rather than letting tags shove the row on arrival. */}
                     {tags.length === 0 && message.ai_status === "pending" && (

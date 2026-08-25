@@ -289,6 +289,8 @@
   font-size: var(--flow-text-size, 0.9375rem);
   line-height: var(--flow-line-height, 1.55);
   letter-spacing: 0;
+  /* Text at rest reads a touch lighter than pure foreground. */
+  color: color-mix(in oklab, var(--foreground) 78%, var(--background));
 
   & > * + * {
     margin-top: 0.7em;

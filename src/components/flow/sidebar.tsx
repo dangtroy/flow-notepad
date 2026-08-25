@@ -1,27 +1,39 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  CalendarDays,
   Check,
   CheckCheck,
+  CheckSquare,
   ChevronDown,
   ChevronRight,
   Inbox,
+  Link2,
   LogOut,
   Moon,
   Pin,
   PinOff,
+  Search,
   Settings,
+  Star,
   Sun,
   ArrowDownUp,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
-import { clearCompleted, reorderTags, saveTag, saveTagGroup } from "@/lib/flow.functions";
+import {
+  clearCompleted,
+  getTasks,
+  getViewCounts,
+  reorderTags,
+  saveTag,
+  saveTagGroup,
+} from "@/lib/flow.functions";
 import { FlowLogo } from "@/components/flow/flow-logo";
 import type { FlowTagDetail, FlowTagGroup } from "@/lib/flow.server";
 import { tagsKey, tagGroupsKey, useTagGroups, useTags } from "@/lib/use-tags";
@@ -31,6 +43,7 @@ import { TAG_SORTS, buildTagSections, moveTagWithin, sortTags, type TagSection }
 import { useAppearance } from "@/lib/use-appearance";
 import { useActiveNotepadId } from "@/lib/use-notepad";
 import { useSettingsDialog } from "@/lib/use-settings-dialog";
+import type { StreamView } from "./stream-top-bar";
 import { NotepadSwitcher } from "./notepad-switcher";
 import { SuggestionsBell } from "./suggestions-bell";
 
@@ -40,11 +53,30 @@ import { cn } from "@/lib/utils";
 const itemClass =
   "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
+const sectionLabelClass =
+  "px-2.5 pb-1 pt-4 text-[10px] font-medium uppercase tracking-[0.09em] text-muted-foreground/50";
+
+const INBOX_VIEWS: Array<{ value: StreamView; label: string; icon: typeof Inbox }> = [
+  { value: "all", label: "Notes", icon: Inbox },
+  { value: "today", label: "Today", icon: CalendarDays },
+  { value: "tasks", label: "Tasks", icon: CheckSquare },
+];
+
+const ORGANIZE_VIEWS: Array<{ value: StreamView; label: string; icon: typeof Inbox }> = [
+  { value: "pinned", label: "Pinned", icon: Star },
+  { value: "reference", label: "References", icon: Link2 },
+];
+
 /** Navigation, not a dashboard: All, pinned tags, the user's groups, then ungrouped. */
 export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const search = useSearch({ strict: false }) as { tags?: string; mode?: "or" | "and" };
+  const search = useSearch({ strict: false }) as {
+    tags?: string;
+    mode?: "or" | "and";
+    view?: StreamView;
+    q?: string;
+  };
   const notepadId = useActiveNotepadId();
   const tags = useTags();
   const groups = useTagGroups();
@@ -56,10 +88,69 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const persistTag = useServerFn(saveTag);
   const persistGroup = useServerFn(saveTagGroup);
   const persistOrder = useServerFn(reorderTags);
+  const fetchCounts = useServerFn(getViewCounts);
+  const fetchTasks = useServerFn(getTasks);
 
   const [sortOpen, setSortOpen] = useState(false);
   const [dragTagId, setDragTagId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+
+  // Views and search live here now, so the stream keeps a clean header.
+  const activeView: StreamView = search.view ?? "all";
+  const urlQuery = search.q ?? "";
+  const [queryInput, setQueryInput] = useState(urlQuery);
+  useEffect(() => {
+    setQueryInput(urlQuery);
+  }, [urlQuery]);
+  useEffect(() => {
+    const next = queryInput.trim();
+    if (next === urlQuery) return;
+    const timer = window.setTimeout(() => {
+      void navigate({
+        to: "/",
+        search: (prev: Record<string, unknown>) => ({ ...prev, q: next || undefined }),
+        replace: true,
+      });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [queryInput, urlQuery, navigate]);
+
+  /** Local midnight, matching the stream's own "Today" boundary. */
+  const todaySince = useMemo(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date.toISOString();
+  }, []);
+
+  const { data: countsData } = useQuery({
+    queryKey: ["view-counts", notepadId ?? "none", todaySince] as const,
+    queryFn: () => fetchCounts({ data: { notepadId, since: todaySince } }),
+    enabled: Boolean(notepadId),
+  });
+  const { data: tasksData } = useQuery({
+    queryKey: ["tasks", notepadId ?? "none"] as const,
+    queryFn: () => fetchTasks({ data: { notepadId } }),
+    enabled: Boolean(notepadId),
+  });
+
+  const viewCounts: Record<StreamView, number> = {
+    all: countsData?.all ?? 0,
+    today: countsData?.today ?? 0,
+    tasks: (tasksData?.tasks ?? []).filter((task) => !task.is_completed).length,
+    pinned: countsData?.pinned ?? 0,
+    reference: countsData?.reference ?? 0,
+  };
+
+  function goView(value: StreamView) {
+    onNavigate?.();
+    void navigate({
+      to: "/",
+      search: {
+        ...(value === "all" ? {} : { view: value }),
+        ...(urlQuery ? { q: urlQuery } : {}),
+      },
+    });
+  }
 
   async function handleClearDone() {
     try {
@@ -290,25 +381,61 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
 
+      {/* Search sits directly under the header, above the views. */}
+      <div className="px-3 pb-1">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
+          <input
+            type="search"
+            value={queryInput}
+            onChange={(event) => setQueryInput(event.target.value)}
+            placeholder="Search notes"
+            aria-label="Search notes"
+            className="w-full rounded-md border border-sidebar-border bg-background/40 py-1.5 pl-8 pr-2 text-[12.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/45 focus:border-primary/40"
+          />
+        </div>
+      </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-4">
-        <Link
-          to="/"
-          search={{}}
-          onClick={onNavigate}
-          activeOptions={{ exact: true, includeSearch: false }}
-          className={cn(itemClass, selected.length === 0 && "bg-accent-quiet text-primary")}
-        >
-          <Inbox className="h-3.5 w-3.5" />
-          All
-        </Link>
+        {([
+          { label: "Inbox", items: INBOX_VIEWS },
+          { label: "Organize", items: ORGANIZE_VIEWS },
+        ] as const).map((block) => (
+          <div key={block.label}>
+            <p className={sectionLabelClass}>{block.label}</p>
+            {block.items.map((item) => {
+              const isActive = activeView === item.value && selected.length === 0;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => goView(item.value)}
+                  aria-pressed={isActive}
+                  className={cn(
+                    itemClass,
+                    "w-full text-left",
+                    isActive && "bg-accent-quiet text-primary",
+                  )}
+                >
+                  <item.icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  <span className="shrink-0 font-mono text-micro tabular-nums text-ai-muted">
+                    {viewCounts[item.value]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+
+        <p className={sectionLabelClass}>Tags</p>
 
         {sections.map((section) => {
           const collapsed = section.group?.is_collapsed ?? false;
           return (
             <div
               key={section.kind + (section.group?.id ?? "")}
-              className="pt-5"
+              className="pt-2"
               onDragOver={(event) => {
                 if (dragTagId) event.preventDefault();
               }}

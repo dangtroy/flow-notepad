@@ -29,14 +29,18 @@ export function TagLink({
       onClick={(event) => event.stopPropagation()}
       title={`Show only ${tag.name}`}
       className={cn(
-        "inline-flex items-center gap-1.5 font-mono text-micro leading-none tracking-[0.01em] transition-opacity hover:opacity-80",
+        "inline-flex items-center gap-1 rounded-full border px-1.5 py-[1px] font-mono text-[10px] leading-[14px] tracking-[0.01em] transition-colors",
         muted ? "text-ai-muted" : "text-ai",
         className,
       )}
+      style={{
+        borderColor: `color-mix(in oklab, ${accent} ${muted ? 22 : 34}%, transparent)`,
+        backgroundColor: `color-mix(in oklab, ${accent} ${muted ? 5 : 8}%, transparent)`,
+      }}
     >
       <span
         aria-hidden
-        className={cn("h-[5px] w-[5px] shrink-0 rounded-full", muted && "opacity-60")}
+        className={cn("h-[4px] w-[4px] shrink-0 rounded-full", muted && "opacity-60")}
         style={{ backgroundColor: accent }}
       />
       {tag.name}
