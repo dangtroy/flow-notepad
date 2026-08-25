@@ -904,7 +904,7 @@ function FlowPage() {
             ) : (
               <>
                 {hasNextPage && (
-                  <p className="pb-6 text-center text-[11px] uppercase tracking-[0.16em] text-muted-foreground/45">
+                  <p className="pb-6 text-center text-[11px] text-muted-foreground/50">
                     {isFetchingNextPage
                       ? "Loading earlier thoughts…"
                       : "Scroll up for earlier thoughts"}
@@ -935,7 +935,7 @@ function FlowPage() {
                       <section key={group.label} className={cn("mb-8", "last:mb-0")}>
                         <div className={"mb-4 flex items-center gap-3"}>
                           <span className="h-px flex-1 bg-border" />
-                          <span className="font-mono text-micro uppercase tracking-[0.18em] text-muted-foreground/70">
+                          <span className="text-[11px] font-medium text-muted-foreground/60">
                             {group.label}
                           </span>
                           <span className="h-px flex-1 bg-border" />
