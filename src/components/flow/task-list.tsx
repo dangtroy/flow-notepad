@@ -230,7 +230,7 @@ export function TaskList({
           <div className="mb-3 flex items-center gap-3">
             <span
               className={cn(
-                "text-[10px] uppercase tracking-[0.18em]",
+                "text-[11px] font-medium",
                 group.key === "overdue" ? "text-destructive/80" : "text-muted-foreground/50",
               )}
             >
