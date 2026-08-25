@@ -1,27 +1,39 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  CalendarDays,
   Check,
   CheckCheck,
+  CheckSquare,
   ChevronDown,
   ChevronRight,
   Inbox,
+  Link2,
   LogOut,
   Moon,
   Pin,
   PinOff,
+  Search,
   Settings,
+  Star,
   Sun,
   ArrowDownUp,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
-import { clearCompleted, reorderTags, saveTag, saveTagGroup } from "@/lib/flow.functions";
+import {
+  clearCompleted,
+  getTasks,
+  getViewCounts,
+  reorderTags,
+  saveTag,
+  saveTagGroup,
+} from "@/lib/flow.functions";
 import { FlowLogo } from "@/components/flow/flow-logo";
 import type { FlowTagDetail, FlowTagGroup } from "@/lib/flow.server";
 import { tagsKey, tagGroupsKey, useTagGroups, useTags } from "@/lib/use-tags";
@@ -31,6 +43,7 @@ import { TAG_SORTS, buildTagSections, moveTagWithin, sortTags, type TagSection }
 import { useAppearance } from "@/lib/use-appearance";
 import { useActiveNotepadId } from "@/lib/use-notepad";
 import { useSettingsDialog } from "@/lib/use-settings-dialog";
+import type { StreamView } from "./stream-top-bar";
 import { NotepadSwitcher } from "./notepad-switcher";
 import { SuggestionsBell } from "./suggestions-bell";
 
@@ -39,6 +52,20 @@ import { cn } from "@/lib/utils";
 
 const itemClass =
   "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
+
+const sectionLabelClass =
+  "px-2.5 pb-1 pt-4 text-[10px] font-medium uppercase tracking-[0.09em] text-muted-foreground/50";
+
+const INBOX_VIEWS: Array<{ value: StreamView; label: string; icon: typeof Inbox }> = [
+  { value: "all", label: "Notes", icon: Inbox },
+  { value: "today", label: "Today", icon: CalendarDays },
+  { value: "tasks", label: "Tasks", icon: CheckSquare },
+];
+
+const ORGANIZE_VIEWS: Array<{ value: StreamView; label: string; icon: typeof Inbox }> = [
+  { value: "pinned", label: "Pinned", icon: Star },
+  { value: "reference", label: "References", icon: Link2 },
+];
 
 /** Navigation, not a dashboard: All, pinned tags, the user's groups, then ungrouped. */
 export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
