@@ -217,10 +217,7 @@ export function TaskList({
     return (
       <div className="mt-24 text-center">
         <p className="flow-prose text-muted-foreground">
-          Nothing to do yet.
-          <br />
-          A note becomes a task when it carries a tag in your <strong>Tasks</strong> group — create
-          that group in Settings, and anything actionable you write lands here.
+          Nothing to do. A note lands here when it carries a tag from your Tasks group.
         </p>
       </div>
     );

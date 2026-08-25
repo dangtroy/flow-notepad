@@ -305,10 +305,20 @@ function MessageRowBase({
             </div>
 
             {/* Tags live under the text and expand with the row. */}
-            {(tags.length > 0 || onAddTag) && (
+            {(tags.length > 0 || onAddTag || message.ai_status === "pending") && (
               <div className="flow-tagwrap">
                 <div>
                   <div className="flex flex-wrap items-center gap-3 pt-1.5">
+                    {/* Organising is still running: hold the space it will fill
+                        rather than letting tags shove the row on arrival. */}
+                    {tags.length === 0 && message.ai_status === "pending" && (
+                      <span
+                        aria-label="Organising…"
+                        className="font-mono text-micro leading-none tracking-[0.01em] text-ai-muted"
+                      >
+                        …
+                      </span>
+                    )}
                     {tags.map((tag) => {
                       // A tag Flow is still learning is offered, not asserted:
                       // a leading "?", the fainter AI tone, and ✓/✕ controls.

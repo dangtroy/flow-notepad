@@ -908,17 +908,9 @@ function FlowPage() {
                       ) : view === "pinned" ? (
                         <>Nothing pinned yet.</>
                       ) : isFiltered ? (
-                        <>
-                          Nothing tagged this way yet.
-                          <br />
-                          Choose All in the sidebar to see your whole stream.
-                        </>
+                        <>Nothing tagged this way yet.</>
                       ) : (
-                        <>
-                          This is your one continuous conversation.
-                          <br />
-                          Write your first thought below — it stays here.
-                        </>
+                        <>Write your first thought below — it stays here.</>
                       )}
                     </p>
                   </div>

@@ -18,6 +18,9 @@ import { cn } from "@/lib/utils";
 
 export const SUGGESTIONS_KEY = ["tag-suggestions"] as const;
 
+/** A digest stays readable at a glance; beyond five it becomes a queue. */
+const MAX_ROWS = 5;
+
 /**
  * The quiet half of organizing: anything Flow is unsure about waits here.
  * Nothing in this panel has changed the user's tags yet.
@@ -138,7 +141,8 @@ export function SuggestionsBell() {
             </p>
           )}
 
-          {list.map((suggestion) => (
+          {/* A digest, not an inbox: at most five, the rest wait their turn. */}
+          {list.slice(0, MAX_ROWS).map((suggestion) => (
             <SuggestionRow
               key={suggestion.id}
               suggestion={suggestion}
@@ -147,6 +151,12 @@ export function SuggestionsBell() {
               onIgnore={handleIgnore}
             />
           ))}
+
+          {count > MAX_ROWS && (
+            <p className="px-3.5 pb-3 pt-1 font-mono text-micro tracking-[0.01em] text-ai-muted">
+              {count - MAX_ROWS} more waiting
+            </p>
+          )}
         </div>
       </PopoverContent>
     </Popover>
@@ -167,7 +177,7 @@ function SuggestionRow({
   const [choosing, setChoosing] = useState(false);
 
   return (
-    <div className="border-b border-border/50 px-3.5 py-3 last:border-b-0">
+    <div className="group/sug px-3.5 py-3">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13.5px] font-medium text-foreground">{suggestion.name}</p>
@@ -176,10 +186,15 @@ function SuggestionRow({
             {suggestion.message_count} {suggestion.message_count === 1 ? "note" : "notes"}
             {suggestion.suggested_group_name ? ` · group: ${suggestion.suggested_group_name}` : ""}
           </p>
+          {/* Flow's reasoning is available, not asserted: it waits to be asked. */}
           {suggestion.reason && (
-            <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
-              {suggestion.reason}
-            </p>
+            <div className="grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-[160ms] ease-out group-focus-within/sug:grid-rows-[1fr] group-focus-within/sug:opacity-100 group-hover/sug:grid-rows-[1fr] group-hover/sug:opacity-100">
+              <div className="overflow-hidden">
+                <p className="pt-1.5 text-[12px] leading-relaxed text-muted-foreground">
+                  {suggestion.reason}
+                </p>
+              </div>
+            </div>
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
