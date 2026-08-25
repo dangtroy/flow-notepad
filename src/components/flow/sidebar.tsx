@@ -71,7 +71,12 @@ const ORGANIZE_VIEWS: Array<{ value: StreamView; label: string; icon: typeof Inb
 export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const search = useSearch({ strict: false }) as { tags?: string; mode?: "or" | "and" };
+  const search = useSearch({ strict: false }) as {
+    tags?: string;
+    mode?: "or" | "and";
+    view?: StreamView;
+    q?: string;
+  };
   const notepadId = useActiveNotepadId();
   const tags = useTags();
   const groups = useTagGroups();
@@ -83,10 +88,69 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const persistTag = useServerFn(saveTag);
   const persistGroup = useServerFn(saveTagGroup);
   const persistOrder = useServerFn(reorderTags);
+  const fetchCounts = useServerFn(getViewCounts);
+  const fetchTasks = useServerFn(getTasks);
 
   const [sortOpen, setSortOpen] = useState(false);
   const [dragTagId, setDragTagId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+
+  // Views and search live here now, so the stream keeps a clean header.
+  const activeView: StreamView = search.view ?? "all";
+  const urlQuery = search.q ?? "";
+  const [queryInput, setQueryInput] = useState(urlQuery);
+  useEffect(() => {
+    setQueryInput(urlQuery);
+  }, [urlQuery]);
+  useEffect(() => {
+    const next = queryInput.trim();
+    if (next === urlQuery) return;
+    const timer = window.setTimeout(() => {
+      void navigate({
+        to: "/",
+        search: (prev: Record<string, unknown>) => ({ ...prev, q: next || undefined }),
+        replace: true,
+      });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [queryInput, urlQuery, navigate]);
+
+  /** Local midnight, matching the stream's own "Today" boundary. */
+  const todaySince = useMemo(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date.toISOString();
+  }, []);
+
+  const { data: countsData } = useQuery({
+    queryKey: ["view-counts", notepadId ?? "none", todaySince] as const,
+    queryFn: () => fetchCounts({ data: { notepadId, since: todaySince } }),
+    enabled: Boolean(notepadId),
+  });
+  const { data: tasksData } = useQuery({
+    queryKey: ["tasks", notepadId ?? "none"] as const,
+    queryFn: () => fetchTasks({ data: { notepadId } }),
+    enabled: Boolean(notepadId),
+  });
+
+  const viewCounts: Record<StreamView, number> = {
+    all: countsData?.all ?? 0,
+    today: countsData?.today ?? 0,
+    tasks: (tasksData?.tasks ?? []).filter((task) => !task.is_completed).length,
+    pinned: countsData?.pinned ?? 0,
+    reference: countsData?.reference ?? 0,
+  };
+
+  function goView(value: StreamView) {
+    onNavigate?.();
+    void navigate({
+      to: "/",
+      search: {
+        ...(value === "all" ? {} : { view: value }),
+        ...(urlQuery ? { q: urlQuery } : {}),
+      },
+    });
+  }
 
   async function handleClearDone() {
     try {
