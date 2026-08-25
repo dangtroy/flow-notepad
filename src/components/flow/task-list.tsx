@@ -172,7 +172,7 @@ function TaskRow({
 
       <div className="flex shrink-0 items-center gap-1">
         {task.task_priority === "high" && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-destructive/80">
+          <span className="text-[11px] font-medium text-destructive/80">
             High
           </span>
         )}
@@ -230,7 +230,7 @@ export function TaskList({
           <div className="mb-3 flex items-center gap-3">
             <span
               className={cn(
-                "text-[10px] uppercase tracking-[0.18em]",
+                "text-[11px] font-medium",
                 group.key === "overdue" ? "text-destructive/80" : "text-muted-foreground/50",
               )}
             >

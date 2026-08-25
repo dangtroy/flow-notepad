@@ -76,7 +76,7 @@ export function ReferenceList({
       {groups.map((group) => (
         <section key={group.key}>
           <div className="mb-1.5 flex items-center gap-3">
-            <h2 className="font-mono text-micro uppercase tracking-[0.14em] text-ai">
+            <h2 className="text-[11px] font-medium text-ai">
               {group.label}
             </h2>
             <span className="font-mono text-micro tabular-nums text-ai-muted">

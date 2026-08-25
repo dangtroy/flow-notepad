@@ -4,10 +4,12 @@ import { PanelLeft } from "lucide-react";
 
 import { CommandMenu, useCommandMenu } from "@/components/flow/command-menu";
 import { SidebarBody } from "@/components/flow/sidebar";
+import { SettingsDialog } from "@/components/flow/settings/settings-dialog";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { FlowLogo } from "@/components/flow/flow-logo";
 import { NotepadSwitcher } from "@/components/flow/notepad-switcher";
 import { NotepadProvider } from "@/lib/use-notepad";
+import { SettingsDialogProvider } from "@/lib/use-settings-dialog";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -26,11 +28,14 @@ function AppShell() {
 
   return (
     <NotepadProvider>
+      <SettingsDialogProvider>
       <CommandMenu open={commandMenu.open} onOpenChange={commandMenu.setOpen} />
+      <SettingsDialog />
       <div className="flex h-dvh overflow-hidden bg-background">
       <aside className="hidden w-[var(--flow-sidebar-width,13.5rem)] shrink-0 border-r border-sidebar-border bg-sidebar md:block">
         <SidebarBody />
       </aside>
+
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-2 border-b border-border px-3 py-2 md:hidden">
@@ -58,6 +63,7 @@ function AppShell() {
         <Outlet />
         </div>
       </div>
+      </SettingsDialogProvider>
     </NotepadProvider>
   );
 }

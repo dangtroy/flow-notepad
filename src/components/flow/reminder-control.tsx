@@ -83,7 +83,7 @@ export function ReminderPopover({
         onClick={(event) => event.stopPropagation()}
         className="w-[min(17rem,86vw)] p-3"
       >
-        <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">Remind me</p>
+        <p className="text-[11px] font-medium text-muted-foreground/60">Remind me</p>
 
         <div className="mt-2 flex flex-col">
           {quickPicks.map((pick) => (
