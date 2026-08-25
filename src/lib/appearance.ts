@@ -63,12 +63,12 @@ export const APPEARANCE_EVENT = "flow-appearance";
  * palette was retuned.
  */
 export const ACCENTS: Record<AccentKey, { label: string; light: string; dark: string }> = {
-  blue: { label: "Indigo", light: "#3b5bdb", dark: "#6e8bff" },
-  teal: { label: "Teal", light: "oklch(0.52 0.075 190)", dark: "oklch(0.72 0.07 190)" },
-  violet: { label: "Violet", light: "oklch(0.52 0.095 295)", dark: "oklch(0.72 0.075 295)" },
-  amber: { label: "Amber", light: "oklch(0.58 0.09 70)", dark: "oklch(0.76 0.08 80)" },
-  rose: { label: "Rose", light: "oklch(0.55 0.1 18)", dark: "oklch(0.72 0.08 18)" },
-  graphite: { label: "Graphite", light: "oklch(0.42 0.01 264)", dark: "oklch(0.78 0.005 264)" },
+  blue: { label: "Indigo", light: "#4a61c9", dark: "#8b9ff0" },
+  teal: { label: "Teal", light: "oklch(0.54 0.065 190)", dark: "oklch(0.74 0.06 190)" },
+  violet: { label: "Violet", light: "oklch(0.54 0.08 295)", dark: "oklch(0.74 0.065 295)" },
+  amber: { label: "Amber", light: "oklch(0.6 0.08 70)", dark: "oklch(0.78 0.07 80)" },
+  rose: { label: "Rose", light: "oklch(0.57 0.085 18)", dark: "oklch(0.74 0.07 18)" },
+  graphite: { label: "Graphite", light: "oklch(0.45 0.008 264)", dark: "oklch(0.76 0.005 264)" },
 };
 
 /** Default is the system body size (15px); the others step around it. */
