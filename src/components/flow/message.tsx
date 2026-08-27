@@ -12,13 +12,17 @@ import {
   X,
 } from "lucide-react";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 
 import type { FlowMessage, MessageType } from "@/lib/flow.server";
-import { appendTagExclusion } from "@/lib/flow.functions";
+import { appendTagExclusion, saveTag } from "@/lib/flow.functions";
 import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
 import { tagAccent } from "@/lib/tag-colors";
-import { useTags } from "@/lib/use-tags";
+import { normalizeTag } from "@/lib/tag-normalize";
+import { useActiveNotepadId } from "@/lib/use-notepad";
+import { tagsKey, useTags } from "@/lib/use-tags";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -54,10 +58,42 @@ function TagPicker({
   onOpenChange: (open: boolean) => void;
 }) {
   const tags = useTags();
+  const notepadId = useActiveNotepadId();
+  const queryClient = useQueryClient();
+  const createTag = useServerFn(saveTag);
+  const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
   const available = (tags.data ?? []).filter((tag) => !appliedIds.includes(tag.id));
 
+  const query = search.trim();
+  const exactMatch = available.some((tag) => normalizeTag(tag.name) === normalizeTag(query));
+  const canCreate = Boolean(notepadId) && query.length > 0 && !exactMatch;
+
+  /** Creates the tag in this notepad, then applies it like any other pick. */
+  async function createAndPick(name: string) {
+    if (!notepadId || creating) return;
+    setCreating(true);
+    try {
+      const next = await createTag({ data: { notepadId, name, context: "" } });
+      queryClient.setQueryData(tagsKey(notepadId), next);
+      const created = next.find((tag) => normalizeTag(tag.name) === normalizeTag(name));
+      onOpenChange(false);
+      if (created) onPick(created.id);
+    } catch {
+      toast.error("Couldn't create that tag");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setSearch("");
+        onOpenChange(next);
+      }}
+    >
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -78,7 +114,12 @@ function TagPicker({
         className="w-56 p-0"
       >
         <Command>
-          <CommandInput placeholder="Find a tag…" className="text-[12.5px]" />
+          <CommandInput
+            placeholder="Find or create a tag…"
+            className="text-[12.5px]"
+            value={search}
+            onValueChange={setSearch}
+          />
           <CommandList>
             <CommandEmpty className="px-3 py-3 text-[12px] text-muted-foreground">
               No tag by that name
@@ -102,6 +143,19 @@ function TagPicker({
                   {tag.name}
                 </CommandItem>
               ))}
+              {canCreate && (
+                <CommandItem
+                  value={`create-${query}`}
+                  disabled={creating}
+                  onSelect={() => void createAndPick(query)}
+                  className="gap-2 text-[11.5px]"
+                >
+                  <Plus className="h-3 w-3 shrink-0 [stroke-width:1.4]" />
+                  <span className="truncate">
+                    Create tag <span className="font-mono">{query}</span>
+                  </span>
+                </CommandItem>
+              )}
             </CommandGroup>
           </CommandList>
         </Command>
