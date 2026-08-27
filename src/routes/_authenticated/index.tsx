@@ -918,8 +918,8 @@ function FlowPage() {
                 ) : (
                   grouped.map((group) => {
                     return (
-                      <section key={group.label} className={cn("mb-8", "last:mb-0")}>
-                        <div className={"mb-4 flex items-center gap-3"}>
+                      <section key={group.label} className={cn("mb-6 sm:mb-8", "last:mb-0")}>
+                        <div className={"mb-3 flex items-center gap-3 sm:mb-4"}>
                           <span className="h-px flex-1 bg-border" />
                           <span className="text-[11px] font-medium text-muted-foreground/60">
                             {group.label}
@@ -982,11 +982,13 @@ function FlowPage() {
           </div>
         </div>
 
-        <Composer
-          onSend={(html, cleanup, tagIds) => void handleSend(html, cleanup, tagIds)}
-          replyingTo={replyTo}
-          onCancelReply={() => setReplyTo(null)}
-        />
+        <div ref={composerWrapRef}>
+          <Composer
+            onSend={(html, cleanup, tagIds) => void handleSend(html, cleanup, tagIds)}
+            replyingTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
+          />
+        </div>
       </div>
 
       <AttentionRail {...railProps} open={railOpen} onOpenChange={setRailOpen} />
