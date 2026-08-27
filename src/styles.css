@@ -289,6 +289,12 @@
   font-size: var(--flow-text-size, 0.9375rem);
   line-height: var(--flow-line-height, 1.55);
   letter-spacing: 0;
+  /* Long words, URLs and pasted code stay inside the column instead of
+     pushing the whole stream sideways on a phone. */
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   /* Text at rest reads a touch lighter than pure foreground. */
   color: color-mix(in oklab, var(--foreground) 78%, var(--background));
 
@@ -376,6 +382,12 @@
     color: var(--muted-foreground);
   }
 
+  & table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
   & img {
     display: block;
     max-width: min(100%, 34rem);
@@ -399,6 +411,9 @@
   }
 
   & pre {
+    max-width: 100%;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
     font-family: var(--font-mono);
     font-size: 0.86em;
     line-height: 1.6;
@@ -574,6 +589,15 @@
     .flow-stream.meta-on-hover .flow-tagwrap {
       grid-template-rows: 1fr;
       opacity: 1;
+    }
+  }
+
+  /* Phones get a tighter rhythm: the same stream, less air between notes. */
+  @media (max-width: 639px) {
+    .flow-stream {
+      --flow-thread-gap: 1.1rem;
+      --flow-row-pad: 0.4rem;
+      --flow-reply-gap: 0.6rem;
     }
   }
 
