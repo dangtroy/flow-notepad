@@ -171,6 +171,7 @@ function FlowPage() {
   }, []);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const composerWrapRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<number | null>(null);
   const settledRef = useRef(false);
 
