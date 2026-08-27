@@ -638,7 +638,38 @@
   .flow-editor .tiptap ::selection {
     background-color: color-mix(in oklab, var(--primary) 30%, transparent);
   }
+
+  /* iOS zooms a page in whenever it focuses text smaller than 16px, and never
+     zooms back out. On touch, every writing surface and input stays at 16px. */
+  @media (pointer: coarse) {
+    .flow-editor .tiptap,
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+    textarea,
+    select,
+    [contenteditable="true"] {
+      font-size: max(16px, 1em);
+    }
+  }
+
+  /* Swipe-to-delete: the row slides, the affordance sits underneath it. */
+  .flow-swipe {
+    position: relative;
+    overflow: hidden;
+    touch-action: pan-y;
+  }
+
+  .flow-swipe > .flow-swipe-action {
+    position: absolute;
+    inset: 0 0 0 auto;
+    display: flex;
+    width: 5.5rem;
+    align-items: center;
+    justify-content: center;
+    color: var(--destructive);
+    background-color: color-mix(in oklab, var(--destructive) 14%, var(--background));
+  }
 }
+
 
 @layer utilities {
   @keyframes flow-in {
