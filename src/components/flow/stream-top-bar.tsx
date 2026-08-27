@@ -46,7 +46,13 @@ export function StreamTopBar({
     </button>
   );
 
-  if (slot) return createPortal(trigger, slot);
-
-  return <div className="flex justify-end px-4 pt-2 lg:hidden">{trigger}</div>;
+  return (
+    <>
+      {slot ? createPortal(trigger, slot) : null}
+      {/* Tablet band: the app header is hidden there, so the stream carries it. */}
+      <div className={slot ? "hidden md:flex md:justify-end md:px-6 md:pt-3 lg:hidden" : "flex justify-end px-4 pt-2 lg:hidden"}>
+        {trigger}
+      </div>
+    </>
+  );
 }
