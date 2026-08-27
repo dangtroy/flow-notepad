@@ -222,11 +222,64 @@ function MessageRowBase({
 
   const offset = isReply ? offsetLabel(message.created_at, parentCreatedAt) : null;
 
+  // Touch: swipe a row to the left to delete it, the way native note apps do.
+  const swipeStart = useRef<{ x: number; y: number; locked: boolean } | null>(null);
+  const [swipeX, setSwipeX] = useState(0);
+
+  function onTouchStart(event: React.TouchEvent) {
+    const touch = event.touches[0];
+    if (!touch || isEditing) return;
+    swipeStart.current = { x: touch.clientX, y: touch.clientY, locked: false };
+  }
+
+  function onTouchMove(event: React.TouchEvent) {
+    const start = swipeStart.current;
+    const touch = event.touches[0];
+    if (!start || !touch) return;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (!start.locked) {
+      if (Math.abs(dy) > Math.abs(dx)) {
+        swipeStart.current = null;
+        return;
+      }
+      if (Math.abs(dx) < 8) return;
+      start.locked = true;
+    }
+    setSwipeX(Math.max(-96, Math.min(0, dx)));
+  }
+
+  function onTouchEnd() {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    if (start?.locked && swipeX < -72) {
+      setSwipeX(0);
+      onDeleteNow();
+      return;
+    }
+    setSwipeX(0);
+  }
+
   return (
+    <div className="flow-swipe sm:overflow-visible">
+      {swipeX < 0 && (
+        <div className="flow-swipe-action" aria-hidden>
+          <Trash2 className="h-4 w-4" />
+        </div>
+      )}
     <article
       data-message-id={message.id}
       data-reply={isReply ? "true" : undefined}
       onClick={handleSurfaceClick}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchEnd}
+      style={{
+        transform: swipeX ? `translate3d(${swipeX}px,0,0)` : undefined,
+        transition: swipeStart.current ? "none" : "transform 180ms var(--ease-enter)",
+        backgroundColor: swipeX ? "var(--background)" : undefined,
+      }}
       className={cn(
         "flow-row group relative flex flex-wrap gap-3 rounded-md transition-colors duration-200 flow-row-pad sm:flex-nowrap sm:gap-4",
         actionsOpen && "flow-row-open",
@@ -235,6 +288,7 @@ function MessageRowBase({
         isReplyTarget && "bg-surface/55",
       )}
     >
+
       {/* Left margin: checkbox + timestamp, revealed with the rest of the row. */}
       <div
         className="flow-meta hidden w-24 shrink-0 flex-row items-center gap-2 sm:flex"
@@ -610,7 +664,9 @@ function MessageRowBase({
         </div>
       )}
     </article>
+    </div>
   );
+
 }
 
 /** A clock-face bell alternative: uniform stroke, no filled shapes. */

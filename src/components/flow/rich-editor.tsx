@@ -363,7 +363,11 @@ export function useFlowEditor({
           submitFromEditor();
           return true;
         }
+        // On phones and tablets Return means "new line", like every native note
+        // app; sending is the send button's job.
+        if (isTouchDevice()) return false;
         if (event.shiftKey) return false;
+
         // Inside a structured block Enter keeps its native meaning, so a
         // heading or a list can be followed by ordinary text in the same note.
         const inStructuredBlock =
