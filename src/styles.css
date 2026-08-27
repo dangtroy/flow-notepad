@@ -188,41 +188,42 @@
 }
 
 .dark {
-  /* Soft warm charcoal, not black; text is off-white so it never glares. */
-  --background: #1b1b1d;
-  --foreground: #e4e2de;
-  --surface: #212124;
-  --elevated: #2a2a2e;
+  /* Warm near-black, the same family as Claude's dark mode: a soft ink-brown
+     page, panels a step lighter, off-white text that never glares. */
+  --background: #1f1e1d;
+  --foreground: #f0eee6;
+  --surface: #262624;
+  --elevated: #30302d;
 
-  --card: #212124;
-  --card-foreground: #e4e2de;
-  --popover: #242427;
-  --popover-foreground: #e4e2de;
+  --card: #262624;
+  --card-foreground: #f0eee6;
+  --popover: #2a2a27;
+  --popover-foreground: #f0eee6;
 
   --primary: #8b9ff0;
-  --primary-foreground: #1b1b1d;
-  --accent-quiet: #272a35;
+  --primary-foreground: #1f1e1d;
+  --accent-quiet: #2b2c33;
 
-  --secondary: #26262a;
-  --secondary-foreground: #e4e2de;
+  --secondary: #2b2b28;
+  --secondary-foreground: #f0eee6;
 
-  --muted: #26262a;
-  --muted-foreground: #a3a09a;
+  --muted: #2b2b28;
+  --muted-foreground: #a8a49a;
 
   /* Neutral hover tone, not the design system's accent — see :root. */
-  --accent: #2a2a2e;
-  --accent-foreground: #e4e2de;
+  --accent: #30302d;
+  --accent-foreground: #f0eee6;
 
-  --destructive: #e08079;
-  --destructive-foreground: #1b1b1d;
-  --success: #77c48c;
+  --destructive: #e0817a;
+  --destructive-foreground: #1f1e1d;
+  --success: #7cc491;
 
-  --border: #303034;
-  --border-strong: #3d3d43;
-  --input: #3d3d43;
+  --border: #35342f;
+  --border-strong: #43423c;
+  --input: #43423c;
   --ring: #8b9ff0;
-  --ai: #a8a5a0;
-  --ai-muted: #6f6d68;
+  --ai: #b0aca2;
+  --ai-muted: #75726a;
 
   --chart-1: oklch(0.72 0.06 232);
   --chart-2: oklch(0.72 0.055 160);
@@ -230,13 +231,13 @@
   --chart-4: oklch(0.7 0.07 30);
   --chart-5: oklch(0.72 0.05 300);
 
-  --sidebar: #191919;
-  --sidebar-foreground: #e4e2de;
+  --sidebar: #1a1a18;
+  --sidebar-foreground: #f0eee6;
   --sidebar-primary: #8b9ff0;
-  --sidebar-primary-foreground: #1b1b1d;
-  --sidebar-accent: #2a2a2e;
-  --sidebar-accent-foreground: #e4e2de;
-  --sidebar-border: #2c2c30;
+  --sidebar-primary-foreground: #1f1e1d;
+  --sidebar-accent: #2b2b28;
+  --sidebar-accent-foreground: #f0eee6;
+  --sidebar-border: #2c2c28;
   --sidebar-ring: #8b9ff0;
 }
 
