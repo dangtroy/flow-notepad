@@ -12,13 +12,17 @@ import {
   X,
 } from "lucide-react";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 
 import type { FlowMessage, MessageType } from "@/lib/flow.server";
-import { appendTagExclusion } from "@/lib/flow.functions";
+import { appendTagExclusion, saveTag } from "@/lib/flow.functions";
 import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
 import { tagAccent } from "@/lib/tag-colors";
-import { useTags } from "@/lib/use-tags";
+import { normalizeTag } from "@/lib/tag-normalize";
+import { useActiveNotepadId } from "@/lib/use-notepad";
+import { tagsKey, useTags } from "@/lib/use-tags";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
