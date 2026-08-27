@@ -87,7 +87,13 @@ function TagPicker({
   }
 
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setSearch("");
+        onOpenChange(next);
+      }}
+    >
       <PopoverTrigger asChild>
         <button
           type="button"
