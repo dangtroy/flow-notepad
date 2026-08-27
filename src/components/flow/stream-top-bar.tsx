@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { PanelRight } from "lucide-react";
 
 export type StreamView = "all" | "today" | "tasks" | "pinned" | "reference";
@@ -11,8 +13,9 @@ export const STREAM_VIEWS: Array<{ value: StreamView; label: string }> = [
 ];
 
 /**
- * Views and search now live in the sidebar, so the stream header carries only
- * the small-screen way into the attention panel.
+ * Views and search live in the sidebar, so the stream contributes only the
+ * small-screen way into the attention panel — rendered into the app header's
+ * right slot so phones keep one bare header instead of two stacked bars.
  */
 export function StreamTopBar({
   attentionCount,
@@ -22,22 +25,28 @@ export function StreamTopBar({
   attentionCount: number;
   onOpenPanel: () => void;
 }) {
-  return (
-    <div className="flex justify-end px-5 pt-3 sm:px-8 lg:hidden">
-      <button
-        type="button"
-        onClick={onOpenPanel}
-        aria-label="Show attention panel"
-        title="Needs attention"
-        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted-foreground/70 transition-colors duration-150 hover:text-foreground"
-      >
-        <PanelRight className="h-3.5 w-3.5" />
-        {attentionCount > 0 && (
-          <span className="rounded-full bg-elevated px-1.5 py-0.5 font-mono text-micro tabular-nums text-ai-muted">
-            {attentionCount}
-          </span>
-        )}
-      </button>
-    </div>
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setSlot(document.getElementById("flow-header-right"));
+  }, []);
+
+  const trigger = (
+    <button
+      type="button"
+      onClick={onOpenPanel}
+      aria-label="Show attention panel"
+      title="Needs attention"
+      className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-colors duration-150 hover:bg-elevated hover:text-foreground"
+    >
+      <PanelRight className="h-4 w-4" />
+      {attentionCount > 0 && (
+        <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary" />
+      )}
+    </button>
   );
+
+  if (slot) return createPortal(trigger, slot);
+
+  return <div className="flex justify-end px-4 pt-2 lg:hidden">{trigger}</div>;
 }
