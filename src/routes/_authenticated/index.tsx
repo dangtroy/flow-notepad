@@ -327,6 +327,20 @@ function FlowPage() {
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  // Composer growing (or the mobile keyboard opening) must not hide the newest
+  // note: while we're already near the bottom, stay pinned to it.
+  useEffect(() => {
+    const wrap = composerWrapRef.current;
+    const element = scrollRef.current;
+    if (!wrap || !element) return;
+    const observer = new ResizeObserver(() => {
+      const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
+      if (distance < 240) element.scrollTop = element.scrollHeight;
+    });
+    observer.observe(wrap);
+    return () => observer.disconnect();
+  }, []);
+
   function scrollToBottom() {
     const element = scrollRef.current;
     if (!element) return;
