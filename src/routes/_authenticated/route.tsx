@@ -6,7 +6,6 @@ import { CommandMenu, useCommandMenu } from "@/components/flow/command-menu";
 import { SidebarBody } from "@/components/flow/sidebar";
 import { SettingsDialog } from "@/components/flow/settings/settings-dialog";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { FlowLogo } from "@/components/flow/flow-logo";
 import { NotepadSwitcher } from "@/components/flow/notepad-switcher";
 import { NotepadProvider } from "@/lib/use-notepad";
 import { SettingsDialogProvider } from "@/lib/use-settings-dialog";
