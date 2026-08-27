@@ -56,8 +56,11 @@ function AppShell() {
               <SidebarBody onNavigate={() => setDrawerOpen(false)} />
             </SheetContent>
           </Sheet>
-          <FlowLogo className="h-5" />
-          <NotepadSwitcher onNavigate={() => setDrawerOpen(false)} />
+          <div className="flex min-w-0 flex-1 items-center justify-center">
+            <NotepadSwitcher onNavigate={() => setDrawerOpen(false)} />
+          </div>
+          {/* The stream fills this slot with its attention-panel control. */}
+          <div id="flow-header-right" className="flex h-9 w-9 shrink-0 items-center justify-end" />
         </div>
 
         {/* Required: nested routes render here. */}
