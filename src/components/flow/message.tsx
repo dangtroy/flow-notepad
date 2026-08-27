@@ -108,7 +108,12 @@ function TagPicker({
         className="w-56 p-0"
       >
         <Command>
-          <CommandInput placeholder="Find a tag…" className="text-[12.5px]" />
+          <CommandInput
+            placeholder="Find or create a tag…"
+            className="text-[12.5px]"
+            value={search}
+            onValueChange={setSearch}
+          />
           <CommandList>
             <CommandEmpty className="px-3 py-3 text-[12px] text-muted-foreground">
               No tag by that name
