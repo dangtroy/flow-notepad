@@ -54,7 +54,33 @@ function TagPicker({
   onOpenChange: (open: boolean) => void;
 }) {
   const tags = useTags();
+  const notepadId = useActiveNotepadId();
+  const queryClient = useQueryClient();
+  const createTag = useServerFn(saveTag);
+  const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
   const available = (tags.data ?? []).filter((tag) => !appliedIds.includes(tag.id));
+
+  const query = search.trim();
+  const exactMatch = available.some((tag) => normalizeTag(tag.name) === normalizeTag(query));
+  const canCreate = Boolean(notepadId) && query.length > 0 && !exactMatch;
+
+  /** Creates the tag in this notepad, then applies it like any other pick. */
+  async function createAndPick(name: string) {
+    if (!notepadId || creating) return;
+    setCreating(true);
+    try {
+      const next = await createTag({ data: { notepadId, name, context: "" } });
+      queryClient.setQueryData(tagsKey(notepadId), next);
+      const created = next.find((tag) => normalizeTag(tag.name) === normalizeTag(name));
+      onOpenChange(false);
+      if (created) onPick(created.id);
+    } catch {
+      toast.error("Couldn't create that tag");
+    } finally {
+      setCreating(false);
+    }
+  }
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
