@@ -137,6 +137,19 @@ function TagPicker({
                   {tag.name}
                 </CommandItem>
               ))}
+              {canCreate && (
+                <CommandItem
+                  value={`create-${query}`}
+                  disabled={creating}
+                  onSelect={() => void createAndPick(query)}
+                  className="gap-2 text-[11.5px]"
+                >
+                  <Plus className="h-3 w-3 shrink-0 [stroke-width:1.4]" />
+                  <span className="truncate">
+                    Create tag <span className="font-mono">{query}</span>
+                  </span>
+                </CommandItem>
+              )}
             </CommandGroup>
           </CommandList>
         </Command>
