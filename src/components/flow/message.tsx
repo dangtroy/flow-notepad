@@ -664,7 +664,9 @@ function MessageRowBase({
         </div>
       )}
     </article>
+    </div>
   );
+
 }
 
 /** A clock-face bell alternative: uniform stroke, no filled shapes. */
