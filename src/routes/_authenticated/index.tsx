@@ -861,11 +861,11 @@ function FlowPage() {
         <div
           ref={scrollRef}
           onScroll={onScroll}
-          className="flex-1 overflow-y-auto overscroll-contain"
+          className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
         >
           <div
             className={cn(
-              "flow-stream flow-shell flex min-h-full flex-col px-5 pb-8 pt-8 sm:px-8",
+              "flow-stream flow-shell flex min-h-full min-w-0 flex-col px-4 pt-5 pb-6 sm:px-8 sm:pt-8 sm:pb-8",
               appearance.rowMeta === "hover" && "meta-on-hover",
               // Only the live stream reads bottom-up; the saved views are lists.
               view === "all" || view === "today" ? "justify-end" : "justify-start",
