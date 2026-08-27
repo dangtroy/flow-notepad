@@ -171,6 +171,7 @@ function FlowPage() {
   }, []);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const composerWrapRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<number | null>(null);
   const settledRef = useRef(false);
 
@@ -326,6 +327,20 @@ function FlowPage() {
       void fetchNextPage();
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Composer growing (or the mobile keyboard opening) must not hide the newest
+  // note: while we're already near the bottom, stay pinned to it.
+  useEffect(() => {
+    const wrap = composerWrapRef.current;
+    const element = scrollRef.current;
+    if (!wrap || !element) return;
+    const observer = new ResizeObserver(() => {
+      const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
+      if (distance < 240) element.scrollTop = element.scrollHeight;
+    });
+    observer.observe(wrap);
+    return () => observer.disconnect();
+  }, []);
 
   function scrollToBottom() {
     const element = scrollRef.current;
@@ -846,11 +861,11 @@ function FlowPage() {
         <div
           ref={scrollRef}
           onScroll={onScroll}
-          className="flex-1 overflow-y-auto overscroll-contain"
+          className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
         >
           <div
             className={cn(
-              "flow-stream flow-shell flex min-h-full flex-col px-5 pb-8 pt-8 sm:px-8",
+              "flow-stream flow-shell flex min-h-full min-w-0 flex-col px-4 pt-5 pb-6 sm:px-8 sm:pt-8 sm:pb-8",
               appearance.rowMeta === "hover" && "meta-on-hover",
               // Only the live stream reads bottom-up; the saved views are lists.
               view === "all" || view === "today" ? "justify-end" : "justify-start",
@@ -903,8 +918,8 @@ function FlowPage() {
                 ) : (
                   grouped.map((group) => {
                     return (
-                      <section key={group.label} className={cn("mb-8", "last:mb-0")}>
-                        <div className={"mb-4 flex items-center gap-3"}>
+                      <section key={group.label} className={cn("mb-6 sm:mb-8", "last:mb-0")}>
+                        <div className={"mb-3 flex items-center gap-3 sm:mb-4"}>
                           <span className="h-px flex-1 bg-border" />
                           <span className="text-[11px] font-medium text-muted-foreground/60">
                             {group.label}
@@ -967,11 +982,13 @@ function FlowPage() {
           </div>
         </div>
 
-        <Composer
-          onSend={(html, cleanup, tagIds) => void handleSend(html, cleanup, tagIds)}
-          replyingTo={replyTo}
-          onCancelReply={() => setReplyTo(null)}
-        />
+        <div ref={composerWrapRef}>
+          <Composer
+            onSend={(html, cleanup, tagIds) => void handleSend(html, cleanup, tagIds)}
+            replyingTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
+          />
+        </div>
       </div>
 
       <AttentionRail {...railProps} open={railOpen} onOpenChange={setRailOpen} />

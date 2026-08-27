@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
+  // Auth state is client-only; rendering this on the server hydrates mismatched.
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Sign in to Flow — your continuous thought stream" },

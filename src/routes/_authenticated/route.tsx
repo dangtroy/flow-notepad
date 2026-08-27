@@ -6,7 +6,6 @@ import { CommandMenu, useCommandMenu } from "@/components/flow/command-menu";
 import { SidebarBody } from "@/components/flow/sidebar";
 import { SettingsDialog } from "@/components/flow/settings/settings-dialog";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { FlowLogo } from "@/components/flow/flow-logo";
 import { NotepadSwitcher } from "@/components/flow/notepad-switcher";
 import { NotepadProvider } from "@/lib/use-notepad";
 import { SettingsDialogProvider } from "@/lib/use-settings-dialog";
@@ -38,11 +37,12 @@ function AppShell() {
 
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center gap-2 border-b border-border px-3 py-2 md:hidden">
+        {/* Phones get a bare header: one round control per side, nothing else. */}
+        <div className="flex items-center gap-2 px-3 py-2 md:hidden">
           <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
             <SheetTrigger
               aria-label="Open navigation"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
             >
               <PanelLeft className="h-4 w-4" />
             </SheetTrigger>
@@ -55,8 +55,11 @@ function AppShell() {
               <SidebarBody onNavigate={() => setDrawerOpen(false)} />
             </SheetContent>
           </Sheet>
-          <FlowLogo className="h-5" />
-          <NotepadSwitcher onNavigate={() => setDrawerOpen(false)} />
+          <div className="flex min-w-0 flex-1 items-center justify-center">
+            <NotepadSwitcher onNavigate={() => setDrawerOpen(false)} />
+          </div>
+          {/* The stream fills this slot with its attention-panel control. */}
+          <div id="flow-header-right" className="flex h-9 w-9 shrink-0 items-center justify-end" />
         </div>
 
         {/* Required: nested routes render here. */}
