@@ -6,6 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   ensurePreferences,
   loadDueReminders,
+  loadReminders,
   loadMessage,
   loadPinnedMessages,
   loadReferenceNotes,
