@@ -15,6 +15,7 @@ import {
   dismissReminder,
   getDueReminders,
   getPinnedMessages,
+  getReminders,
   getStreamPage,
   getTasks,
   getViewCounts,
@@ -46,6 +47,7 @@ import { AttentionRail } from "@/components/flow/attention-rail";
 import { STREAM_VIEWS, StreamTopBar, type StreamView } from "@/components/flow/stream-top-bar";
 import { ReferenceList } from "@/components/flow/reference-list";
 import { TaskList } from "@/components/flow/task-list";
+import { ReminderList } from "@/components/flow/reminder-list";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
@@ -127,6 +129,7 @@ function FlowPage() {
   const dismiss = useServerFn(dismissReminder);
   const fetchPinned = useServerFn(getPinnedMessages);
   const fetchDue = useServerFn(getDueReminders);
+  const fetchAllReminders = useServerFn(getReminders);
   const changeType = useServerFn(setMessageType);
   const fetchCounts = useServerFn(getViewCounts);
   const fetchWeek = useServerFn(getWeekStats);
@@ -144,6 +147,8 @@ function FlowPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; preview: string } | null>(null);
   const [railOpen, setRailOpen] = useState(true);
+  // Set when a task or reminder row asks for a note the current view can't show.
+  const [pendingJumpId, setPendingJumpId] = useState<string | null>(null);
   // Small screens have no room for the rail: it opens as a sheet instead.
   const [panelSheet, setPanelSheet] = useState(false);
   // The committed search lives in the URL; the sidebar owns the input.
@@ -216,7 +221,8 @@ function FlowPage() {
         },
       }),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: Boolean(notepadId) && view !== "reference" && view !== "tasks",
+    enabled:
+      Boolean(notepadId) && view !== "reference" && view !== "tasks" && view !== "reminders",
   });
 
   // Pages arrive newest-first; render them oldest-first.
@@ -625,6 +631,7 @@ function FlowPage() {
       }
     }
 
+    const snapshot = queryClient.getQueryData<Stream>(streamKey);
     queryClient.setQueryData<Stream>(streamKey, (current) =>
       current
         ? {
@@ -636,15 +643,34 @@ function FlowPage() {
           }
         : current,
     );
-    try {
-      await destroy({ data: { id: message.id } });
-      refreshPinsAndReminders();
-      void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
-      toast.success(doomed.size > 1 ? `Deleted ${doomed.size} thoughts` : "Deleted");
-    } catch {
-      void queryClient.invalidateQueries({ queryKey: ["stream"] });
-      toast.error("Could not delete that thought");
-    }
+    // The delete is held briefly so it can be taken back: the row is gone from
+    // the stream immediately, but nothing is destroyed until the window closes.
+    let undone = false;
+    const commit = window.setTimeout(() => {
+      if (undone) return;
+      destroy({ data: { id: message.id } })
+        .then(() => {
+          refreshPinsAndReminders();
+          void queryClient.invalidateQueries({ queryKey: tagsKey(notepadId) });
+        })
+        .catch(() => {
+          void queryClient.invalidateQueries({ queryKey: ["stream"] });
+          toast.error("Could not delete that thought");
+        });
+    }, 6000);
+
+    toast(doomed.size > 1 ? `Deleted ${doomed.size} thoughts` : "Deleted", {
+      duration: 6000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          undone = true;
+          window.clearTimeout(commit);
+          queryClient.setQueryData<Stream>(streamKey, snapshot);
+          toast.success("Restored");
+        },
+      },
+    });
   }
 
   async function handleSaveEdit(message: FlowMessage, html: string) {
@@ -703,6 +729,15 @@ function FlowPage() {
     queryFn: () => fetchWeek({ data: { notepadId } }),
     enabled: Boolean(notepadId),
   });
+
+  const allRemindersKey = useMemo(() => ["reminders-all", notepadId ?? "none"] as const, [notepadId]);
+  const allRemindersQuery = useQuery({
+    queryKey: allRemindersKey,
+    queryFn: () => fetchAllReminders({ data: { notepadId } }),
+    enabled: Boolean(notepadId),
+    refetchInterval: 60000,
+  });
+  const allReminders = allRemindersQuery.data?.messages ?? [];
 
   const tasksKey = useMemo(() => ["tasks", notepadId ?? "none"] as const, [notepadId]);
   const tasksQuery = useQuery({
@@ -765,6 +800,7 @@ function FlowPage() {
     all: countsData?.all ?? 0,
     today: countsData?.today ?? 0,
     tasks: allTasks.filter((task) => !task.is_completed).length,
+    reminders: allReminders.length,
     pinned: countsData?.pinned ?? 0,
     reference: countsData?.reference ?? 0,
   };
@@ -775,6 +811,7 @@ function FlowPage() {
   const refreshPinsAndReminders = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: pinnedKey });
     void queryClient.invalidateQueries({ queryKey: remindersKey });
+    void queryClient.invalidateQueries({ queryKey: ["reminders-all"] });
     void queryClient.invalidateQueries({ queryKey: ["view-counts"] });
     void queryClient.invalidateQueries({ queryKey: ["week-stats"] });
     void queryClient.invalidateQueries({ queryKey: ["tasks"] });
@@ -791,6 +828,32 @@ function FlowPage() {
       toast("That thought is further back — scroll up to load it.");
     }
   }, []);
+
+  /**
+   * A task or reminder row points at an ordinary note: switch to the stream and
+   * flash the note itself, loading it first if the view has to change.
+   */
+  const openNote = useCallback(
+    (id: string) => {
+      if (view === "all" || view === "today") {
+        jumpToMessage(id);
+        return;
+      }
+      setPendingJumpId(id);
+      void navigate({ search: (prev) => ({ ...prev, view: undefined }) });
+    },
+    [view, jumpToMessage, navigate],
+  );
+
+  useEffect(() => {
+    if (!pendingJumpId || isPending) return;
+    if (view !== "all" && view !== "today") return;
+    const timer = window.setTimeout(() => {
+      jumpToMessage(pendingJumpId);
+      setPendingJumpId(null);
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [pendingJumpId, isPending, view, jumpToMessage]);
 
   async function handleSetReminder(message: FlowMessage, iso: string | null) {
     patchMessage(message.id, { remind_at: iso, reminder_dismissed_at: null });
@@ -878,6 +941,16 @@ function FlowPage() {
                 onToggleComplete={(task) => void handleTaskComplete(task)}
                 onSetDue={(task, iso) => void handleTaskDue(task, iso)}
                 onRemoveTask={(task) => void handleRemoveTask(task)}
+                onOpenNote={(task) => openNote(task.id)}
+              />
+            ) : view === "reminders" ? (
+              <ReminderList
+                reminders={allReminders}
+                isPending={allRemindersQuery.isPending}
+                onOpenNote={(message) => openNote(message.id)}
+                onSnooze={(message, iso) => void handleSetReminder(message, iso)}
+                onComplete={(message) => void handleCompleteFromReminder(message)}
+                onDismiss={(message) => void handleDismissReminder(message)}
               />
             ) : view === "reference" ? (
               <ReferenceList
