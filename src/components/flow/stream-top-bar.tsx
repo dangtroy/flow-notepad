@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { PanelRight } from "lucide-react";
 
-export type StreamView = "all" | "today" | "tasks" | "pinned" | "reference";
+export type StreamView = "all" | "today" | "tasks" | "reminders" | "pinned" | "reference";
 
 export const STREAM_VIEWS: Array<{ value: StreamView; label: string }> = [
   { value: "all", label: "Notes" },
   { value: "today", label: "Today" },
   { value: "tasks", label: "Tasks" },
+  { value: "reminders", label: "Reminders" },
   { value: "pinned", label: "Pinned" },
   { value: "reference", label: "References" },
 ];
