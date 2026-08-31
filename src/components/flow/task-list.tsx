@@ -129,7 +129,7 @@ function TaskRow({
   onToggleComplete: (task: FlowTask) => void;
   onSetDue: (task: FlowTask, iso: string | null) => void;
   onRemoveTask: (task: FlowTask) => void;
-  onOpenNote?: (task: FlowTask) => void;
+  onOpenNote?: ((task: FlowTask) => void) | undefined;
 }) {
   return (
     <div
