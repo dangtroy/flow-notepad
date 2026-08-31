@@ -6,6 +6,7 @@ import {
   MoreHorizontal,
   Pin,
   Plus,
+  Pencil,
   Reply,
   RotateCcw,
   Trash2,
@@ -236,15 +237,6 @@ function MessageRowBase({
     [message.content_html, message.content],
   );
 
-  /** The note itself is the editor: clicking the text opens it in place. */
-  function handleSurfaceClick(event: React.MouseEvent<HTMLElement>) {
-    if (isEditing) return;
-    const target = event.target as HTMLElement;
-    if (target.closest("button, a, input, label")) return;
-    if (window.getSelection()?.toString()) return;
-    onStartEdit();
-  }
-
   // While a popup from the action bar is open, the bar must stay put.
   const [reminderOpen, setReminderOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -324,7 +316,6 @@ function MessageRowBase({
     <article
       data-message-id={message.id}
       data-reply={isReply ? "true" : undefined}
-      onClick={handleSurfaceClick}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -337,7 +328,7 @@ function MessageRowBase({
       className={cn(
         "flow-row group relative flex flex-wrap gap-3 rounded-md transition-colors duration-200 flow-row-pad sm:flex-nowrap sm:gap-4",
         actionsOpen && "flow-row-open",
-        !isEditing && "cursor-text",
+
         isEditing && "bg-surface",
         isReplyTarget && "bg-surface/55",
       )}
@@ -690,6 +681,11 @@ function MessageRowBase({
                   <DropdownMenuSeparator />
                 </>
               )}
+              <DropdownMenuItem onSelect={() => onStartEdit()}>
+                <Pencil className="h-3.5 w-3.5" />
+                Edit note
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               {message.ai_cleaned && onRestoreOriginal && (
                 <>
                   <DropdownMenuItem onSelect={() => onRestoreOriginal()}>

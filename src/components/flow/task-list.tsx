@@ -123,11 +123,13 @@ function TaskRow({
   onToggleComplete,
   onSetDue,
   onRemoveTask,
+  onOpenNote,
 }: {
   task: FlowTask;
   onToggleComplete: (task: FlowTask) => void;
   onSetDue: (task: FlowTask, iso: string | null) => void;
   onRemoveTask: (task: FlowTask) => void;
+  onOpenNote?: (task: FlowTask) => void;
 }) {
   return (
     <div
@@ -149,14 +151,18 @@ function TaskRow({
       />
 
       <div className="min-w-0 flex-1">
-        <p
+        <button
+          type="button"
+          onClick={() => onOpenNote?.(task)}
+          title="Open the note this task came from"
           className={cn(
-            "flow-prose text-[0.9975rem] leading-[1.65]",
+            "flow-prose block w-full text-left text-[0.9975rem] leading-[1.65] transition-colors",
+            onOpenNote && "hover:text-foreground",
             task.is_completed && "line-through decoration-muted-foreground/50",
           )}
         >
           {task.label ?? task.content}
-        </p>
+        </button>
         {task.label && (
           // The AI's imperative form is a display aid; the note's own words stay.
           <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground/50">{task.content}</p>
@@ -202,12 +208,15 @@ export function TaskList({
   onToggleComplete,
   onSetDue,
   onRemoveTask,
+  onOpenNote,
 }: {
   tasks: FlowTask[];
   isPending?: boolean;
   onToggleComplete: (task: FlowTask) => void;
   onSetDue: (task: FlowTask, iso: string | null) => void;
   onRemoveTask: (task: FlowTask) => void;
+  /** Tasks are notes: a row opens the note it was extracted from. */
+  onOpenNote?: (task: FlowTask) => void;
 }) {
   const groups = useMemo(() => groupTasks(tasks), [tasks]);
 
@@ -249,6 +258,7 @@ export function TaskList({
                 onToggleComplete={onToggleComplete}
                 onSetDue={onSetDue}
                 onRemoveTask={onRemoveTask}
+                onOpenNote={onOpenNote}
               />
             ))}
           </div>
