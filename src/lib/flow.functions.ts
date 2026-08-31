@@ -6,6 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   ensurePreferences,
   loadDueReminders,
+  loadReminders,
   loadMessage,
   loadPinnedMessages,
   loadReferenceNotes,
@@ -1451,6 +1452,21 @@ export const getDueReminders = createServerFn({ method: "GET" })
       messages: await loadDueReminders(context.supabase, context.userId, notepadId),
     };
   });
+
+/** Due and upcoming reminders together, for the Reminders view. */
+export const getReminders = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { notepadId?: string | null }) => ({
+    notepadId: input?.notepadId ?? null,
+  }))
+  .handler(async ({ data, context }) => {
+    const notepadId = await resolveNotepad(context.supabase, context.userId, data.notepadId);
+    return {
+      notepadId,
+      messages: await loadReminders(context.supabase, context.userId, notepadId),
+    };
+  });
+
 
 /* ---------- Note types (stream / pinned / reference) ---------- */
 

@@ -539,6 +539,28 @@ export async function loadDueReminders(
 }
 
 /**
+ * Every live reminder, due or still ahead, oldest first: the Reminders view
+ * shows what's overdue and what's coming up in one list.
+ */
+export async function loadReminders(
+  supabase: Client,
+  userId: string,
+  notepadId: string,
+): Promise<FlowMessage[]> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select(MESSAGE_SELECT)
+    .eq("user_id", userId)
+    .eq("conversation_id", notepadId)
+    .not("remind_at", "is", null)
+    .is("reminder_dismissed_at", null)
+    .order("remind_at", { ascending: true })
+    .limit(200);
+  if (error) throw error;
+  return ((data ?? []) as unknown as MessageRow[]).map(mapMessage);
+}
+
+/**
  * Reference notes: permanently useful facts with no action expected. Small lists
  * by nature, so no pagination — just a sane cap.
  */

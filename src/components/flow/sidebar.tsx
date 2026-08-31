@@ -1,6 +1,7 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlarmClock,
   CalendarDays,
   Check,
   CheckCheck,
@@ -28,6 +29,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
   clearCompleted,
+  getReminders,
   getTasks,
   getViewCounts,
   reorderTags,
@@ -60,6 +62,7 @@ const INBOX_VIEWS: Array<{ value: StreamView; label: string; icon: typeof Inbox 
   { value: "all", label: "Notes", icon: Inbox },
   { value: "today", label: "Today", icon: CalendarDays },
   { value: "tasks", label: "Tasks", icon: CheckSquare },
+  { value: "reminders", label: "Reminders", icon: AlarmClock },
 ];
 
 const ORGANIZE_VIEWS: Array<{ value: StreamView; label: string; icon: typeof Inbox }> = [
@@ -90,6 +93,7 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const persistOrder = useServerFn(reorderTags);
   const fetchCounts = useServerFn(getViewCounts);
   const fetchTasks = useServerFn(getTasks);
+  const fetchReminders = useServerFn(getReminders);
 
   const [sortOpen, setSortOpen] = useState(false);
   const [dragTagId, setDragTagId] = useState<string | null>(null);
@@ -133,10 +137,17 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
     enabled: Boolean(notepadId),
   });
 
+  const { data: remindersData } = useQuery({
+    queryKey: ["reminders-all", notepadId ?? "none"] as const,
+    queryFn: () => fetchReminders({ data: { notepadId } }),
+    enabled: Boolean(notepadId),
+  });
+
   const viewCounts: Record<StreamView, number> = {
     all: countsData?.all ?? 0,
     today: countsData?.today ?? 0,
     tasks: (tasksData?.tasks ?? []).filter((task) => !task.is_completed).length,
+    reminders: (remindersData?.messages ?? []).length,
     pinned: countsData?.pinned ?? 0,
     reference: countsData?.reference ?? 0,
   };
