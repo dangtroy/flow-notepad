@@ -336,7 +336,7 @@ function MessageRowBase({
 
       {/* Left margin: checkbox + timestamp, revealed with the rest of the row. */}
       <div
-        className="flow-meta hidden w-24 shrink-0 flex-row items-center gap-2 sm:flex"
+        className="flow-meta hidden shrink-0 flex-row items-center gap-2 whitespace-nowrap sm:flex"
         style={{ height: "26.4px" }}
       >
         {!message.is_completed && (
@@ -365,7 +365,13 @@ function MessageRowBase({
       </div>
 
       <div
-        className={cn("min-w-0 flex-1", isReply && "flow-reply-rail pl-3.5 sm:pl-4")}
+        className={cn(
+          "min-w-0 flex-1",
+          isReply && "flow-reply-rail pl-3.5 sm:pl-4",
+          // Reserve the right margin the hover actions live in, so a long line
+          // never runs underneath them.
+          !isEditing && "sm:pr-40",
+        )}
         style={depth > 1 ? { marginLeft: `${(depth - 1) * 1.1}rem` } : undefined}
       >
         {isEditing ? (
