@@ -939,20 +939,71 @@ function FlowPage() {
     onJump: jumpToMessage,
   };
 
+  /**
+   * Pull the stream past either end to write. The composer stays out of the way
+   * on phones — the page is the notes — and the gesture brings it up.
+   */
+  function onPullStart(event: React.TouchEvent) {
+    const element = scrollRef.current;
+    const touch = event.touches[0];
+    if (!isTouch || !element || !touch) return;
+    const distanceToBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+    pullStart.current = {
+      y: touch.clientY,
+      atTop: element.scrollTop <= 1,
+      atBottom: distanceToBottom <= 1,
+    };
+  }
+
+  function onPullMove(event: React.TouchEvent) {
+    const start = pullStart.current;
+    const touch = event.touches[0];
+    if (!start || !touch) return;
+    const dy = touch.clientY - start.y;
+    // Down at the top, or up at the newest note: both reach for the composer.
+    const distance = start.atTop && dy > 0 ? dy : start.atBottom && dy < 0 ? -dy : 0;
+    setPull(Math.min(110, Math.max(0, distance * 0.55)));
+  }
+
+  function onPullEnd() {
+    const armed = pull > 44;
+    pullStart.current = null;
+    setPull(0);
+    if (armed) setComposerSheet(true);
+  }
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
       {/* min-w-0 keeps a long note from widening the column past the screen. */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <StreamTopBar
           attentionCount={dueReminders.length + pinned.length}
           onOpenPanel={() => setPanelSheet(true)}
         />
 
+        {/* The pull affordance: quiet, and only while the gesture is happening. */}
+        {pull > 0 && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center pt-2"
+            style={{ opacity: Math.min(1, pull / 44) }}
+          >
+            <span className="rounded-full bg-surface/90 px-3 py-1 text-[11px] text-muted-foreground shadow-float">
+              {pull > 44 ? "Release to write" : "Pull to write"}
+            </span>
+          </div>
+        )}
+
         <div
           ref={scrollRef}
           onScroll={onScroll}
+          onTouchStart={onPullStart}
+          onTouchMove={onPullMove}
+          onTouchEnd={onPullEnd}
+          onTouchCancel={onPullEnd}
           className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
         >
+
           <div
             className={cn(
               "flow-stream flow-shell flex min-h-full min-w-0 flex-col px-4 pt-5 pb-6 sm:px-8 sm:pt-8 sm:pb-8",
