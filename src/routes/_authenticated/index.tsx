@@ -518,7 +518,7 @@ function FlowPage() {
         original_content_html: cleanup?.originalHtml ?? null,
         is_pinned: false,
         pinned_at: null,
-        remind_at: null,
+        remind_at: remindAt,
         reminder_dismissed_at: null,
         tags: [],
         tentativeTagIds: [],
@@ -538,6 +538,15 @@ function FlowPage() {
         },
       });
       patchMessage(tempId, saved as FlowMessage);
+      // A time written into the note becomes a real reminder on the saved row.
+      if (remindAt) {
+        try {
+          const withReminder = await remind({ data: { id: saved.id, remindAt } });
+          patchMessage(saved.id, withReminder as FlowMessage);
+        } catch {
+          toast.error("Saved — but the reminder couldn’t be set");
+        }
+      }
       refreshPinsAndReminders();
       await applyComposerTags(saved.id, tagIds);
       void organizeInBackground(saved.id);
@@ -545,6 +554,7 @@ function FlowPage() {
       patchStream((current) => current.filter((m) => m.id !== tempId));
       toast.error(error instanceof Error ? error.message : "Could not save that thought");
     }
+
   }
 
   /** Reference notes live outside the stream cache, so they refetch on change. */
