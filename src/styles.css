@@ -591,7 +591,19 @@
       grid-template-rows: 1fr;
       opacity: 1;
     }
+
+    /* Touch notes read as text only: one tap pops the row's actions out. */
+    .flow-row[data-tap-reveal] > .flow-acts {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .flow-row[data-tap-reveal].flow-row-open > .flow-acts {
+      opacity: 1;
+      pointer-events: auto;
+    }
   }
+
 
   /* Phones get a tighter rhythm: the same stream, less air between notes. */
   @media (max-width: 639px) {
