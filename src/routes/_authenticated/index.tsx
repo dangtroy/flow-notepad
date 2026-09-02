@@ -1166,6 +1166,31 @@ function FlowPage() {
           />
         </SheetContent>
       </Sheet>
+
+      {/* Phones: the writing surface arrives when it's asked for, then leaves. */}
+      <Sheet
+        open={composerSheet}
+        onOpenChange={(open) => {
+          setComposerSheet(open);
+          if (!open) setReplyTo(null);
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          className="max-h-[85dvh] border-border bg-surface p-0 sm:hidden"
+        >
+          <SheetTitle className="sr-only">Write a note</SheetTitle>
+          <Composer
+            focusOnMount
+            onSend={(html, cleanup, tagIds, remindAt) =>
+              void handleSend(html, cleanup, tagIds, remindAt)
+            }
+            replyingTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
+          />
+        </SheetContent>
+      </Sheet>
+
     </div>
   );
 }
