@@ -11,6 +11,7 @@ import {
   setCleanupPreference,
 } from "@/lib/flow.functions";
 import { dragHasFiles, imageFilesFrom } from "@/lib/images";
+import { parseReminder, reminderChipLabel } from "@/lib/natural-date";
 import { normalizeTag } from "@/lib/tag-normalize";
 import { tagAccent } from "@/lib/tag-colors";
 import { tagsKey, useTags } from "@/lib/use-tags";
@@ -30,6 +31,11 @@ import {
 
 export type CleanupMeta = { originalHtml: string; cleanedHtml: string } | null;
 
+/** Unfinished writing survives a refresh, a crash, or a wrong tap. */
+function draftKey(notepadId: string | null | undefined) {
+  return `flow:draft:${notepadId ?? "none"}`;
+}
+
 /**
  * The persistent writing surface. Minimal at rest, grows with the thought, and
  * only reveals formatting once the user is actually writing.
@@ -38,15 +44,22 @@ export function Composer({
   onSend,
   replyingTo,
   onCancelReply,
+  focusOnMount,
 }: {
-  onSend: (html: string, cleanup: CleanupMeta, tagIds: string[]) => void;
+  onSend: (html: string, cleanup: CleanupMeta, tagIds: string[], remindAt: string | null) => void;
   replyingTo?: { id: string; preview: string } | null;
   onCancelReply?: () => void;
+  /** Set when the composer opens on purpose (the mobile writing sheet). */
+  focusOnMount?: boolean;
 }) {
   const [isEmpty, setIsEmpty] = useState(true);
   const [focused, setFocused] = useState(false);
   const [pinnedToolbar, setPinnedToolbar] = useState(false);
   const [dropping, setDropping] = useState(false);
+  /** Plain text of what's being written — the reminder reader works on this. */
+  const [text, setText] = useState("");
+  const [reminderOff, setReminderOff] = useState(false);
+
 
 
   const queryClient = useQueryClient();
