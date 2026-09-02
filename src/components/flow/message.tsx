@@ -23,6 +23,8 @@ import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
 import { tagAccent } from "@/lib/tag-colors";
 import { normalizeTag } from "@/lib/tag-normalize";
 import { useActiveNotepadId } from "@/lib/use-notepad";
+import { useIsTouch } from "@/lib/use-touch";
+
 import { tagsKey, useTags } from "@/lib/use-tags";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
