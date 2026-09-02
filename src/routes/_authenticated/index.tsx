@@ -454,7 +454,15 @@ function FlowPage() {
     }
   }
 
-  async function handleSend(html: string, cleanup: CleanupMeta, tagIds: string[] = []) {
+  async function handleSend(
+    html: string,
+    cleanup: CleanupMeta,
+    tagIds: string[] = [],
+    remindAt: string | null = null,
+  ) {
+    // On phones the composer is a sheet: sending closes it again.
+    setComposerSheet(false);
+
     // Sending while the Reference view is open keeps the note there.
     if (view === "reference") {
       try {
