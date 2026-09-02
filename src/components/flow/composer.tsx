@@ -256,6 +256,15 @@ export function Composer({
     cleanupRef.current = null;
     setPendingTagIds([]);
     setToken(null);
+    setText("");
+    setReminderOff(false);
+    if (notepadId) {
+      try {
+        window.localStorage.removeItem(draftKey(notepadId));
+      } catch {
+        // Nothing to clean up if storage is unavailable.
+      }
+    }
     editor.commands.focus("end");
   }
 
@@ -288,9 +297,11 @@ export function Composer({
       html,
       state ? { originalHtml: state.originalHtml, cleanedHtml: state.cleanedHtml } : null,
       pendingTagIds,
+      reminderAt ? reminderAt.toISOString() : null,
     );
     reset();
   }
+
 
   /** Send. With Always on, cleanup runs first and the note sends automatically. */
   async function submit() {
