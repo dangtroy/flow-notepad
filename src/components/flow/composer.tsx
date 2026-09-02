@@ -373,6 +373,28 @@ export function Composer({
             })}
           </div>
         )}
+        {/* A time written into the note is offered as a reminder before sending. */}
+        {reminderAt && (
+          <div className="mb-2 flex items-center gap-2 text-[11.5px] text-muted-foreground">
+            <AlarmGlyph />
+            <span className="min-w-0 truncate">
+              Remind me{" "}
+              <span className="text-foreground">{reminderChipLabel(reminderAt)}</span>
+              {parsedReminder?.phrase && (
+                <span className="text-muted-foreground/60"> · “{parsedReminder.phrase}”</span>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={() => setReminderOff(true)}
+              aria-label="Don’t set a reminder"
+              className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-foreground"
+            >
+              <X className="h-2.5 w-2.5 [stroke-width:1.6]" />
+            </button>
+          </div>
+        )}
+
         <div
           onDragOver={(event) => {
             if (!dragHasFiles(event.dataTransfer)) return;
