@@ -9,6 +9,8 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
+import { registerServiceWorker } from "@/lib/pwa";
+
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
@@ -116,6 +118,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400..600&display=swap",
       },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/app-icon-192.png" },
     ],
   }),
 
@@ -143,6 +147,10 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   // Applies the saved appearance (theme, accent, rhythm) once after hydration.
   useAppearance();
+  // Installed app: register the worker once, and never inside the editor.
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
 
 
   return (
