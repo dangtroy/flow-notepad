@@ -151,6 +151,13 @@ function FlowPage() {
   const [pendingJumpId, setPendingJumpId] = useState<string | null>(null);
   // Small screens have no room for the rail: it opens as a sheet instead.
   const [panelSheet, setPanelSheet] = useState(false);
+  // Phones keep the page to the notes alone: the composer opens as a sheet when
+  // the stream is pulled past either end, the way pocket note apps do.
+  const isTouch = useIsTouch();
+  const [composerSheet, setComposerSheet] = useState(false);
+  const [pull, setPull] = useState(0);
+  const pullStart = useRef<{ y: number; atTop: boolean; atBottom: boolean } | null>(null);
+
   // The committed search lives in the URL; the sidebar owns the input.
   const query = search.q ?? "";
 
