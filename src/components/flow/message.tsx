@@ -23,6 +23,8 @@ import { sanitizeHtml, textToHtml } from "@/lib/rich-text";
 import { tagAccent } from "@/lib/tag-colors";
 import { normalizeTag } from "@/lib/tag-normalize";
 import { useActiveNotepadId } from "@/lib/use-notepad";
+import { useIsTouch } from "@/lib/use-touch";
+
 import { tagsKey, useTags } from "@/lib/use-tags";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -268,7 +270,39 @@ function MessageRowBase({
 
   const offset = isReply ? offsetLabel(message.created_at, parentCreatedAt) : null;
 
-  // Touch: swipe a row to the left to delete it, the way native note apps do.
+  // Touch: the row is text only until it's tapped. First tap pops the actions
+  // out, a second tap on the text itself opens the editor.
+  const isTouch = useIsTouch();
+  const [expanded, setExpanded] = useState(false);
+  const rowRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!expanded) return;
+    function onOutside(event: Event) {
+      const node = rowRef.current;
+      if (node && event.target instanceof Node && node.contains(event.target)) return;
+      setExpanded(false);
+    }
+    document.addEventListener("pointerdown", onOutside, true);
+    return () => document.removeEventListener("pointerdown", onOutside, true);
+  }, [expanded]);
+
+  useEffect(() => {
+    if (isEditing) setExpanded(false);
+  }, [isEditing]);
+
+  function handleTap(event: React.MouseEvent) {
+    if (!isTouch || isEditing) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("a, button, input, textarea, [role='checkbox'], [contenteditable]")) return;
+    if (!expanded) {
+      setExpanded(true);
+      return;
+    }
+    if (target?.closest(".flow-prose")) onStartEdit();
+  }
+
+  // Swipe left to delete, swipe right to cross a note off — like native notes.
   const swipeStart = useRef<{ x: number; y: number; locked: boolean } | null>(null);
   const [swipeX, setSwipeX] = useState(0);
 
@@ -292,7 +326,7 @@ function MessageRowBase({
       if (Math.abs(dx) < 8) return;
       start.locked = true;
     }
-    setSwipeX(Math.max(-96, Math.min(0, dx)));
+    setSwipeX(Math.max(-96, Math.min(96, dx)));
   }
 
   function onTouchEnd() {
@@ -301,6 +335,11 @@ function MessageRowBase({
     if (start?.locked && swipeX < -72) {
       setSwipeX(0);
       onDeleteNow();
+      return;
+    }
+    if (start?.locked && swipeX > 72) {
+      setSwipeX(0);
+      onToggleComplete();
       return;
     }
     setSwipeX(0);
@@ -313,9 +352,21 @@ function MessageRowBase({
           <Trash2 className="h-4 w-4" />
         </div>
       )}
+      {swipeX > 0 && (
+        <div className="flow-swipe-done" aria-hidden>
+          {message.is_completed ? (
+            <RotateCcw className="h-4 w-4" />
+          ) : (
+            <Check className="h-4 w-4" />
+          )}
+        </div>
+      )}
     <article
+      ref={rowRef}
       data-message-id={message.id}
       data-reply={isReply ? "true" : undefined}
+      data-tap-reveal={isTouch ? "true" : undefined}
+      onClick={handleTap}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -327,12 +378,14 @@ function MessageRowBase({
       }}
       className={cn(
         "flow-row group relative flex flex-wrap gap-3 rounded-md transition-colors duration-200 flow-row-pad sm:flex-nowrap sm:gap-4",
-        actionsOpen && "flow-row-open",
+        (actionsOpen || expanded) && "flow-row-open",
 
         isEditing && "bg-surface",
+        expanded && "bg-surface/55",
         isReplyTarget && "bg-surface/55",
       )}
     >
+
 
       {/* Left margin: checkbox + timestamp, revealed with the rest of the row. */}
       <div

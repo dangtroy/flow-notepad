@@ -11,6 +11,7 @@ import {
   setCleanupPreference,
 } from "@/lib/flow.functions";
 import { dragHasFiles, imageFilesFrom } from "@/lib/images";
+import { parseReminder, reminderChipLabel } from "@/lib/natural-date";
 import { normalizeTag } from "@/lib/tag-normalize";
 import { tagAccent } from "@/lib/tag-colors";
 import { tagsKey, useTags } from "@/lib/use-tags";
@@ -30,6 +31,11 @@ import {
 
 export type CleanupMeta = { originalHtml: string; cleanedHtml: string } | null;
 
+/** Unfinished writing survives a refresh, a crash, or a wrong tap. */
+function draftKey(notepadId: string | null | undefined) {
+  return `flow:draft:${notepadId ?? "none"}`;
+}
+
 /**
  * The persistent writing surface. Minimal at rest, grows with the thought, and
  * only reveals formatting once the user is actually writing.
@@ -38,15 +44,22 @@ export function Composer({
   onSend,
   replyingTo,
   onCancelReply,
+  focusOnMount,
 }: {
-  onSend: (html: string, cleanup: CleanupMeta, tagIds: string[]) => void;
+  onSend: (html: string, cleanup: CleanupMeta, tagIds: string[], remindAt: string | null) => void;
   replyingTo?: { id: string; preview: string } | null;
   onCancelReply?: () => void;
+  /** Set when the composer opens on purpose (the mobile writing sheet). */
+  focusOnMount?: boolean;
 }) {
   const [isEmpty, setIsEmpty] = useState(true);
   const [focused, setFocused] = useState(false);
   const [pinnedToolbar, setPinnedToolbar] = useState(false);
   const [dropping, setDropping] = useState(false);
+  /** Plain text of what's being written — the reminder reader works on this. */
+  const [text, setText] = useState("");
+  const [reminderOff, setReminderOff] = useState(false);
+
 
 
   const queryClient = useQueryClient();
@@ -94,6 +107,11 @@ export function Composer({
     if (replyId && editor) editor.commands.focus("end");
   }, [replyId, editor]);
 
+  // The mobile writing sheet opens on purpose, so it may take the keyboard.
+  useEffect(() => {
+    if (focusOnMount && editor) editor.commands.focus("end");
+  }, [focusOnMount, editor]);
+
   // The caret decides whether the autocomplete is open, so follow every change.
   useEffect(() => {
     if (!editor) return;
@@ -103,6 +121,56 @@ export function Composer({
       editor.off("transaction", sync);
     };
   }, [editor]);
+
+  /**
+   * Draft recovery. Unfinished writing is written to this device as it's typed
+   * and restored the next time the composer opens, so a reload never loses a
+   * half-formed thought. It's cleared the moment the note is actually sent.
+   */
+  const restoredFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!editor || !notepadId) return;
+    const key = draftKey(notepadId);
+    if (restoredFor.current === key) return;
+    restoredFor.current = key;
+    try {
+      const saved = window.localStorage.getItem(key);
+      if (saved && editor.isEmpty) {
+        editor.commands.setContent(saved);
+        setIsEmpty(editor.isEmpty);
+        setText(editor.getText());
+      }
+    } catch {
+      // Private-mode storage failures never block writing.
+    }
+  }, [editor, notepadId]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const save = () => {
+      setText(editor.getText());
+      if (!notepadId) return;
+      try {
+        if (editor.isEmpty) window.localStorage.removeItem(draftKey(notepadId));
+        else window.localStorage.setItem(draftKey(notepadId), editor.getHTML());
+      } catch {
+        // Ignore quota / private-mode errors.
+      }
+    };
+    editor.on("update", save);
+    return () => {
+      editor.off("update", save);
+    };
+  }, [editor, notepadId]);
+
+  /** A time written into the note becomes an offered reminder, never a silent one. */
+  const parsedReminder = useMemo(() => (text.trim() ? parseReminder(text) : null), [text]);
+  const reminderAt = reminderOff ? null : (parsedReminder?.at ?? null);
+
+  useEffect(() => {
+    setReminderOff(false);
+  }, [parsedReminder?.at?.getTime()]);
+
 
   const allTags = tags.data ?? [];
   const query = token?.query ?? "";
@@ -188,6 +256,15 @@ export function Composer({
     cleanupRef.current = null;
     setPendingTagIds([]);
     setToken(null);
+    setText("");
+    setReminderOff(false);
+    if (notepadId) {
+      try {
+        window.localStorage.removeItem(draftKey(notepadId));
+      } catch {
+        // Nothing to clean up if storage is unavailable.
+      }
+    }
     editor.commands.focus("end");
   }
 
@@ -220,9 +297,11 @@ export function Composer({
       html,
       state ? { originalHtml: state.originalHtml, cleanedHtml: state.cleanedHtml } : null,
       pendingTagIds,
+      reminderAt ? reminderAt.toISOString() : null,
     );
     reset();
   }
+
 
   /** Send. With Always on, cleanup runs first and the note sends automatically. */
   async function submit() {
@@ -294,6 +373,28 @@ export function Composer({
             })}
           </div>
         )}
+        {/* A time written into the note is offered as a reminder before sending. */}
+        {reminderAt && (
+          <div className="mb-2 flex items-center gap-2 text-[11.5px] text-muted-foreground">
+            <AlarmGlyph />
+            <span className="min-w-0 truncate">
+              Remind me{" "}
+              <span className="text-foreground">{reminderChipLabel(reminderAt)}</span>
+              {parsedReminder?.phrase && (
+                <span className="text-muted-foreground/60"> · “{parsedReminder.phrase}”</span>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={() => setReminderOff(true)}
+              aria-label="Don’t set a reminder"
+              className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-foreground"
+            >
+              <X className="h-2.5 w-2.5 [stroke-width:1.6]" />
+            </button>
+          </div>
+        )}
+
         <div
           onDragOver={(event) => {
             if (!dragHasFiles(event.dataTransfer)) return;
@@ -514,5 +615,24 @@ export function Composer({
         </div>
       </div>
     </div>
+  );
+}
+
+/** Same clock-face bell as the note actions, at chip size. */
+function AlarmGlyph() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-3.5 w-3.5 shrink-0"
+      aria-hidden
+    >
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
   );
 }

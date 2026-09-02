@@ -591,7 +591,19 @@
       grid-template-rows: 1fr;
       opacity: 1;
     }
+
+    /* Touch notes read as text only: one tap pops the row's actions out. */
+    .flow-row[data-tap-reveal] > .flow-acts {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .flow-row[data-tap-reveal].flow-row-open > .flow-acts {
+      opacity: 1;
+      pointer-events: auto;
+    }
   }
+
 
   /* Phones get a tighter rhythm: the same stream, less air between notes. */
   @media (max-width: 639px) {
@@ -669,6 +681,19 @@
     color: var(--destructive);
     background-color: color-mix(in oklab, var(--destructive) 14%, var(--background));
   }
+
+  /* Swipe the other way to cross a note off: the same idea, mirrored. */
+  .flow-swipe > .flow-swipe-done {
+    position: absolute;
+    inset: 0 auto 0 0;
+    display: flex;
+    width: 5.5rem;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    background-color: color-mix(in oklab, var(--primary) 14%, var(--background));
+  }
+
 }
 
 

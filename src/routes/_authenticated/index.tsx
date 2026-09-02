@@ -1,3 +1,4 @@
+import { Pencil } from "lucide-react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   useInfiniteQuery,
@@ -40,6 +41,8 @@ import { tagIdsFrom, type FilterMode } from "@/lib/tag-filter";
 import { useAppearance } from "@/lib/use-appearance";
 import { referenceKey, tagsKey, useReferenceNotes } from "@/lib/use-tags";
 import { useActiveNotepadId } from "@/lib/use-notepad";
+import { useIsTouch } from "@/lib/use-touch";
+
 import { useSettingsDialog } from "@/lib/use-settings-dialog";
 import { Composer, type CleanupMeta } from "@/components/flow/composer";
 import { MessageRow } from "@/components/flow/message";
@@ -151,6 +154,13 @@ function FlowPage() {
   const [pendingJumpId, setPendingJumpId] = useState<string | null>(null);
   // Small screens have no room for the rail: it opens as a sheet instead.
   const [panelSheet, setPanelSheet] = useState(false);
+  // Phones keep the page to the notes alone: the composer opens as a sheet when
+  // the stream is pulled past either end, the way pocket note apps do.
+  const isTouch = useIsTouch();
+  const [composerSheet, setComposerSheet] = useState(false);
+  const [pull, setPull] = useState(0);
+  const pullStart = useRef<{ y: number; atTop: boolean; atBottom: boolean } | null>(null);
+
   // The committed search lives in the URL; the sidebar owns the input.
   const query = search.q ?? "";
 
@@ -454,7 +464,15 @@ function FlowPage() {
     }
   }
 
-  async function handleSend(html: string, cleanup: CleanupMeta, tagIds: string[] = []) {
+  async function handleSend(
+    html: string,
+    cleanup: CleanupMeta,
+    tagIds: string[] = [],
+    remindAt: string | null = null,
+  ) {
+    // On phones the composer is a sheet: sending closes it again.
+    setComposerSheet(false);
+
     // Sending while the Reference view is open keeps the note there.
     if (view === "reference") {
       try {
@@ -501,7 +519,7 @@ function FlowPage() {
         original_content_html: cleanup?.originalHtml ?? null,
         is_pinned: false,
         pinned_at: null,
-        remind_at: null,
+        remind_at: remindAt,
         reminder_dismissed_at: null,
         tags: [],
         tentativeTagIds: [],
@@ -521,6 +539,15 @@ function FlowPage() {
         },
       });
       patchMessage(tempId, saved as FlowMessage);
+      // A time written into the note becomes a real reminder on the saved row.
+      if (remindAt) {
+        try {
+          const withReminder = await remind({ data: { id: saved.id, remindAt } });
+          patchMessage(saved.id, withReminder as FlowMessage);
+        } catch {
+          toast.error("Saved — but the reminder couldn’t be set");
+        }
+      }
       refreshPinsAndReminders();
       await applyComposerTags(saved.id, tagIds);
       void organizeInBackground(saved.id);
@@ -528,6 +555,7 @@ function FlowPage() {
       patchStream((current) => current.filter((m) => m.id !== tempId));
       toast.error(error instanceof Error ? error.message : "Could not save that thought");
     }
+
   }
 
   /** Reference notes live outside the stream cache, so they refetch on change. */
@@ -912,20 +940,71 @@ function FlowPage() {
     onJump: jumpToMessage,
   };
 
+  /**
+   * Pull the stream past either end to write. The composer stays out of the way
+   * on phones — the page is the notes — and the gesture brings it up.
+   */
+  function onPullStart(event: React.TouchEvent) {
+    const element = scrollRef.current;
+    const touch = event.touches[0];
+    if (!isTouch || !element || !touch) return;
+    const distanceToBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+    pullStart.current = {
+      y: touch.clientY,
+      atTop: element.scrollTop <= 1,
+      atBottom: distanceToBottom <= 1,
+    };
+  }
+
+  function onPullMove(event: React.TouchEvent) {
+    const start = pullStart.current;
+    const touch = event.touches[0];
+    if (!start || !touch) return;
+    const dy = touch.clientY - start.y;
+    // Down at the top, or up at the newest note: both reach for the composer.
+    const distance = start.atTop && dy > 0 ? dy : start.atBottom && dy < 0 ? -dy : 0;
+    setPull(Math.min(110, Math.max(0, distance * 0.55)));
+  }
+
+  function onPullEnd() {
+    const armed = pull > 44;
+    pullStart.current = null;
+    setPull(0);
+    if (armed) setComposerSheet(true);
+  }
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
       {/* min-w-0 keeps a long note from widening the column past the screen. */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <StreamTopBar
           attentionCount={dueReminders.length + pinned.length}
           onOpenPanel={() => setPanelSheet(true)}
         />
 
+        {/* The pull affordance: quiet, and only while the gesture is happening. */}
+        {pull > 0 && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center pt-2"
+            style={{ opacity: Math.min(1, pull / 44) }}
+          >
+            <span className="rounded-full bg-surface/90 px-3 py-1 text-[11px] text-muted-foreground shadow-float">
+              {pull > 44 ? "Release to write" : "Pull to write"}
+            </span>
+          </div>
+        )}
+
         <div
           ref={scrollRef}
           onScroll={onScroll}
+          onTouchStart={onPullStart}
+          onTouchMove={onPullMove}
+          onTouchEnd={onPullEnd}
+          onTouchCancel={onPullEnd}
           className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
         >
+
           <div
             className={cn(
               "flow-stream flow-shell flex min-h-full min-w-0 flex-col px-4 pt-5 pb-6 sm:px-8 sm:pt-8 sm:pb-8",
@@ -1035,12 +1114,15 @@ function FlowPage() {
                                   onToggleComplete={() => void handleToggleComplete(message)}
                                   onDeleteNow={() => void handleDeleteNow(message)}
                                   onRestoreOriginal={() => void handleRestoreOriginal(message)}
-                                  onReply={() =>
+                                  onReply={() => {
                                     setReplyTo({
                                       id: message.id,
                                       preview: message.content.slice(0, 120),
-                                    })
-                                  }
+                                    });
+                                    // Touch: the writing sheet has to come up too.
+                                    if (isTouch) setComposerSheet(true);
+                                  }}
+
                                 />
                               ))}
                             </div>
@@ -1055,14 +1137,32 @@ function FlowPage() {
           </div>
         </div>
 
-        <div ref={composerWrapRef}>
-          <Composer
-            onSend={(html, cleanup, tagIds) => void handleSend(html, cleanup, tagIds)}
-            replyingTo={replyTo}
-            onCancelReply={() => setReplyTo(null)}
-          />
-        </div>
+        {/* Pointer devices keep the always-there writing surface. */}
+        {!isTouch && (
+          <div ref={composerWrapRef}>
+            <Composer
+              onSend={(html, cleanup, tagIds, remindAt) =>
+                void handleSend(html, cleanup, tagIds, remindAt)
+              }
+              replyingTo={replyTo}
+              onCancelReply={() => setReplyTo(null)}
+            />
+          </div>
+        )}
+
+        {/* A quiet way in, for anyone who never finds the pull gesture. */}
+        {isTouch && !composerSheet && (
+          <button
+            type="button"
+            onClick={() => setComposerSheet(true)}
+            aria-label="Write a note"
+            className="absolute bottom-5 right-5 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground shadow-float transition-colors active:bg-elevated active:text-foreground sm:hidden"
+          >
+            <Pencil className="h-4 w-4 [stroke-width:1.5]" />
+          </button>
+        )}
       </div>
+
 
       <AttentionRail {...railProps} open={railOpen} onOpenChange={setRailOpen} />
 
@@ -1082,6 +1182,31 @@ function FlowPage() {
           />
         </SheetContent>
       </Sheet>
+
+      {/* Phones: the writing surface arrives when it's asked for, then leaves. */}
+      <Sheet
+        open={composerSheet}
+        onOpenChange={(open) => {
+          setComposerSheet(open);
+          if (!open) setReplyTo(null);
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          className="max-h-[85dvh] border-border bg-surface p-0 sm:hidden"
+        >
+          <SheetTitle className="sr-only">Write a note</SheetTitle>
+          <Composer
+            focusOnMount
+            onSend={(html, cleanup, tagIds, remindAt) =>
+              void handleSend(html, cleanup, tagIds, remindAt)
+            }
+            replyingTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
+          />
+        </SheetContent>
+      </Sheet>
+
     </div>
   );
 }
