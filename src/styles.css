@@ -681,6 +681,19 @@
     color: var(--destructive);
     background-color: color-mix(in oklab, var(--destructive) 14%, var(--background));
   }
+
+  /* Swipe the other way to cross a note off: the same idea, mirrored. */
+  .flow-swipe > .flow-swipe-done {
+    position: absolute;
+    inset: 0 auto 0 0;
+    display: flex;
+    width: 5.5rem;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    background-color: color-mix(in oklab, var(--primary) 14%, var(--background));
+  }
+
 }
 
 
