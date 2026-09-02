@@ -1133,13 +1133,19 @@ function FlowPage() {
           </div>
         </div>
 
-        <div ref={composerWrapRef}>
-          <Composer
-            onSend={(html, cleanup, tagIds) => void handleSend(html, cleanup, tagIds)}
-            replyingTo={replyTo}
-            onCancelReply={() => setReplyTo(null)}
-          />
-        </div>
+        {/* Pointer devices keep the always-there writing surface. */}
+        {!isTouch && (
+          <div ref={composerWrapRef}>
+            <Composer
+              onSend={(html, cleanup, tagIds, remindAt) =>
+                void handleSend(html, cleanup, tagIds, remindAt)
+              }
+              replyingTo={replyTo}
+              onCancelReply={() => setReplyTo(null)}
+            />
+          </div>
+        )}
+
       </div>
 
       <AttentionRail {...railProps} open={railOpen} onOpenChange={setRailOpen} />
