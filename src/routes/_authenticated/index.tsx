@@ -1149,7 +1149,19 @@ function FlowPage() {
           </div>
         )}
 
+        {/* A quiet way in, for anyone who never finds the pull gesture. */}
+        {isTouch && !composerSheet && (
+          <button
+            type="button"
+            onClick={() => setComposerSheet(true)}
+            aria-label="Write a note"
+            className="absolute bottom-5 right-5 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground shadow-float transition-colors active:bg-elevated active:text-foreground sm:hidden"
+          >
+            <Pencil className="h-4 w-4 [stroke-width:1.5]" />
+          </button>
+        )}
       </div>
+
 
       <AttentionRail {...railProps} open={railOpen} onOpenChange={setRailOpen} />
 
