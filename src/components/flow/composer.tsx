@@ -107,6 +107,11 @@ export function Composer({
     if (replyId && editor) editor.commands.focus("end");
   }, [replyId, editor]);
 
+  // The mobile writing sheet opens on purpose, so it may take the keyboard.
+  useEffect(() => {
+    if (focusOnMount && editor) editor.commands.focus("end");
+  }, [focusOnMount, editor]);
+
   // The caret decides whether the autocomplete is open, so follow every change.
   useEffect(() => {
     if (!editor) return;
@@ -116,6 +121,56 @@ export function Composer({
       editor.off("transaction", sync);
     };
   }, [editor]);
+
+  /**
+   * Draft recovery. Unfinished writing is written to this device as it's typed
+   * and restored the next time the composer opens, so a reload never loses a
+   * half-formed thought. It's cleared the moment the note is actually sent.
+   */
+  const restoredFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!editor || !notepadId) return;
+    const key = draftKey(notepadId);
+    if (restoredFor.current === key) return;
+    restoredFor.current = key;
+    try {
+      const saved = window.localStorage.getItem(key);
+      if (saved && editor.isEmpty) {
+        editor.commands.setContent(saved);
+        setIsEmpty(editor.isEmpty);
+        setText(editor.getText());
+      }
+    } catch {
+      // Private-mode storage failures never block writing.
+    }
+  }, [editor, notepadId]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const save = () => {
+      setText(editor.getText());
+      if (!notepadId) return;
+      try {
+        if (editor.isEmpty) window.localStorage.removeItem(draftKey(notepadId));
+        else window.localStorage.setItem(draftKey(notepadId), editor.getHTML());
+      } catch {
+        // Ignore quota / private-mode errors.
+      }
+    };
+    editor.on("update", save);
+    return () => {
+      editor.off("update", save);
+    };
+  }, [editor, notepadId]);
+
+  /** A time written into the note becomes an offered reminder, never a silent one. */
+  const parsedReminder = useMemo(() => (text.trim() ? parseReminder(text) : null), [text]);
+  const reminderAt = reminderOff ? null : (parsedReminder?.at ?? null);
+
+  useEffect(() => {
+    setReminderOff(false);
+  }, [parsedReminder?.at?.getTime()]);
+
 
   const allTags = tags.data ?? [];
   const query = token?.query ?? "";
