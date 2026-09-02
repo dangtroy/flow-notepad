@@ -1113,12 +1113,15 @@ function FlowPage() {
                                   onToggleComplete={() => void handleToggleComplete(message)}
                                   onDeleteNow={() => void handleDeleteNow(message)}
                                   onRestoreOriginal={() => void handleRestoreOriginal(message)}
-                                  onReply={() =>
+                                  onReply={() => {
                                     setReplyTo({
                                       id: message.id,
                                       preview: message.content.slice(0, 120),
-                                    })
-                                  }
+                                    });
+                                    // Touch: the writing sheet has to come up too.
+                                    if (isTouch) setComposerSheet(true);
+                                  }}
+
                                 />
                               ))}
                             </div>
